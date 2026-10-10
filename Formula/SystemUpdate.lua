@@ -1,12 +1,13 @@
 #!lua
 -- SystemUpdate: installs a firmware version over WiFi. The list comes from the firmware index on GitHub.
--- usage: SystemUpdate                 menu: up/down choose, Enter installs (y confirms), q quits
---        SystemUpdate list            prints the available versions
---        SystemUpdate install LABEL   installs one version after a y/N question
+-- usage: SystemUpdate                   menu: w/s or ;/. choose (Fn+;/Fn+. work too), 1-9 picks, enter installs
+--        SystemUpdate list              prints the available versions with their numbers
+--        SystemUpdate install X         installs the version called X (label or number), after a y/N question
 -- The image is checked (size and SHA-256) before the device switches to it.
 
 local INDEX_URL = "https://raw.githubusercontent.com/evilesp/cardputer-firmware/main/index.txt"
 local CURRENT = sys.version()
+local LIST_ROWS = 12  -- versions shown in the menu at once (rows 1..12 of the 16-row screen)
 
 local function loadVersions()
   if not net.connected() then return nil, "no WiFi connection (wifi connect SSID PASS)" end
@@ -29,6 +30,10 @@ end
 local function sizeText(bytes)
   if bytes <= 0 then return "" end
   return string.format("%d KB", bytes // 1024)
+end
+
+local function tagOf(v)
+  return v.label == CURRENT and " (installed)" or ""
 end
 
 local function askYesNo(question)
@@ -63,39 +68,56 @@ end
 -- the interactive list; returns the entry the user confirmed, or nil
 local function menu(versions)
   term.fullscreen(true)
-  local sel, pending, message = 1, nil, nil
+  local sel, top, pending = 1, 1, nil
   local chosen = nil
   while true do
+    local quit = false
     local k = key.poll()
     while k do
       if pending then
-        if k == "y" then chosen = pending; break
-        else pending = nil end
+        if k == "y" then
+          chosen = pending
+          break
+        end
+        pending = nil  -- any other key answers "no"
       elseif k == "q" then
-        chosen = nil
+        quit = true
         break
-      elseif k == "up" then sel = math.max(1, sel - 1)
-      elseif k == "down" then sel = math.min(#versions, sel + 1)
+      elseif k == "up" or k == "w" or k == ";" then
+        sel = math.max(1, sel - 1)
+      elseif k == "down" or k == "s" or k == "." then
+        sel = math.min(#versions, sel + 1)
       elseif k == "enter" then
         pending = versions[sel]
-        message = nil
+      elseif k:match("^[1-9]$") and versions[tonumber(k)] then
+        sel = tonumber(k)
+        pending = versions[sel]
       end
       k = key.poll()
     end
-    if chosen or k == "q" then break end
+    if chosen or quit then break end
+
+    -- keep the selected version inside the visible rows
+    if sel < top then top = sel end
+    if sel >= top + LIST_ROWS then top = sel - LIST_ROWS + 1 end
 
     term.clear()
-    term.text(0, 0, "SystemUpdate  installed: " .. CURRENT, "white")
-    for i, v in ipairs(versions) do
-      local marker = i == sel and "> " or "  "
-      local tag = v.label == CURRENT and "  (installed)" or ""
-      term.text(0, 1 + i, (marker .. v.label .. tag .. "  " .. sizeText(v.size)):sub(1, 40),
-        i == sel and "white" or "text")
+    term.text(0, 0, ("SystemUpdate  installed: " .. CURRENT):sub(1, 40), "white")
+    for row = 0, LIST_ROWS - 1 do
+      local i = top + row
+      local v = versions[i]
+      if v then
+        local marker = i == sel and "> " or "  "
+        term.text(0, 1 + row, (marker .. i .. " " .. v.label .. tagOf(v) .. "  " .. sizeText(v.size)):sub(1, 40),
+          i == sel and "white" or "text")
+      end
     end
     if pending then
-      term.text(0, 15, ("install " .. pending.label .. "? y = yes, any key = no"):sub(1, 40), "warn")
+      term.text(0, 14, ("install " .. pending.label .. "?"):sub(1, 40), "warn")
+      term.text(0, 15, "y = yes, any other key = no", "warn")
     else
-      term.text(0, 15, message or "up/dn choose  enter install  q quit", "dim")
+      term.text(0, 14, "w/s or ;/. choose, 1-9 pick", "dim")
+      term.text(0, 15, "enter install   q quit", "dim")
     end
     term.flush()
     sys.sleep(60)
@@ -114,27 +136,32 @@ if #versions == 0 then
   return
 end
 
+-- a label (v0.1.0.1) or a number from the list (1, 2, ...)
+local function find(wanted)
+  if wanted:match("^%d+$") then return versions[tonumber(wanted)] end
+  for _, v in ipairs(versions) do
+    if v.label == wanted then return v end
+  end
+  return nil
+end
+
 local cmd = arg[1]
 if cmd == nil then
   local entry = menu(versions)
   if entry then install(entry) end
 elseif cmd == "list" then
   print("installed: " .. CURRENT)
-  for _, v in ipairs(versions) do
-    local tag = v.label == CURRENT and " (installed)" or ""
-    print(string.format("%s  %s%s", v.label, sizeText(v.size), tag))
+  for i, v in ipairs(versions) do
+    print(string.format("%d  %s  %s%s", i, v.label, sizeText(v.size), tagOf(v)))
   end
 elseif cmd == "install" then
   local wanted = table.concat(arg, " ", 2)
-  local entry
-  for _, v in ipairs(versions) do
-    if v.label == wanted then entry = v end
-  end
+  local entry = find(wanted)
   if not entry then
     print("SystemUpdate: no version called '" .. wanted .. "' (see SystemUpdate list)")
     return
   end
   if askYesNo("install " .. entry.label .. "?") then install(entry) end
 else
-  print("usage: SystemUpdate | SystemUpdate list | SystemUpdate install LABEL")
+  print("usage: SystemUpdate | SystemUpdate list | SystemUpdate install LABEL|NUMBER")
 end
