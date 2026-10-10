@@ -7,19 +7,13 @@
 local COLS, ROWS = term.size()
 local TEXT_ROWS = ROWS - 2
 local WIDTH = COLS - 1
-local SEARCH_URL = "https://html.duckduckgo.com/html/?q="
--- DuckDuckGo answers 202 (a bot check) to clients that do not look like a browser
+-- Sites answer 202 (a bot check) to clients that do not look like a browser
 local BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 -- The ADV has no PSRAM: pages are read in 40 KB, so the browser stays inside the internal RAM
-local SEARCH_BYTES = 64 * 1024
 local PAGE_BYTES = 40 * 1024
 local PER_PAGE = 8  -- pictures on one screen: 4 columns, 2 rows
 
 ---------------------------------------------------------------- text helpers
-
-local function urlEncode(s)
-  return (s:gsub("[^%w%-%._~]", function(c) return string.format("%%%02X", c:byte()) end))
-end
 
 local function urlDecode(s)
   s = s:gsub("%+", " ")
@@ -100,27 +94,6 @@ local function resolveUrl(base, href)
 end
 
 ---------------------------------------------------------------- HTML
-
--- search results from DuckDuckGo's HTML page
-local function parseResults(html)
-  local items, current = {}, nil
-  for attrs, inner in html:gmatch("<a(%s[^>]*)>(.-)</a>") do
-    local class = attrs:match('class="([^"]*)"') or ""
-    if class:find("result__a", 1, true) then
-      local href = attrs:match('href="([^"]*)"') or ""
-      local url = resolveUrl("https://duckduckgo.com/", href)
-      if url then
-        current = { title = clean(inner), url = url, snippet = "" }
-        items[#items + 1] = current
-      else
-        current = nil
-      end
-    elseif class:find("result__snippet", 1, true) and current then
-      current.snippet = clean(inner)
-    end
-  end
-  return items
-end
 
 local BLOCK = {
   p = true, div = true, li = true, h1 = true, h2 = true, h3 = true, h4 = true, h5 = true, h6 = true,
@@ -211,17 +184,17 @@ local function fetchPage(url, maxBytes)
   return body, truncated
 end
 
+-- The device reads the results page itself (search.web), so no page text is built here
 local function doSearch(query)
   status = "searching DuckDuckGo..."
   term.clear()
   term.text(0, 7, status, "cyan")
   term.flush()
-  local body, info = fetchPage(SEARCH_URL .. urlEncode(query), SEARCH_BYTES)
-  if not body then
-    status = "search failed: " .. tostring(info)
+  local items, err = search.web(query)
+  if not items then
+    status = "search failed: " .. tostring(err)
     return
   end
-  local items = parseResults(body)
   status = #items == 0 and "no results for this search" or nil
   push(view)
   view = { kind = "results", query = query, items = items, sel = 1, top = 1 }
@@ -313,11 +286,17 @@ local function drawImages()
     term.text(0, ROWS - 1, "arrows move  enter open  / new  b back", "dim")
   end
   term.flush()
-  -- pictures go on top of the text, cell by cell (a download meter may show on the last row meanwhile)
+  -- pictures go on top of the text, cell by cell (a download meter may show on the last row meanwhile).
+  -- This runs on every screen update, so a picture that failed is not fetched again.
   for i = first, last do
-    local slot = i - first
-    local col, row = slot % 4, slot // 4
-    term.image(v.items[i].thumb, col * 60 + 2, row == 0 and 8 or 64, 0.5)
+    local item = v.items[i]
+    if not item.failed then
+      local slot = i - first
+      local col, row = slot % 4, slot // 4
+      if not term.image(item.thumb, col * 60 + 2, row == 0 and 8 or 64, 0.5) then
+        item.failed = true
+      end
+    end
   end
 end
 
@@ -516,7 +495,6 @@ local function selftest()
     checks = checks + 1
     if got ~= want then error(string.format("check %d: got %q, want %q", checks, tostring(got), tostring(want))) end
   end
-  expect(urlEncode("cardputer esp32 & lua"), "cardputer%20esp32%20%26%20lua")
   expect(urlDecode("a+b%26c"), "a b&c")
   expect(decodeEntities("&amp;&lt;&#65;&#x42;&nbsp;x&hellip;"), "&<AB x...")
   expect(clean("<b>Hi</b>&nbsp;<i>there</i>"), "Hi there")
@@ -528,9 +506,6 @@ local function selftest()
   local lines, links = htmlToText('<head><title>t</title></head><p>Hello <a href="/next">more</a> world</p><script>x()</script>', "https://a.org/")
   expect(lines[1], "Hello more[1] world")
   expect(links[1], "https://a.org/next")
-  local items = parseResults('<a rel="nofollow" class="result__a" href="https://x.org/">X &amp; Y</a><a class="result__snippet" href="https://x.org/">a <b>snip</b></a>')
-  expect(items[1].title, "X & Y")
-  expect(items[1].snippet, "a snip")
   local page = htmlToText('<!doctype html><div><h1>Example Domain</h1><p>Some text here.</p></div>', "https://a.org/")
   expect(page[1], "Example Domain")
   expect(page[3], "Some text here.")  -- headings and paragraphs are separated by a blank line
