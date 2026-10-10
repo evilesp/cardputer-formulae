@@ -2,6 +2,7 @@
 -- duckduckgo: a text browser that searches with DuckDuckGo.
 -- Type a search (or run: duckduckgo WORDS...), pick a result with up/down and Enter, read the page.
 -- l then a number and Enter follows a link. b goes back, / starts a new search, q quits.
+-- Pictures: duckduckgo img WORDS (or type "img WORDS" in the search box) shows a grid of pictures.
 
 local COLS, ROWS = term.size()
 local TEXT_ROWS = ROWS - 2
@@ -11,6 +12,8 @@ local SEARCH_URL = "https://html.duckduckgo.com/html/?q="
 local BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 local SEARCH_BYTES = 160 * 1024
 local PAGE_BYTES = 96 * 1024
+local PICTURE_BYTES = 256 * 1024
+local PER_PAGE = 8  -- pictures on one screen: 4 columns, 2 rows
 
 ---------------------------------------------------------------- text helpers
 
@@ -256,10 +259,105 @@ local function clampPage()
   if view.top < 1 then view.top = 1 end
 end
 
+---------------------------------------------------------------- pictures
+
+-- thumbnail address with a size: Bing scales the picture on its side, so the device downloads little
+local function withSize(url, w, h)
+  local base = url:gsub("&[whc]=[^&]*", "")
+  return base .. (base:find("%?") and "&" or "?") .. string.format("w=%d&h=%d&c=7", w, h)
+end
+
+-- results of Bing's image search (the fragment with the result list), one entry per picture
+local function parsePictures(html)
+  local items, seen = {}, {}
+  for m in html:gmatch('m="(.-)"') do
+    local thumb = m:match("turl&quot;:&quot;(https?://.-)&quot;")
+    if thumb then
+      thumb = decodeEntities(thumb):gsub("\\/", "/")
+      if not seen[thumb] then
+        seen[thumb] = true
+        local title = m:match('[,{]&quot;t&quot;:&quot;(.-)&quot;') or "picture"
+        local page = m:match("purl&quot;:&quot;(https?://.-)&quot;") or thumb
+        items[#items + 1] = {
+          title = squash(decodeEntities(title)),
+          thumb = withSize(thumb, 112, 84),
+          big = withSize(thumb, 140, 105),
+          source = (decodeEntities(page):gsub("\\/", "/")),
+        }
+        if #items >= 40 then break end
+      end
+    end
+  end
+  return items
+end
+
+local function openImages(query)
+  status = "searching pictures..."
+  term.clear()
+  term.text(0, 7, status, "cyan")
+  term.flush()
+  local url = "https://www.bing.com/images/async?q=" .. urlEncode(query) ..
+    "&first=0&count=24&relp=24&lightweight=1&mmasync=1"
+  local body, info = fetchPage(url, PICTURE_BYTES)
+  if not body then
+    status = "picture search failed: " .. tostring(info)
+    return
+  end
+  local items = parsePictures(body)
+  push(view)
+  view = { kind = "images", query = query, items = items, sel = 1 }
+  status = #items == 0 and "no pictures found" or nil
+end
+
+local function drawImages()
+  local v = view
+  local n = #v.items
+  local pages = math.max(1, (n + PER_PAGE - 1) // PER_PAGE)
+  local page = (v.sel - 1) // PER_PAGE
+  local first = page * PER_PAGE + 1
+  local last = math.min(n, first + PER_PAGE - 1)
+  term.text(0, 0, ("pictures: " .. v.query):sub(1, COLS - 6), "white")
+  term.text(COLS - 5, 0, string.format("%d/%d", page + 1, pages), "dim")
+  if n == 0 then term.text(0, 3, status or "no pictures", "warn") end
+  for i = first, last do
+    local slot = i - first
+    local col, row = slot % 4, slot // 4
+    local caption = (i == v.sel and ">" or " ") .. v.items[i].title:sub(1, 8)
+    term.text(col * 10, row == 0 and 7 or 14, caption, i == v.sel and "white" or "dim")
+  end
+  if status then
+    term.text(0, ROWS - 1, status:sub(1, COLS), "warn")
+  else
+    term.text(0, ROWS - 1, "arrows move  enter open  / new  b back", "dim")
+  end
+  term.flush()
+  -- pictures go on top of the text, cell by cell (a download meter may show on the last row meanwhile)
+  for i = first, last do
+    local slot = i - first
+    local col, row = slot % 4, slot // 4
+    term.image(v.items[i].thumb, col * 60 + 2, row == 0 and 8 or 64, 0.5)
+  end
+end
+
+local function drawPicture()
+  local v = view
+  local item = v.items[v.index]
+  term.clear()
+  term.text(0, 0, item.title:sub(1, COLS), "white")
+  term.text(0, ROWS - 1, (domainOf(item.source) .. "  left/right  b back  q quit"):sub(1, COLS), "dim")
+  term.flush()
+  local ok, err = term.image(item.big, 50, 8, 1.0)
+  if not ok then
+    term.text(0, 6, "picture not available:", "warn")
+    term.text(0, 7, tostring(err):sub(1, COLS), "dim")
+    term.flush()
+  end
+end
+
 ---------------------------------------------------------------- drawing
 
 local function drawSearch()
-  term.text(0, 0, "DuckDuckGo search", "white")
+  term.text(0, 0, view.images and "DuckDuckGo image search" or "DuckDuckGo search", "white")
   term.text(0, 2, "search: " .. view.input .. "_", "green")
   term.text(0, 4, "type a query, then Enter", "dim")
   if status then term.text(0, 6, status, "warn") end
@@ -311,6 +409,8 @@ local function draw()
   term.clear()
   if view.kind == "search" then drawSearch()
   elseif view.kind == "results" then drawResults()
+  elseif view.kind == "images" then drawImages()
+  elseif view.kind == "picture" then drawPicture()
   else drawPage() end
   term.flush()
 end
@@ -323,7 +423,8 @@ local function handleKey(k)
     if k == "enter" then
       if view.input ~= "" then
         local q = view.input
-        doSearch(q)
+        local picQuery = q:match("^img%s+(.+)$") or (view.images and q)
+        if picQuery then openImages(picQuery) else doSearch(q) end
       elseif #stack > 0 then
         view = pop()
       end
@@ -331,6 +432,41 @@ local function handleKey(k)
       view.input = view.input:sub(1, -2)
     elseif #k == 1 and k:match("[%g ]") then
       view.input = view.input .. k
+    end
+    return
+  end
+
+  if view.kind == "images" then
+    local v = view
+    local n = #v.items
+    if k == "q" then return "quit"
+    elseif k == "left" then v.sel = math.max(1, v.sel - 1)
+    elseif k == "right" then v.sel = math.min(n, v.sel + 1)
+    elseif k == "up" then v.sel = math.max(1, v.sel - 4)
+    elseif k == "down" then v.sel = math.min(n, v.sel + 4)
+    elseif k == "pageup" then v.sel = math.max(1, v.sel - PER_PAGE)
+    elseif k == "pagedown" then v.sel = math.min(n, v.sel + PER_PAGE)
+    elseif k == "enter" and n > 0 then
+      push(view)
+      view = { kind = "picture", items = v.items, index = v.sel, query = v.query }
+      status = nil
+    elseif k == "/" then
+      push(view)
+      view = { kind = "search", input = "", images = true }
+      status = nil
+    elseif k == "b" and #stack > 0 then
+      view = pop()
+      status = nil
+    end
+    return
+  end
+
+  if view.kind == "picture" then
+    local v = view
+    if k == "q" then return "quit"
+    elseif k == "left" and v.index > 1 then v.index = v.index - 1
+    elseif k == "right" and v.index < #v.items then v.index = v.index + 1
+    elseif k == "b" and #stack > 0 then view = pop()
     end
     return
   end
@@ -416,6 +552,11 @@ local function selftest()
   local page = htmlToText('<!doctype html><div><h1>Example Domain</h1><p>Some text here.</p></div>', "https://a.org/")
   expect(page[1], "Example Domain")
   expect(page[3], "Some text here.")  -- headings and paragraphs are separated by a blank line
+  local pics = parsePictures('<a class="iusc" m="{&quot;purl&quot;:&quot;https://a.org/p&quot;,&quot;turl&quot;:&quot;&quot;,&quot;cid&quot;:&quot;x&quot;,&quot;turl&quot;:&quot;https://ts.bing.net/th?id=X&amp;pid=Api&quot;,&quot;t&quot;:&quot;Cat &amp; kitten&quot;}"></a>')
+  expect(#pics, 1)
+  expect(pics[1].title, "Cat & kitten")
+  expect(pics[1].thumb, "https://ts.bing.net/th?id=X&pid=Api&w=112&h=84&c=7")
+  expect(pics[1].source, "https://a.org/p")
   print(string.format("selftest ok (%d checks)", checks))
 end
 
@@ -428,7 +569,12 @@ end
 
 term.fullscreen(true)
 local initial = table.concat(arg, " ")
-if initial ~= "" then doSearch(initial) end
+if arg[1] == "img" then
+  local words = table.concat(arg, " ", 2)
+  if words ~= "" then openImages(words) else view = { kind = "search", input = "", images = true } end
+elseif initial ~= "" then
+  doSearch(initial)
+end
 
 local quit = false
 while not quit do
