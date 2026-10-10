@@ -10,9 +10,9 @@ local WIDTH = COLS - 1
 local SEARCH_URL = "https://html.duckduckgo.com/html/?q="
 -- DuckDuckGo answers 202 (a bot check) to clients that do not look like a browser
 local BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
-local SEARCH_BYTES = 160 * 1024
-local PAGE_BYTES = 96 * 1024
-local PICTURE_BYTES = 256 * 1024
+-- The ADV has no PSRAM: pages are read in 40 KB, so the browser stays inside the internal RAM
+local SEARCH_BYTES = 64 * 1024
+local PAGE_BYTES = 40 * 1024
 local PER_PAGE = 8  -- pictures on one screen: 4 columns, 2 rows
 
 ---------------------------------------------------------------- text helpers
@@ -238,7 +238,7 @@ local function openPage(url)
     return
   end
   local lines, links = htmlToText(body, url)
-  status = info and "page cut at 96 KB" or nil
+  status = info and "page cut at 40 KB" or nil
   push(view)
   view = { kind = "page", url = url, lines = lines, links = links, top = 1 }
   if #lines == 0 then status = "this page has no text" end
@@ -267,43 +267,25 @@ local function withSize(url, w, h)
   return base .. (base:find("%?") and "&" or "?") .. string.format("w=%d&h=%d&c=7", w, h)
 end
 
--- results of Bing's image search (the fragment with the result list), one entry per picture
-local function parsePictures(html)
-  local items, seen = {}, {}
-  for m in html:gmatch('m="(.-)"') do
-    local thumb = m:match("turl&quot;:&quot;(https?://.-)&quot;")
-    if thumb then
-      thumb = decodeEntities(thumb):gsub("\\/", "/")
-      if not seen[thumb] then
-        seen[thumb] = true
-        local title = m:match('[,{]&quot;t&quot;:&quot;(.-)&quot;') or "picture"
-        local page = m:match("purl&quot;:&quot;(https?://.-)&quot;") or thumb
-        items[#items + 1] = {
-          title = squash(decodeEntities(title)),
-          thumb = withSize(thumb, 112, 84),
-          big = withSize(thumb, 140, 105),
-          source = (decodeEntities(page):gsub("\\/", "/")),
-        }
-        if #items >= 40 then break end
-      end
-    end
-  end
-  return items
-end
-
 local function openImages(query)
   status = "searching pictures..."
   term.clear()
   term.text(0, 7, status, "cyan")
   term.flush()
-  local url = "https://www.bing.com/images/async?q=" .. urlEncode(query) ..
-    "&first=0&count=24&relp=24&lightweight=1&mmasync=1"
-  local body, info = fetchPage(url, PICTURE_BYTES)
-  if not body then
-    status = "picture search failed: " .. tostring(info)
+  local found, err = search.pictures(query)
+  if not found then
+    status = "picture search failed: " .. tostring(err)
     return
   end
-  local items = parsePictures(body)
+  local items = {}
+  for _, p in ipairs(found) do
+    items[#items + 1] = {
+      title = p.title,
+      thumb = withSize(p.thumb, 112, 84),
+      big = withSize(p.thumb, 140, 105),
+      source = p.source,
+    }
+  end
   push(view)
   view = { kind = "images", query = query, items = items, sel = 1 }
   status = #items == 0 and "no pictures found" or nil
@@ -552,11 +534,6 @@ local function selftest()
   local page = htmlToText('<!doctype html><div><h1>Example Domain</h1><p>Some text here.</p></div>', "https://a.org/")
   expect(page[1], "Example Domain")
   expect(page[3], "Some text here.")  -- headings and paragraphs are separated by a blank line
-  local pics = parsePictures('<a class="iusc" m="{&quot;purl&quot;:&quot;https://a.org/p&quot;,&quot;turl&quot;:&quot;&quot;,&quot;cid&quot;:&quot;x&quot;,&quot;turl&quot;:&quot;https://ts.bing.net/th?id=X&amp;pid=Api&quot;,&quot;t&quot;:&quot;Cat &amp; kitten&quot;}"></a>')
-  expect(#pics, 1)
-  expect(pics[1].title, "Cat & kitten")
-  expect(pics[1].thumb, "https://ts.bing.net/th?id=X&pid=Api&w=112&h=84&c=7")
-  expect(pics[1].source, "https://a.org/p")
   print(string.format("selftest ok (%d checks)", checks))
 end
 
