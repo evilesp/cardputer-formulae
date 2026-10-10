@@ -41,6 +41,7 @@ brew install htop nano snake
 | base64 | kodowanie i dekodowanie base64 |
 | uuidgen | losowy UUID |
 | shasum | SHA-256 pliku lub tekstu |
+| duckduckgo | przeglądarka tekstowa z wyszukiwarką DuckDuckGo |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
