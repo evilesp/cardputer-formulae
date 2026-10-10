@@ -32,6 +32,15 @@ brew install htop nano snake
 | hexdump | plik w hex i tekście |
 | httping | czas odpowiedzi HTTP |
 | pinmon | stan pinów GPIO na żywo |
+| figlet | duże litery z `#` |
+| sl | parowóz przez ekran |
+| lolcat | tekst w tęczowych kolorach |
+| less | czytanie pliku po ekranie |
+| clock | duży zegar cyfrowy |
+| hangman | wisielec |
+| base64 | kodowanie i dekodowanie base64 |
+| uuidgen | losowy UUID |
+| shasum | SHA-256 pliku lub tekstu |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
