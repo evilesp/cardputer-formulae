@@ -32,4 +32,5 @@ rec|1.0|record from the microphone: rec FILE trim 0 5 (rec -n stat only measures
 play|1.0|play a WAV or AIFF file on the speaker: play FILE (or play -n synth 1 sine 440)|Formula/play.lua
 afplay|1.0|play a WAV or AIFF file on the speaker: afplay [-v 0..1] [--time SECONDS] FILE|Formula/afplay.lua
 weatherForecast|1.0|weather now and for 3 days, no API key: weatherForecast CITY or LAT LON, saveMyLocation|Formula/weatherForecast.lua
-appstore|1.0|every brew app in one list: search by name or description, read it, see what is installed|Formula/appstore.lua
+appstore|1.0.0.1|every brew app in one list: search, read it, install or update it (i), see what is installed|Formula/appstore.lua
+poziomica|1.0|spirit level from the motion sensor: tilt the Cardputer, z sets level (q quits)|Formula/poziomica.lua

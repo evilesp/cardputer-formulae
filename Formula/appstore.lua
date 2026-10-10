@@ -5,7 +5,8 @@
 --   type        search: names that start with the text come first, then names, then descriptions
 --   up, down    choose an app             enter    details
 --   backspace   delete a letter           ctrl-x   quit
---   details:    up, down scroll; backspace, left or b go back
+--   details:    up, down scroll; i installs or updates the app (firmware v0.1.0.7(beta) or newer);
+--               backspace, left or b go back
 --   * installed    u installed, but the index has a newer version
 
 local INDEX_DIR = "/var/lib/brew/index"
@@ -177,19 +178,32 @@ local function detailLines(app, installed)
   add("from: " .. app.base, "text")
   add("file: " .. app.path, "text")
   add("", "text")
-  add("to install, type in the terminal:", "dim")
+  if brew and brew.install then
+    add("press i to install or update it", "dim")
+  else
+    add("needs firmware v0.1.0.7(beta) or newer", "dim")
+  end
   add("brew install " .. app.name, "white")
   return lines
 end
 
-local function drawDetails(lines, dtop)
+-- the last line of a text, brew's final message
+local function lastLine(text)
+  local last = ""
+  for line in text:gmatch("[^\n]+") do last = trim(line) end
+  return last
+end
+
+-- the details screen; the row above the key row shows the message (the install result)
+local function drawDetails(lines, dtop, message)
   term.clear()
-  for row = 0, ROWS - 2 do
+  for row = 0, ROWS - 3 do
     local item = lines[dtop + row]
     if not item then break end
     term.text(0, row, item[1]:sub(1, COLS), item[2])
   end
-  term.text(0, ROWS - 1, "up/down scroll  b back  ctrl-x quit", "dim")
+  if message then term.text(0, ROWS - 2, message:sub(1, COLS), "cyan") end
+  term.text(0, ROWS - 1, "up/down  i install  b back  ctrl-x", "dim")
   term.flush()
 end
 
@@ -206,9 +220,28 @@ local installed = loadInstalled()
 
 local query, results, sel, top = "", apps, 1, 1
 local view, detail, dtop = "list", nil, 1
+local chosen, message = nil, nil   -- the app whose details are shown, and the line under them
 local function refresh()
   results = search(apps, query)
   sel, top = 1, 1
+end
+
+-- i in the details: installs or updates the app with brew.install (firmware v0.1.0.7(beta) or newer).
+-- Older firmware has no brew.install, so the screen says so and the command line stays for the terminal.
+local function installChosen()
+  if not (brew and brew.install) then
+    message = "needs firmware v0.1.0.7(beta) or newer"
+    return
+  end
+  drawDetails(detail, dtop, "installing " .. chosen.name .. "...")
+  local ok, out = brew.install(chosen.name)
+  installed = loadInstalled()
+  detail = detailLines(chosen, installed)
+  if ok then
+    message = "installed " .. chosen.name .. " " .. chosen.version
+  else
+    message = "failed: " .. lastLine(out)
+  end
 end
 
 term.fullscreen(true)
@@ -224,7 +257,8 @@ while not quit do
       elseif k == "down" and sel < #results then
         sel = sel + 1
       elseif k == "enter" and results[sel] then
-        view, detail, dtop = "details", detailLines(results[sel], installed), 1
+        view, chosen, message, dtop = "details", results[sel], nil, 1
+        detail = detailLines(chosen, installed)
       elseif k == "backspace" then
         query = query:sub(1, -2)
         refresh()
@@ -234,13 +268,15 @@ while not quit do
       end
       top = keepVisible(sel, top)
     else
-      local maxTop = math.max(1, #detail - (ROWS - 1) + 1)
+      local maxTop = math.max(1, #detail - (ROWS - 2) + 1)
       if k == "up" and dtop > 1 then
         dtop = dtop - 1
       elseif k == "down" and dtop < maxTop then
         dtop = dtop + 1
+      elseif k == "i" then
+        installChosen()
       elseif k == "backspace" or k == "left" or k == "b" then
-        view = "list"
+        view, message = "list", nil
       end
     end
     if quit then break end
@@ -250,7 +286,7 @@ while not quit do
     if view == "list" then
       drawList(apps, results, query, sel, top, installed)
     else
-      drawDetails(detail, dtop)
+      drawDetails(detail, dtop, message)
     end
     sys.sleep(60)
   end
