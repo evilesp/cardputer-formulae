@@ -31,3 +31,4 @@ sox|1.0|SoX-style audio: sox -d out.wav trim 0 5 records, sox -n synth 1 sine 44
 rec|1.0|record from the microphone: rec FILE trim 0 5 (rec -n stat only measures)|Formula/rec.lua
 play|1.0|play a WAV or AIFF file on the speaker: play FILE (or play -n synth 1 sine 440)|Formula/play.lua
 afplay|1.0|play a WAV or AIFF file on the speaker: afplay [-v 0..1] [--time SECONDS] FILE|Formula/afplay.lua
+weatherForecast|1.0|weather now and for 3 days, no API key: weatherForecast CITY or LAT LON, saveMyLocation|Formula/weatherForecast.lua
