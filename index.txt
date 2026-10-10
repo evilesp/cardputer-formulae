@@ -27,3 +27,7 @@ shasum|1.0|SHA-256 of a file or text: shasum FILE or shasum -s TEXT|Formula/shas
 duckduckgo|1.0.0.2|text browser for DuckDuckGo: duckduckgo WORDS|Formula/duckduckgo.lua
 SystemUpdate|1.0.0.3|obsolete: SystemUpdate is built into the terminal now|Formula/SystemUpdate.lua
 imuMonitor|1.0|live view of the accelerometer and gyroscope (q = quit)|Formula/imuMonitor.lua
+sox|1.0|SoX-style audio: sox -d out.wav trim 0 5 records, sox -n synth 1 sine 440 -d plays a tone|Formula/sox.lua
+rec|1.0|record from the microphone: rec FILE trim 0 5 (rec -n stat only measures)|Formula/rec.lua
+play|1.0|play a WAV or AIFF file on the speaker: play FILE (or play -n synth 1 sine 440)|Formula/play.lua
+afplay|1.0|play a WAV or AIFF file on the speaker: afplay [-v 0..1] [--time SECONDS] FILE|Formula/afplay.lua
