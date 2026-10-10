@@ -1,0 +1,5 @@
+# name|version|description|path (relative to this repository)
+cmatrix|1.0|matrix rain in the terminal (press q)|Formula/cmatrix.lua
+fastfetch|1.0|system summary with a Cardputer logo|Formula/fastfetch.lua
+asciiquarium|1.0|a fish tank animation (press q)|Formula/asciiquarium.lua
+speedtest-cli|1.0|ping, download and upload speed test|Formula/speedtest-cli.lua
