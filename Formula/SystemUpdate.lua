@@ -7,6 +7,7 @@
 
 local INDEX_URL = "https://raw.githubusercontent.com/evilesp/cardputer-firmware/main/index.txt"
 local CURRENT = sys.version()
+local VERSION = "1.0.0.2"  -- this package's own version, shown in the menu title
 local LIST_ROWS = 12  -- versions shown in the menu at once (rows 1..12 of the 16-row screen)
 
 local function loadVersions()
@@ -70,10 +71,12 @@ local function menu(versions)
   term.fullscreen(true)
   local sel, top, pending = 1, 1, nil
   local chosen = nil
+  local lastKey = nil  -- the last key the menu received, shown on screen
   while true do
     local quit = false
     local k = key.poll()
     while k do
+      lastKey = k
       if pending then
         if k == "y" then
           chosen = pending
@@ -102,7 +105,7 @@ local function menu(versions)
     if sel >= top + LIST_ROWS then top = sel - LIST_ROWS + 1 end
 
     term.clear()
-    term.text(0, 0, ("SystemUpdate  installed: " .. CURRENT):sub(1, 40), "white")
+    term.text(0, 0, ("SystemUpdate " .. VERSION .. "  " .. CURRENT):sub(1, 40), "white")
     for row = 0, LIST_ROWS - 1 do
       local i = top + row
       local v = versions[i]
@@ -112,11 +115,12 @@ local function menu(versions)
           i == sel and "white" or "text")
       end
     end
+    term.text(0, 13, ("last key: " .. (lastKey or "none")):sub(1, 40), "dim")
     if pending then
       term.text(0, 14, ("install " .. pending.label .. "?"):sub(1, 40), "warn")
       term.text(0, 15, "y = yes, any other key = no", "warn")
     else
-      term.text(0, 14, "w/s or ;/. choose, 1-9 pick", "dim")
+      term.text(0, 14, "Fn+;/Fn+. or w/s choose, 1-9 pick", "dim")
       term.text(0, 15, "enter install   q quit", "dim")
     end
     term.flush()
