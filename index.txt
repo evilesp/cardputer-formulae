@@ -3,3 +3,15 @@ cmatrix|1.0|matrix rain in the terminal (press q)|Formula/cmatrix.lua
 fastfetch|1.0|system summary with a Cardputer logo|Formula/fastfetch.lua
 asciiquarium|1.0|a fish tank animation (press q)|Formula/asciiquarium.lua
 speedtest-cli|1.0|ping, download and upload speed test|Formula/speedtest-cli.lua
+htop|1.0|memory, battery and CPU use per task (press q)|Formula/htop.lua
+nano|1.0|small text editor for SD card files: nano FILE|Formula/nano.lua
+snake|1.0|the snake game (arrows or w a s d)|Formula/snake.lua
+pong|1.0|pong against the computer (w/s or arrows)|Formula/pong.lua
+tetris|1.0|falling blocks game (space drops a piece)|Formula/tetris.lua
+cowsay|1.0|a cow says your words|Formula/cowsay.lua
+fortune|1.0|a random line of advice|Formula/fortune.lua
+cal|1.0|calendar month: cal [MONTH YEAR]|Formula/cal.lua
+calc|1.0|calculator: calc 2^10 + sqrt(144)|Formula/calc.lua
+hexdump|1.0|show a file in hex and text: hexdump FILE|Formula/hexdump.lua
+httping|1.0|time HTTP requests to a URL: httping URL|Formula/httping.lua
+pinmon|1.0|live view of GPIO pin levels (press q)|Formula/pinmon.lua
