@@ -25,3 +25,4 @@ base64|1.0|encode or decode text: base64 [-d] TEXT|Formula/base64.lua
 uuidgen|1.0|random UUID version 4: uuidgen [COUNT]|Formula/uuidgen.lua
 shasum|1.0|SHA-256 of a file or text: shasum FILE or shasum -s TEXT|Formula/shasum.lua
 duckduckgo|1.0|text browser for DuckDuckGo: duckduckgo WORDS|Formula/duckduckgo.lua
+SystemUpdate|1.0|install a firmware version over WiFi (SystemUpdate)|Formula/SystemUpdate.lua
