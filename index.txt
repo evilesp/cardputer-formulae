@@ -34,6 +34,6 @@ afplay|1.0|play a WAV or AIFF file on the speaker: afplay [-v 0..1] [--time SECO
 weatherForecast|1.0|weather now and for 3 days, no API key: weatherForecast CITY or LAT LON, saveMyLocation|Formula/weatherForecast.lua
 appstore|1.0.0.1|every brew app in one list: search, read it, install or update it (i), see what is installed|Formula/appstore.lua
 poziomica|1.0|spirit level from the motion sensor: tilt the Cardputer, z sets level (q quits)|Formula/poziomica.lua
-cava|1.0|bars that dance to the microphone like the cava visualizer, demo without a mic: cava demo (q quits)|Formula/cava.lua
+cava|1.0|an animation of bars that dance like the cava visualizer, a picture only (q quits)|Formula/cava.lua
 parrotDancing|1.0|a parrot that dances on the screen: wing flapping, bobbing, colours changing (q quits)|Formula/parrotDancing.lua
 asciiDonutAnimation|1.0|the spinning ASCII donut, drawn at the size of the screen (q quits)|Formula/asciiDonutAnimation.lua
