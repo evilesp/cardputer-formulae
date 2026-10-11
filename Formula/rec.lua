@@ -5,6 +5,7 @@
 -- Mono 16-bit only: -c 1 and -b 16 are accepted.
 -- A file is WAV or AIFF, 8 or 16 bit, mono or stereo. Ctrl+C stops a recording or a sound.
 
+
 local MODE = "rec"  -- rec.lua and play.lua hold the same code with MODE = "rec" and "play"
 
 if not audio then
@@ -99,6 +100,17 @@ local function show(s)
   print(string.format("RMS     amplitude: %.6f", s.rms))
 end
 
+-- A video plays on the screen, its sound on the speaker (the terminal is taken over while it plays)
+local function playVideo(path)
+  if not video then return fail("video needs firmware v0.1.0.10(beta) or newer") end
+  local info, ierr = video.info(path)
+  if not info then return fail(tostring(ierr)) end
+  term.fullscreen(true)
+  local stats, perr = video.play(path)
+  term.fullscreen(false)
+  if not stats then return fail(tostring(perr)) end
+end
+
 local function run(input, output, parsed)
   local fx = parsed.effects
   local rate = parsed.rate or 16000
@@ -124,6 +136,9 @@ local function run(input, output, parsed)
     end
   elseif input.kind == "file" then
     if output.kind == "file" then return fail("file to file is not supported, copy the file with cp") end
+    if MODE == "play" and output.kind == "device" and input.path:lower():match("%.avi$") then
+      return playVideo(input.path)
+    end
     if output.kind == "device" then
       result, err = audio.play(input.path, trimSeconds or 0)
     else

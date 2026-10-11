@@ -5,8 +5,12 @@
 --                                            OUTPUT: FILE, -n (nothing) or -d (speaker)
 --   rec [-r RATE] FILE|-n [EFFECT...]        records from the microphone
 --   play FILE|-n [EFFECT...]                 plays on the speaker; -n with synth makes a tone
+--   play FILE.avi                            shows a video on the screen and plays its sound (q or Ctrl+C stops it)
 -- EFFECT: trim 0 SECONDS (the length), stat (prints the levels), synth SECONDS sine|square|noise [FREQ] (input -n)
 -- A file is WAV or AIFF, 8 or 16 bit, mono or stereo. Ctrl+C stops a recording or a sound.
+-- A video is an AVI file with Motion JPEG frames and PCM sound. The Mac makes one with ffmpeg:
+--   ffmpeg -i film.mp4 -vf scale=240:135 -r 12 -c:v mjpeg -q:v 8 -c:a pcm_s16le -ar 16000 -ac 1 film.avi
+-- The video needs firmware v0.1.0.10(beta) or newer.
 
 local MODE = "sox"  -- rec.lua and play.lua hold the same code with MODE = "rec" and "play"
 
@@ -102,6 +106,17 @@ local function show(s)
   print(string.format("RMS     amplitude: %.6f", s.rms))
 end
 
+-- A video plays on the screen, its sound on the speaker (the terminal is taken over while it plays)
+local function playVideo(path)
+  if not video then return fail("video needs firmware v0.1.0.10(beta) or newer") end
+  local info, ierr = video.info(path)
+  if not info then return fail(tostring(ierr)) end
+  term.fullscreen(true)
+  local stats, perr = video.play(path)
+  term.fullscreen(false)
+  if not stats then return fail(tostring(perr)) end
+end
+
 local function run(input, output, parsed)
   local fx = parsed.effects
   local rate = parsed.rate or 16000
@@ -127,6 +142,9 @@ local function run(input, output, parsed)
     end
   elseif input.kind == "file" then
     if output.kind == "file" then return fail("file to file is not supported, copy the file with cp") end
+    if MODE == "play" and output.kind == "device" and input.path:lower():match("%.avi$") then
+      return playVideo(input.path)
+    end
     if output.kind == "device" then
       result, err = audio.play(input.path, trimSeconds or 0)
     else

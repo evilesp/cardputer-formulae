@@ -1,9 +1,12 @@
 #!lua
 -- play: plays a WAV or AIFF file on the Cardputer speaker, or a tone, with SoX syntax. Same code as the sox package.
 --   play FILE|-n [synth SECONDS sine|square|noise [FREQ]] [trim 0 SECONDS]
+--   play FILE.avi                 shows a video on the screen and plays its sound (q or Ctrl+C stops it)
 -- Effects: trim 0 SECONDS (plays only that long), stat (prints the levels), synth (a tone instead of a file).
 -- Ctrl+C stops the sound. Mono 16-bit only: -c 1 and -b 16 are accepted.
 -- A file is WAV or AIFF, 8 or 16 bit, mono or stereo. Ctrl+C stops a recording or a sound.
+-- A video is an AVI file with Motion JPEG frames and PCM sound (the sox package header has the ffmpeg command).
+-- The video needs firmware v0.1.0.10(beta) or newer.
 
 local MODE = "play"  -- rec.lua and play.lua hold the same code with MODE = "rec" and "play"
 
@@ -99,6 +102,17 @@ local function show(s)
   print(string.format("RMS     amplitude: %.6f", s.rms))
 end
 
+-- A video plays on the screen, its sound on the speaker (the terminal is taken over while it plays)
+local function playVideo(path)
+  if not video then return fail("video needs firmware v0.1.0.10(beta) or newer") end
+  local info, ierr = video.info(path)
+  if not info then return fail(tostring(ierr)) end
+  term.fullscreen(true)
+  local stats, perr = video.play(path)
+  term.fullscreen(false)
+  if not stats then return fail(tostring(perr)) end
+end
+
 local function run(input, output, parsed)
   local fx = parsed.effects
   local rate = parsed.rate or 16000
@@ -124,6 +138,9 @@ local function run(input, output, parsed)
     end
   elseif input.kind == "file" then
     if output.kind == "file" then return fail("file to file is not supported, copy the file with cp") end
+    if MODE == "play" and output.kind == "device" and input.path:lower():match("%.avi$") then
+      return playVideo(input.path)
+    end
     if output.kind == "device" then
       result, err = audio.play(input.path, trimSeconds or 0)
     else

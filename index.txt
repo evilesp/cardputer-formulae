@@ -27,9 +27,9 @@ shasum|1.0|SHA-256 of a file or text: shasum FILE or shasum -s TEXT|Formula/shas
 duckduckgo|1.0.0.3|text browser for DuckDuckGo: duckduckgo WORDS (pages need firmware v0.1.0.8)|Formula/duckduckgo.lua
 SystemUpdate|1.0.0.3|obsolete: SystemUpdate is built into the terminal now|Formula/SystemUpdate.lua
 imuMonitor|1.0|live view of the accelerometer and gyroscope (q = quit)|Formula/imuMonitor.lua
-sox|1.0|SoX-style audio: sox -d out.wav trim 0 5 records, sox -n synth 1 sine 440 -d plays a tone|Formula/sox.lua
-rec|1.0|record from the microphone: rec FILE trim 0 5 (rec -n stat only measures)|Formula/rec.lua
-play|1.0|play a WAV or AIFF file on the speaker: play FILE (or play -n synth 1 sine 440)|Formula/play.lua
+sox|1.0.0.1|SoX-style audio: sox -d out.wav trim 0 5 records, sox -n synth 1 sine 440 -d plays a tone|Formula/sox.lua
+rec|1.0.0.1|record from the microphone: rec FILE trim 0 5 (rec -n stat only measures)|Formula/rec.lua
+play|1.0.0.1|play a WAV or AIFF file on the speaker, an AVI video on the screen: play FILE (or play -n synth 1 sine 440)|Formula/play.lua
 afplay|1.0|play a WAV or AIFF file on the speaker: afplay [-v 0..1] [--time SECONDS] FILE|Formula/afplay.lua
 weatherForecast|1.0|weather now and for 3 days, no API key: weatherForecast CITY or LAT LON, saveMyLocation|Formula/weatherForecast.lua
 appstore|1.0.0.1|every brew app in one list: search, read it, install or update it (i), see what is installed|Formula/appstore.lua
@@ -37,3 +37,5 @@ spiritLevel|1.0|spirit level from the motion sensor: tilt the Cardputer, z sets 
 cava|1.0|an animation of bars that dance like the cava visualizer, a picture only (q quits)|Formula/cava.lua
 parrotDancing|1.0.0.1|a parrot that dances: flapping wings, legs, rainbow colours and sparkles (q quits)|Formula/parrotDancing.lua
 asciiDonutAnimation|1.0|the spinning ASCII donut, drawn at the size of the screen (q quits)|Formula/asciiDonutAnimation.lua
+show|1.0|shows JPEG and PNG pictures from the SD card on the screen: show FILE... (needs firmware v0.1.0.10)|Formula/show.lua
+wikipedia|1.0|the lead of a Wikipedia article as text, no key: wikipedia WORDS or wikipedia -l en WORDS|Formula/wikipedia.lua
