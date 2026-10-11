@@ -56,28 +56,30 @@ todo|1.0|a task list kept on the SD card: todo add TEXT, todo done N, todo rm N,
 passgen|1.0|random passwords: passgen [LENGTH] [-s], -s adds symbols|Formula/passgen.lua
 iss|1.0|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
 rtc|1.0|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua
-doom|0.1.1|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; letter keys only, no Fn (needs firmware v0.1.0.13 and: brew install ui doomlevel doomdraw)|Formula/doom.lua
-ui|1.0|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
-uidemo|1.0|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs the ui package and firmware v0.1.0.13)|Formula/uidemo.lua
-doomlevel|1.0|the level of doom: the map, the look of the walls and monsters, and the ray caster geometry (a driver for doom, needs firmware v0.1.0.13)|Driver/doomlevel.lua
-doomdraw|1.0|the picture of doom: walls and floor, monsters, weapon, crosshair, minimap and the bar at the bottom (a driver for doom, needs doomlevel and firmware v0.1.0.13)|Driver/doomdraw.lua
-invaders|1.0|space invaders in pixels: a d move, f fires, three lives (needs the ui package and firmware v0.1.0.13)|Formula/invaders.lua
-breakout|1.0|break the bricks with the ball, paddle on a and d (needs the ui package and firmware v0.1.0.13)|Formula/breakout.lua
-flappy|1.0|fly the bird through the gaps in the pipes, space flaps (needs the ui package and firmware v0.1.0.13)|Formula/flappy.lua
-game2048|1.0|the 2048 puzzle with w a s d (needs the ui package and firmware v0.1.0.13)|Formula/game2048.lua
-maze|1.0|a random maze to get out of, with a hint key (needs the ui package and firmware v0.1.0.13)|Formula/maze.lua
-sudoku|1.0|sudoku puzzles with a checker (needs the ui package and firmware v0.1.0.13)|Formula/sudoku.lua
-chess|1.0|chess against a simple computer; no castling and no en passant (needs the ui package and firmware v0.1.0.13)|Formula/chess.lua
-paint|1.0|draw pictures on the screen and save them to the SD card (needs the ui package and firmware v0.1.0.13)|Formula/paint.lua
-screensaver|1.0|stars, rain and a lava lamp for a screen that stays on (needs the ui package and firmware v0.1.0.13)|Formula/screensaver.lua
-filer|1.0|file manager for the SD card: browse, read text, copy; it cannot delete (needs the ui package and firmware v0.1.0.13)|Formula/filer.lua
-notes|1.0|short notes on the SD card with a small editor (needs the ui package and firmware v0.1.0.13)|Formula/notes.lua
-music|1.0|plays the WAV and AIFF files of a folder one after another (needs the ui package, the speaker and firmware v0.1.0.13)|Formula/music.lua
-plot|1.0|draws a chart from a text or CSV file: plot FILE (needs the ui package and firmware v0.1.0.13)|Formula/plot.lua
-sensors|1.0|live charts of the accelerometer, the gyroscope and the battery (needs the ui package and firmware v0.1.0.13)|Formula/sensors.lua
-analogclock|1.0|an analogue clock face with the date, from the network clock (needs the ui package and firmware v0.1.0.13)|Formula/analogclock.lua
-metronome|1.0|a metronome with a click and a pendulum, 30 to 240 beats a minute (needs the ui package, the speaker and firmware v0.1.0.13)|Formula/metronome.lua
-piano|1.0|the keyboard as a piano with black and white keys (needs the ui package, the speaker and firmware v0.1.0.13)|Formula/piano.lua
-irtv|1.0|a remote control on the screen with the buttons taught to the remote app: irtv NAME (needs the ui package and firmware v0.1.0.13)|Formula/irtv.lua
-gpsmap|1.0|the track of a GPS module drawn as a map: gpsmap RX TX (needs the gps and ui packages and firmware v0.1.0.13)|Formula/gpsmap.lua
-netmon|1.0|a chart of how fast a web address answers: netmon [URL [SECONDS]] (needs the ui package, WiFi and firmware v0.1.0.13)|Formula/netmon.lua
+doom|0.1.1.1|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; letter keys only, no Fn (needs firmware v0.1.0.14)|needs:doomgame|Formula/doom.lua
+ui|1.0.0.1|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
+uidemo|1.0.0.1|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs firmware v0.1.0.13)|needs:ui|Formula/uidemo.lua
+doomlevel|1.0.0.1|the level of doom: the map, the look of the walls and monsters, and the ray caster geometry (a driver for doom)|Driver/doomlevel.lua
+doomdraw|1.0.0.1|the picture and the menus of doom: walls and floor, monsters, weapon, crosshair, minimap and the bar at the bottom (a driver for doom)|needs:doomlevel|Driver/doomdraw.lua
+invaders|1.0.0.1|space invaders in pixels: a d move, f fires, three lives (needs firmware v0.1.0.13)|needs:ui|Formula/invaders.lua
+breakout|1.0.0.1|break the bricks with the ball, paddle on a and d (needs firmware v0.1.0.13)|needs:ui|Formula/breakout.lua
+flappy|1.0.0.1|fly the bird through the gaps in the pipes, space flaps (needs firmware v0.1.0.13)|needs:ui|Formula/flappy.lua
+game2048|1.0.0.1|the 2048 puzzle with w a s d (needs firmware v0.1.0.13)|needs:ui|Formula/game2048.lua
+maze|1.0.0.1|a random maze to get out of, with a hint key (needs firmware v0.1.0.13)|needs:ui|Formula/maze.lua
+sudoku|1.0.0.1|sudoku puzzles with a checker (needs firmware v0.1.0.13)|needs:ui|Formula/sudoku.lua
+chess|1.0.0.1|chess against a simple computer; no castling and no en passant (needs firmware v0.1.0.13)|needs:ui|Formula/chess.lua
+paint|1.0.0.1|draw pictures on the screen and save them to the SD card (needs firmware v0.1.0.13)|needs:ui|Formula/paint.lua
+screensaver|1.0.0.1|stars, rain and a lava lamp for a screen that stays on (needs firmware v0.1.0.13)|needs:ui|Formula/screensaver.lua
+filer|1.0.0.1|file manager for the SD card: browse, read text, copy; it cannot delete (needs firmware v0.1.0.13)|needs:ui|Formula/filer.lua
+notes|1.0.0.1|short notes on the SD card with a small editor (needs firmware v0.1.0.13)|needs:ui|Formula/notes.lua
+music|1.0.0.1|plays the WAV and AIFF files of a folder one after another (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/music.lua
+plot|1.0.0.1|draws a chart from a text or CSV file: plot FILE (needs firmware v0.1.0.13)|needs:ui|Formula/plot.lua
+sensors|1.0.0.1|live charts of the accelerometer, the gyroscope and the battery (needs firmware v0.1.0.13)|needs:ui|Formula/sensors.lua
+analogclock|1.0.0.1|an analogue clock face with the date, from the network clock (needs firmware v0.1.0.13)|needs:ui|Formula/analogclock.lua
+metronome|1.0.0.1|a metronome with a click and a pendulum, 30 to 240 beats a minute (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/metronome.lua
+piano|1.0.0.1|the keyboard as a piano with black and white keys (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/piano.lua
+irtv|1.0.0.1|a remote control on the screen with the buttons taught to the remote app: irtv NAME (needs firmware v0.1.0.13)|needs:ui|Formula/irtv.lua
+gpsmap|1.0.0.1|the track of a GPS module drawn as a map: gpsmap RX TX (needs firmware v0.1.0.13 and a GPS module)|needs:gps ui|Formula/gpsmap.lua
+netmon|1.0.0.1|a chart of how fast a web address answers: netmon [URL [SECONDS]] (needs firmware v0.1.0.13, WiFi)|needs:ui|Formula/netmon.lua
+doomgame|1.0|the rules and the game loop of doom: player, monsters, shooting, pickups and menus (a driver for doom, needs firmware v0.1.0.14)|needs:doomdraw|Driver/doomgame.lua
+memcleaner|1.0|frees room on the SD card: finds empty files, copies, cache, temporary files, unfinished downloads and very old files, and asks y or n for each (needs firmware v0.1.0.14)|Formula/memcleaner.lua

@@ -51,7 +51,7 @@ if not audio or not driver then
   print("music needs the audio of firmware v0.1.0.6 or newer")
   return
 end
-local ui, uiErr = driver.load("ui")
+local ui, uiErr = driver.load("ui", true)
 if not ui then
   print("music: " .. tostring(uiErr))
   return

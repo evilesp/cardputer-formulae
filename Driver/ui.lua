@@ -53,9 +53,9 @@ end
 -- Takes the screen. Returns its width and height, or nil and the reason (an old firmware has no gfx module).
 function ui.open()
   if not gfx then return nil, "no graphics: update the firmware to v0.1.0.13(beta) or newer" end
-  local w, h = gfx.open()
+  local w, h, depth = gfx.open()
   if not w then return nil, h end
-  ui.w, ui.h = w, h
+  ui.w, ui.h, ui.depth = w, h, depth  -- depth is 16 bits, or 8 when the memory is short (firmware v0.1.0.14): coarser colours
   return w, h
 end
 

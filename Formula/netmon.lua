@@ -58,7 +58,7 @@ if not net.connected() then
   print("netmon: no WiFi connection (wifi connect SSID PASS)")
   return
 end
-local ui, uiErr = driver.load("ui")
+local ui, uiErr = driver.load("ui", true)
 if not ui then
   print("netmon: " .. tostring(uiErr))
   return

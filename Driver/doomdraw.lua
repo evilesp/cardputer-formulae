@@ -1,11 +1,13 @@
 #!lua
 -- doomdraw: draws the picture of doom: the walls and floor of the ray caster, the monsters, pickups and fireballs, the
 -- weapon, the crosshair, the minimap and the bar at the bottom. A driver, not a program: doom loads it with
--- driver.load("doomdraw") and calls draw.render(state, ui) once per frame. The state holds P (the player), enemies,
--- pickups, balls and G (the game flags). It needs the doomlevel driver too.
+-- driver.load("doomdraw", true) and calls draw.render(state) once per frame. The state holds P (the player), enemies,
+-- pickups, balls and G (the game flags). It also has the menus (draw.choose, draw.message), so doom needs no ui driver. It
+-- loads the doomlevel driver itself and hands it on as draw.level, so that it is in memory once.
 
-local level = driver.load("doomlevel")
-local draw = {}
+local level, levelErr = driver.load("doomlevel", true)
+if not level then error(levelErr, 0) end
+local draw = { level = level }
 
 local SW, SH = 240, 135            -- the screen
 local HUD_H = 17                   -- the bar at the bottom
@@ -16,7 +18,28 @@ local FOV = 0.66                   -- the camera plane: about 66 degrees
 local HALF = VIEW_H / 2
 
 local WALL, LOOKS = level.WALL, level.LOOKS
-local MW, MH, grid, cast = level.MW, level.MH, level.grid, level.cast
+local MW, MH, wallAt, cast = level.MW, level.MH, level.wallAt, level.cast
+
+-- the colours of the menus and the bar, and the small helpers for text (the ui driver is not needed)
+local T = {
+  bg = 0x10131c, panel = 0x1c2233, light = 0x2a3350, border = 0x5870b0, title = 0x34447c,
+  text = 0xe8ecf4, dim = 0x8a94aa, accent = 0x3cc878, warn = 0xe8b43c, danger = 0xe05050,
+}
+
+local function label(x, y, text, color)
+  gfx.text(x, y, text, color or T.text, 1)
+end
+
+local function textWidth(s, size)
+  return #s * 6 * (size or 1)
+end
+
+-- text centred between x0 and x1 (the whole width by default)
+local function center(y, text, color, size, x0, x1)
+  x0, x1 = x0 or 0, x1 or SW
+  size = size or 1
+  gfx.text(x0 + (x1 - x0 - textWidth(text, size)) // 2, y, text, color or T.text, size)
+end
 
 -- the state of the frame being drawn, and the distance of the wall behind each column
 local S, P = nil, nil
@@ -171,10 +194,10 @@ local function drawMinimap()
   for y = 0, MH - 1 do
     local x = 0
     while x < MW do
-      local t = grid[y][x]
+      local t = wallAt(x, y)
       if t > 0 then
         local x1 = x
-        while x1 + 1 < MW and grid[y][x1 + 1] > 0 do x1 = x1 + 1 end
+        while x1 + 1 < MW and wallAt(x1 + 1, y) > 0 do x1 = x1 + 1 end
         gfx.fill(ox + x * s, oy + y * s, (x1 - x + 1) * s, s, 0x586078)
         x = x1 + 1
       else
@@ -190,21 +213,24 @@ local function drawMinimap()
   gfx.fill(math.floor(px) - 1, math.floor(py) - 1, 3, 3, 0x40ff80)
 end
 
-local function drawHud(ui)
-  local t = ui.theme
+local function drawHud()
   local y = VIEW_H
-  gfx.fill(0, y, SW, HUD_H, t.panel)
-  gfx.hline(0, SW - 1, y, t.border)
-  ui.label(4, y + 5, "HP", t.dim)
-  local hpColor = P.hp > 50 and t.accent or (P.hp > 25 and t.warn or t.danger)
-  ui.bar(20, y + 3, 66, 11, math.max(0, P.hp), 100, hpColor, tostring(math.max(0, P.hp)))
-  ui.label(96, y + 5, "AMMO", t.dim)
-  ui.label(128, y + 5, tostring(P.ammo), P.ammo <= 5 and t.danger or t.text)
-  ui.label(160, y + 5, "KILLS " .. P.kills .. "/" .. #S.enemies, t.text)
+  gfx.fill(0, y, SW, HUD_H, T.panel)
+  gfx.hline(0, SW - 1, y, T.border)
+  label(4, y + 5, "HP", T.dim)
+  local hp = math.max(0, P.hp)
+  local hpColor = P.hp > 50 and T.accent or (P.hp > 25 and T.warn or T.danger)
+  gfx.fill(20, y + 3, 66, 11, T.bg)
+  if hp > 0 then gfx.fill(21, y + 4, math.floor(64 * hp / 100), 9, hpColor) end
+  gfx.rect(20, y + 3, 66, 11, T.border)
+  label(20 + (66 - textWidth(tostring(hp))) // 2, y + 5, tostring(hp))
+  label(96, y + 5, "AMMO", T.dim)
+  label(128, y + 5, tostring(P.ammo), P.ammo <= 5 and T.danger or T.text)
+  label(160, y + 5, "KILLS " .. P.kills .. "/" .. #S.enemies, T.text)
 end
 
 -- one picture of the game. The message line shows for two seconds after an event (G.msg, G.msgT).
-function draw.render(state, ui)
+function draw.render(state)
   S, P = state, state.P
   local G = state.G
   local horizon = math.floor(HALF + math.sin(P.bob * 2) * 2.5 * P.moving)
@@ -213,11 +239,94 @@ function draw.render(state, ui)
   drawWeapon()
   drawCrosshair()
   if G.map then drawMinimap() end
-  if G.msgT > 0 then ui.label(4, 3, G.msg, 0xffe060) end
+  if G.msgT > 0 then label(4, 3, G.msg, 0xffe060) end
   if P.hurt > 0 then
     for k = 0, 2 do gfx.rect(k, k, SW - 2 * k, VIEW_H - 2 * k, shade(0xff2020, math.floor(256 * math.min(1.0, P.hurt * 2.5)))) end
   end
-  drawHud(ui)
+  drawHud()
+end
+
+-- ---- menus (they draw and wait for keys themselves) ----
+
+local function panel(x, y, w, h, title)
+  gfx.fill(x, y, w, h, T.panel)
+  gfx.rect(x, y, w, h, T.border)
+  gfx.fill(x + 1, y + 1, w - 2, 11, T.title)
+  gfx.text(x + 4, y + 2, title, T.text, 1)
+  gfx.hline(x + 1, x + w - 2, y + 12, T.border)
+end
+
+-- a key as "up", "down", "ok", "back" or nil; letters work, so no Fn is needed
+local function action(k)
+  if k == "up" or k == "w" then return "up" end
+  if k == "down" or k == "s" then return "down" end
+  if k == "enter" or k == " " then return "ok" end
+  if k == "backspace" or k == "ctrl-q" then return "back" end
+  return nil
+end
+
+draw.center = center
+
+-- A menu in a window: the number chosen, or nil when the user backs out. opts.background draws behind it each frame, opts.y
+-- puts the window higher or lower.
+function draw.choose(title, items, opts)
+  opts = opts or {}
+  local sel = 1
+  local wide = textWidth(title) + 16
+  for _, item in ipairs(items) do wide = math.max(wide, textWidth(item) + 16) end
+  wide = math.max(wide, 90)
+  local high = 18 + #items * 12 + 4
+  local x = (SW - wide) // 2
+  local y = opts.y or (SH - high) // 2
+  while true do
+    gfx.clear(T.bg)
+    if opts.background then opts.background() end
+    panel(x, y, wide, high, title)
+    for i, item in ipairs(items) do
+      local top = y + 15 + (i - 1) * 12
+      if i == sel then gfx.fill(x + 2, top, wide - 4, 11, T.accent) end
+      gfx.text(x + 6, top + 1, item, i == sel and T.bg or T.text, 1)
+    end
+    gfx.flush()
+    local k = key.poll()
+    while k do
+      local a = action(k)
+      if a == "up" then sel = sel > 1 and sel - 1 or #items
+      elseif a == "down" then sel = sel < #items and sel + 1 or 1
+      elseif a == "ok" then return sel
+      elseif a == "back" then return nil end
+      k = key.poll()
+    end
+    sys.sleep(25)
+  end
+end
+
+-- A box with lines of text and an OK button; enter, space or backspace closes it.
+function draw.message(title, lines, opts)
+  opts = opts or {}
+  local wide = textWidth(title) + 16
+  for _, line in ipairs(lines) do wide = math.max(wide, textWidth(line) + 16) end
+  wide = math.min(math.max(wide, 100), SW - 8)
+  local high = 18 + #lines * 10 + 22
+  local x, y = (SW - wide) // 2, (SH - high) // 2
+  while true do
+    gfx.clear(T.bg)
+    if opts.background then opts.background() end
+    panel(x, y, wide, high, title)
+    for i, line in ipairs(lines) do gfx.text(x + 8, y + 18 + (i - 1) * 10, line, T.text, 1) end
+    local bw = 40
+    gfx.fill(x + (wide - bw) // 2, y + high - 18, bw, 13, T.accent)
+    gfx.rect(x + (wide - bw) // 2, y + high - 18, bw, 13, T.text)
+    gfx.text(x + (wide - textWidth("OK")) // 2, y + high - 15, "OK", T.bg, 1)
+    gfx.flush()
+    local k = key.poll()
+    while k do
+      local a = action(k)
+      if a == "ok" or a == "back" then return end
+      k = key.poll()
+    end
+    sys.sleep(25)
+  end
 end
 
 draw.SCREEN = { w = SW, h = SH, viewH = VIEW_H, hudH = HUD_H }

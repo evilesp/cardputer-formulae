@@ -69,7 +69,7 @@ if not driver then
   print("filer: this firmware has no driver module")
   return
 end
-local ui, uiErr = driver.load("ui")
+local ui, uiErr = driver.load("ui", true)
 if not ui then
   print("filer: " .. tostring(uiErr))
   return

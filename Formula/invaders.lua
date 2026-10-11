@@ -81,7 +81,7 @@ if not driver then
   print("invaders: this firmware has no driver module")
   return
 end
-ui, uiErr = driver.load("ui")
+ui, uiErr = driver.load("ui", true)
 if not ui then
   print("invaders: " .. tostring(uiErr))
   return

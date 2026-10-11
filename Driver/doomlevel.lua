@@ -64,15 +64,17 @@ level.LOOKS = {
 
 -- ---- the grid and where the things start ----
 
--- grid[y][x] is 0 for floor and 1 to 4 for a wall (cells counted from 0)
-local grid = {}
+-- level.rows[y + 1] is a string of digits for the row y (cells counted from 0): 0 for floor and 1 to 4 for a wall. A table of
+-- numbers for every row would take ten times the memory, and the memory of the Cardputer is small.
+local rows = {}
 local spawn = { enemies = {}, pickups = {}, start = { x = 1.5, y = 1.5 } }
 for y = 1, level.MH do
-  grid[y - 1] = {}
+  local text = level.MAP_TEXT[y]
+  local digits = {}
   for x = 1, level.MW do
-    local ch = level.MAP_TEXT[y]:sub(x, x)
+    local ch = text:sub(x, x)
     local cx, cy = x - 0.5, y - 0.5
-    grid[y - 1][x - 1] = tonumber(ch) or 0
+    digits[x] = tonumber(ch) and ch or "0"
     if ch == "P" then spawn.start = { x = cx, y = cy }
     elseif ch == "E" then spawn.enemies[#spawn.enemies + 1] = { kind = "imp", x = cx, y = cy }
     elseif ch == "D" then spawn.enemies[#spawn.enemies + 1] = { kind = "demon", x = cx, y = cy }
@@ -80,18 +82,20 @@ for y = 1, level.MH do
     elseif ch == "A" then spawn.pickups[#spawn.pickups + 1] = { kind = "ammo", x = cx, y = cy }
     end
   end
+  rows[y] = table.concat(digits)
 end
-level.grid = grid
+level.rows = rows
 level.spawn = spawn
 
 -- ---- geometry ----
 
 -- the kind of the wall at the cell (cx, cy), counted from 0; outside the level is a wall too (kind 9)
+local byte = string.byte
 function level.wallAt(cx, cy)
-  local row = grid[cy]
-  local t = row and row[cx]
-  if t == nil then return 9 end
-  return t
+  local row = rows[cy + 1]
+  local t = row and byte(row, cx + 1)
+  if t == nil or cx < 0 then return 9 end
+  return t - 48
 end
 
 -- true when a circle of radius r around (x, y) reaches into a wall

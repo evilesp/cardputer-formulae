@@ -82,7 +82,7 @@ if not gps then
   print("gpsmap: " .. tostring(gerr))
   return
 end
-local ui, uerr = driver.load("ui")
+local ui, uerr = driver.load("ui", true)
 if not ui then
   print("gpsmap: " .. tostring(uerr))
   return

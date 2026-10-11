@@ -109,7 +109,7 @@ if not driver then
   print("sudoku: this firmware has no driver module")
   return
 end
-local ui, uiErr = driver.load("ui")
+local ui, uiErr = driver.load("ui", true)
 if not ui then
   print("sudoku: " .. tostring(uiErr))
   return

@@ -7,7 +7,7 @@ if not gfx or not driver then
   print("uidemo needs the graphics of firmware v0.1.0.13(beta): update with SystemUpdateBeta")
   return
 end
-local ui, err = driver.load("ui")
+local ui, err = driver.load("ui", true)
 if not ui then
   print("uidemo: " .. tostring(err))
   return

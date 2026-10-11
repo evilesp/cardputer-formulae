@@ -64,7 +64,7 @@ if not ir or not driver then
   print("irtv needs the infrared of firmware v0.1.0.11 or newer")
   return
 end
-local ui, uiErr = driver.load("ui")
+local ui, uiErr = driver.load("ui", true)
 if not ui then
   print("irtv: " .. tostring(uiErr))
   return
