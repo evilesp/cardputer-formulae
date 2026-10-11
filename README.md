@@ -43,6 +43,9 @@ brew install htop nano snake
 | shasum | SHA-256 pliku lub tekstu |
 | duckduckgo | przeglądarka tekstowa z wyszukiwarką DuckDuckGo |
 | remote | piloty podczerwieni: nauka przycisków, nazwy, wysyłanie po kolei (wymaga v0.1.0.11) |
+| softspi | SPI programowe na dowolnych pinach (sterownik) |
+| mcp3008 | przetwornik ADC MCP3008, 8 wejść, 10 bitów (sterownik) |
+| adcview | 8 wejść MCP3008 na ekranie: adcview SCK MOSI MISO CS [VREF] |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
