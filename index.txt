@@ -65,8 +65,8 @@ invaders|1.0.0.1|space invaders in pixels: a d move, f fires, three lives (needs
 breakout|1.0.0.1|break the bricks with the ball, paddle on a and d (needs firmware v0.1.0.13)|needs:ui|Formula/breakout.lua
 flappy|1.0.0.1|fly the bird through the gaps in the pipes, space flaps (needs firmware v0.1.0.13)|needs:ui|Formula/flappy.lua
 game2048|1.0.0.1|the 2048 puzzle with w a s d (needs firmware v0.1.0.13)|needs:ui|Formula/game2048.lua
-maze|1.0.0.1|a random maze to get out of, with a hint key (needs firmware v0.1.0.13)|needs:ui|Formula/maze.lua
-sudoku|1.0.0.1|sudoku puzzles with a checker (needs firmware v0.1.0.13)|needs:ui|Formula/sudoku.lua
+maze|1.0.0.2|a random maze to get out of, with a hint key (needs firmware v0.1.0.13)|needs:ui|Formula/maze.lua
+sudoku|1.0.0.2|sudoku puzzles with a checker (needs firmware v0.1.0.13)|needs:ui|Formula/sudoku.lua
 chess|1.0.0.1|chess against a simple computer; no castling and no en passant (needs firmware v0.1.0.13)|needs:ui|Formula/chess.lua
 paint|1.0.0.1|draw pictures on the screen and save them to the SD card (needs firmware v0.1.0.13)|needs:ui|Formula/paint.lua
 screensaver|1.0.0.1|stars, rain and a lava lamp for a screen that stays on (needs firmware v0.1.0.13)|needs:ui|Formula/screensaver.lua
@@ -74,7 +74,7 @@ filer|1.0.0.1|file manager for the SD card: browse, read text, copy; it cannot d
 notes|1.0.0.1|short notes on the SD card with a small editor (needs firmware v0.1.0.13)|needs:ui|Formula/notes.lua
 music|1.0.0.1|plays the WAV and AIFF files of a folder one after another (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/music.lua
 plot|1.0.0.1|draws a chart from a text or CSV file: plot FILE (needs firmware v0.1.0.13)|needs:ui|Formula/plot.lua
-sensors|1.0.0.1|live charts of the accelerometer, the gyroscope and the battery (needs firmware v0.1.0.13)|needs:ui|Formula/sensors.lua
+sensors|1.0.0.2|live charts of the accelerometer, the gyroscope and the battery; every reading is logged to /home/user/sensors.csv (needs firmware v0.1.0.15)|needs:ui|Formula/sensors.lua
 analogclock|1.0.0.1|an analogue clock face with the date, from the network clock (needs firmware v0.1.0.13)|needs:ui|Formula/analogclock.lua
 metronome|1.0.0.1|a metronome with a click and a pendulum, 30 to 240 beats a minute (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/metronome.lua
 piano|1.0.0.1|the keyboard as a piano with black and white keys (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/piano.lua

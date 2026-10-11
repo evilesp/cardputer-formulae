@@ -17,19 +17,15 @@ local function canPlace(board, r, c, v)
   return true
 end
 
--- fills the empty cells (0) in order; with random = true the digits are tried in a random order. Returns true when done.
+-- fills the empty cells (0) in order; with random = true each cell tries the digits from a random start, round the ring
+-- 1 to 9 (a new list per step filled the memory of the Cardputer). Returns true when done.
 local function fill(board, random)
   for r = 1, 9 do
     for c = 1, 9 do
       if board[r][c] == 0 then
-        local order = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
-        if random then
-          for i = 9, 2, -1 do
-            local j = math.random(i)
-            order[i], order[j] = order[j], order[i]
-          end
-        end
-        for _, v in ipairs(order) do
+        local start = random and math.random(9) or 1
+        for i = 0, 8 do
+          local v = (start + i - 1) % 9 + 1
           if canPlace(board, r, c, v) then
             board[r][c] = v
             if fill(board, random) then return true end

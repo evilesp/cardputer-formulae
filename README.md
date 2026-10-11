@@ -74,7 +74,7 @@ brew install htop nano snake
 | notes | notatki z prostym edytorem |
 | music | odtwarzacz plików WAV i AIFF z folderu |
 | plot | wykres z pliku tekstowego lub CSV |
-| sensors | wykresy akcelerometru, żyroskopu i baterii na żywo |
+| sensors | wykresy akcelerometru, żyroskopu i baterii na żywo; każdy odczyt zapisuje się na karcie SD (/home/user/sensors.csv); wymaga firmware v0.1.0.15 |
 | analogclock | zegar analogowy z datą |
 | metronome | metronom z klikiem i wahadłem |
 | piano | klawiatura jako pianino |
