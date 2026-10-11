@@ -56,7 +56,7 @@ brew install htop nano snake
 | passgen | losowe hasła: passgen 20 -s |
 | iss | gdzie jest Międzynarodowa Stacja Kosmiczna (potrzebny WiFi) |
 | rtc | zegar DS3231 na I2C: odczyt, ustawianie, synchronizacja |
-| doom | Doom-podobna strzelanka z grafiką pikselową (wersja 0.1.1.2): chodzenie, strzelanie, wrogowie, apteczki, minimapa; idziesz, dopóki trzymasz w s a d , / q e (puszczasz – stajesz); wymaga firmware v0.1.0.14; `brew install doom` sam dopyta o brakujące części (doomgame, doomdraw, doomlevel) |
+| doom | Doom-podobna strzelanka z grafiką pikselową (wersja 0.1.1.3, dźwięk z firmware v0.1.0.17, wyłączenie klawiszem x): chodzenie, strzelanie, wrogowie, apteczki, minimapa; idziesz, dopóki trzymasz w s a d , / q e (puszczasz – stajesz); wymaga firmware v0.1.0.14; `brew install doom` sam dopyta o brakujące części (doomgame, doomdraw, doomlevel) |
 | doomgame | zasady gry, potwory, pętla gry i ruch dla doom (driver) |
 | doomdraw | rysowanie obrazu i menu dla doom (driver) |
 | doomlevel | poziom i geometria dla doom (driver) |

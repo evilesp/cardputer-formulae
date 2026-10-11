@@ -19,6 +19,16 @@ local level = draw.level
 
 local game = {}
 
+-- sound: short tones from the speaker (audio.beep, firmware v0.1.0.17); x turns it off and on. Without that firmware
+-- the game is silent.
+local soundOn = true
+local function sound(freq, ms)
+  if soundOn and audio and audio.beep then pcall(audio.beep, freq, ms) end
+end
+local function soundLabel()
+  return soundOn and "Sound: on" or "Sound: off"
+end
+
 local RADIUS = 0.28                -- the player and the monsters do not touch a wall
 local WALK = 2.6                   -- cells per second, forward while w is held
 local WALK_BACK = 1.8              -- cells per second, back while s is held
@@ -111,6 +121,7 @@ end
 local function hurtPlayer(n)
   P.hp = P.hp - n
   P.hurt = 0.4
+  sound(110, 120)
 end
 
 -- the monster in front of the crosshair (if one is closer than the wall), and how far it is
@@ -133,12 +144,14 @@ local function fire()
   if P.cool > 0 then return end
   if P.ammo <= 0 then
     say("click: no ammo")
+    sound(1400, 15)
     P.cool = 0.4
     return
   end
   P.ammo = P.ammo - 1
   P.cool = FIRE_EVERY
   P.flash = 0.09
+  sound(520, 60)
   local e = aimedAt()
   if e then
     e.hp = e.hp - 1
@@ -148,6 +161,9 @@ local function fire()
       e.dead = true
       P.kills = P.kills + 1
       say(e.type.name .. " down")
+      sound(120, 200)
+    else
+      sound(180, 50)
     end
   end
 end
@@ -176,6 +192,7 @@ local function updateEnemy(e, dt)
   if e.type.ranged then
     if sees and dist < 11 and e.cool <= 0 then
       balls[#balls + 1] = { x = e.x, y = e.y, dx = ux, dy = uy, life = 4.0 }
+      sound(300, 40)
       e.cool = 1.7 + math.random() * 1.2
     end
   elseif dist < 1.05 and e.cool <= 0 then
@@ -204,10 +221,12 @@ local function updatePickups()
         p.taken = true
         P.hp = math.min(100, P.hp + 25)
         say("health +25")
+        sound(880, 70)
       elseif p.kind == "ammo" and P.ammo < 99 then
         p.taken = true
         P.ammo = math.min(99, P.ammo + 15)
         say("ammo +15")
+        sound(880, 70)
       end
     end
   end
@@ -232,9 +251,12 @@ local function step(dt, input)
   for _, e in ipairs(enemies) do
     if not e.dead then alive = alive + 1 end
   end
-  if alive == 0 then
+  if alive == 0 and not G.won then
     G.winT = G.winT + dt
-    if G.winT > 1.2 then G.won = true end
+    if G.winT > 1.2 then
+      G.won = true
+      sound(660, 300)
+    end
   end
 end
 
@@ -286,6 +308,9 @@ local function handleKey(k, now)
     G.map = not G.map
   elseif k == "p" then
     return "pause"
+  elseif k == "x" then
+    soundOn = not soundOn
+    say(soundLabel())
   end
   return nil
 end
@@ -313,6 +338,7 @@ local HELP = {
   "z c   quick turn, to aim",
   "f or enter   fire",
   "m map   p pause   space stop",
+  "x sound on / off",
   "Hold a key to move. ctrl-q quits.",
 }
 
@@ -320,7 +346,7 @@ local function titleBackground()
   for i = 0, 11 do gfx.fill(0, i * 12, 240, 12, draw.shade(0x601010, 60 + i * 12)) end
   draw.center(14, "DOOM", 0x400808, 6, 3, 243)
   draw.center(11, "DOOM", 0xff3020, 6)
-  draw.center(62, "version 0.1.1.2", 0xe8c0b0, 1)
+  draw.center(50, "version 0.1.1.3", 0xe8c0b0, 1)
 end
 
 local function render()
@@ -340,9 +366,10 @@ local function playLevel()
       local r = handleKey(k, now)
       if r == "quit" then return "quit" end
       if r == "pause" then
-        local c = draw.choose("Paused", { "Resume", "How to play", "Quit to the title" }, { background = render })
-        if c == 2 then draw.message("How to play", HELP) end
-        if c == 3 or c == nil then return "menu" end
+        local c = draw.choose("Paused", { "Resume", soundLabel(), "How to play", "Quit to the title" }, { background = render })
+        if c == 2 then soundOn = not soundOn end
+        if c == 3 then draw.message("How to play", HELP) end
+        if c == 4 or c == nil then return "menu" end
         last = sys.millis()
       end
       k = key.poll()
@@ -364,9 +391,11 @@ local function main(start)
   end
   local skipTitle = start
   while true do
-    local choice = skipTitle and 1 or draw.choose("Choose", { "Start game", "How to play", "Quit" }, { y = 76, background = titleBackground })
+    local choice = skipTitle and 1 or draw.choose("Choose", { "Start game", soundLabel(), "How to play", "Quit" }, { y = 64, background = titleBackground })
     skipTitle = false
-    if choice == 1 then
+    if choice == 2 then
+      soundOn = not soundOn
+    elseif choice == 1 then
       while true do
         local result = playLevel()
         if result == "dead" then
@@ -379,7 +408,7 @@ local function main(start)
           break
         end
       end
-    elseif choice == 2 then
+    elseif choice == 3 then
       draw.message("How to play", HELP, { background = titleBackground })
     else
       return

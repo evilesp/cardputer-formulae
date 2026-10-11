@@ -56,7 +56,7 @@ todo|1.0|a task list kept on the SD card: todo add TEXT, todo done N, todo rm N,
 passgen|1.0|random passwords: passgen [LENGTH] [-s], -s adds symbols|Formula/passgen.lua
 iss|1.0|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
 rtc|1.0|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua
-doom|0.1.1.2|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; hold w s a d , / q e to move and turn, letter keys only, no Fn (needs firmware v0.1.0.14)|needs:doomgame|Formula/doom.lua
+doom|0.1.1.3|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; hold w s a d , / q e to move and turn, letter keys only, no Fn (sound from firmware v0.1.0.17; x turns it off; needs firmware v0.1.0.14)|needs:doomgame|Formula/doom.lua
 ui|1.0.0.1|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
 uidemo|1.0.0.1|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs firmware v0.1.0.13)|needs:ui|Formula/uidemo.lua
 doomlevel|1.0.0.1|the level of doom: the map, the look of the walls and monsters, and the ray caster geometry (a driver for doom)|Driver/doomlevel.lua
@@ -82,5 +82,5 @@ piano|1.0.0.1|the keyboard as a piano with black and white keys (needs firmware 
 irtv|1.0.0.1|a remote control on the screen with the buttons taught to the remote app: irtv NAME (needs firmware v0.1.0.13)|needs:ui|Formula/irtv.lua
 gpsmap|1.0.0.1|the track of a GPS module drawn as a map: gpsmap RX TX (needs firmware v0.1.0.13 and a GPS module)|needs:gps ui|Formula/gpsmap.lua
 netmon|1.0.0.1|a chart of how fast a web address answers: netmon [URL [SECONDS]] (needs firmware v0.1.0.13, WiFi)|needs:ui|Formula/netmon.lua
-doomgame|1.0.0.2|the rules and the game loop of doom: player, monsters, shooting, pickups and menus; motion while a key is held (a driver for doom, needs firmware v0.1.0.14)|needs:doomdraw|Driver/doomgame.lua
+doomgame|1.0.0.3|the rules and the game loop of doom: player, monsters, shooting, pickups and menus; motion while a key is held (a driver for doom, needs firmware v0.1.0.14)|needs:doomdraw|Driver/doomgame.lua
 memcleaner|1.0|frees room on the SD card: finds empty files, copies, cache, temporary files, unfinished downloads and very old files, and asks y or n for each (needs firmware v0.1.0.14)|Formula/memcleaner.lua
