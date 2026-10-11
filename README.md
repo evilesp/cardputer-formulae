@@ -42,6 +42,7 @@ brew install htop nano snake
 | uuidgen | losowy UUID |
 | shasum | SHA-256 pliku lub tekstu |
 | duckduckgo | przeglądarka tekstowa z wyszukiwarką DuckDuckGo |
+| remote | piloty podczerwieni: nauka przycisków, nazwy, wysyłanie po kolei (wymaga v0.1.0.11) |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 

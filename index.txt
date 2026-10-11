@@ -43,3 +43,4 @@ server|1.0|a web page for a phone or a laptop: terminal, SD card files (upload, 
 gps|1.0|driver for GPS modules on a UART (NMEA sentences): an app loads it with driver.load("gps")|Driver/gps.lua
 gpsview|1.0|position, satellites and speed from a GPS module on a UART: gpsview RX TX (needs the gps driver)|Formula/gpsview.lua
 i2cscan|1.0|lists the devices on an I2C bus, on two free pins: i2cscan SDA SCL|Formula/i2cscan.lua
+remote|1.0|infrared remotes: learn the buttons of a remote (press them at the receiver), name them, send one or all in order; set the TX and RX pins with p: remote (needs firmware v0.1.0.11)|Formula/remote.lua
