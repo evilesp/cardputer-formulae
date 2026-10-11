@@ -57,3 +57,4 @@ todo|1.0|a task list kept on the SD card: todo add TEXT, todo done N, todo rm N,
 passgen|1.0|random passwords: passgen [LENGTH] [-s], -s adds symbols|Formula/passgen.lua
 iss|1.0|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
 rtc|1.0|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua
+doom|0.0.1|a Doom-like first-person maze in the terminal, version 0.0.1 (walking and turning only): w s walk, a d turn, q e step, space stops, ctrl-q quits|Formula/doom.lua
