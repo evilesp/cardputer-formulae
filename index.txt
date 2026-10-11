@@ -47,3 +47,13 @@ remote|1.0|infrared remotes: learn the buttons of a remote (press them at the re
 softspi|1.0|software SPI on any GPIO pins, bit-banged in Lua, for devices whose pins the hardware SPI cannot reach (needs firmware v0.1.0.11)|Driver/softspi.lua
 mcp3008|1.0|driver for the MCP3008 analogue-to-digital converter: 8 inputs, 10 bits, on a hardware or software SPI bus (needs firmware v0.1.0.11)|Driver/mcp3008.lua
 adcview|1.0|the 8 inputs of an MCP3008 on the screen: adcview SCK MOSI MISO CS [VREF] (q quits; needs softspi and mcp3008)|Formula/adcview.lua
+life|1.0|Conway's Game of Life on the screen: arrows move, space toggles a cell, p runs and pauses (q quits)|Formula/life.lua
+simon|1.0|the memory game with tones: repeat the growing sequence of pads a s d f (needs the speaker)|Formula/simon.lua
+dino|1.0|endless runner in the terminal: space or up jumps over the cacti, r plays again (q quits)|Formula/dino.lua
+mandelbrot|1.0|the Mandelbrot set in characters, zoomable with the arrows and + - (q quits)|Formula/mandelbrot.lua
+typetest|1.0|how fast and how accurately you type: typetest, or typetest WORDS for your own text (ctrl-q quits)|Formula/typetest.lua
+timer|1.0|countdown with big digits and a beep at zero: timer 25m, timer 90, timer 1h30m (space pauses, q quits)|Formula/timer.lua
+todo|1.0|a task list kept on the SD card: todo add TEXT, todo done N, todo rm N, todo clear|Formula/todo.lua
+passgen|1.0|random passwords: passgen [LENGTH] [-s], -s adds symbols|Formula/passgen.lua
+iss|1.0|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
+rtc|1.0|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua

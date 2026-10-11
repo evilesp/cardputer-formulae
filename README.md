@@ -46,6 +46,16 @@ brew install htop nano snake
 | softspi | SPI programowe na dowolnych pinach (sterownik) |
 | mcp3008 | przetwornik ADC MCP3008, 8 wejść, 10 bitów (sterownik) |
 | adcview | 8 wejść MCP3008 na ekranie: adcview SCK MOSI MISO CS [VREF] |
+| life | Gra w życie Conwaya na ekranie (q = wyjście) |
+| simon | gra pamięciowa z dźwiękiem: powtarzaj sekwencję klawiszy a s d f |
+| dino | biegnący dinozaur: spacja skacze nad kaktusami |
+| mandelbrot | zbiór Mandelbrota w znakach, z przybliżaniem (+ i -) |
+| typetest | test szybkości i dokładności pisania (wpm, procenty) |
+| timer | odliczanie dużymi cyframi: timer 25m, timer 90 |
+| todo | lista zadań na karcie SD |
+| passgen | losowe hasła: passgen 20 -s |
+| iss | gdzie jest Międzynarodowa Stacja Kosmiczna (potrzebny WiFi) |
+| rtc | zegar DS3231 na I2C: odczyt, ustawianie, synchronizacja |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
