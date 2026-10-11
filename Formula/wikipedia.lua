@@ -184,9 +184,11 @@ end
 ---------------------------------------------------------------- the Wikipedia API
 
 -- one request to the API of the language; the body of the answer, or nil and the reason
+-- The answer is kept small: a lead of 2400 characters (exchars) is at most about 15 KB even with the \u escapes of Polish
+-- letters, and the Cardputer's heap cannot hold a big answer for long, so the TLS connection of the next page can fail.
 local function apiGet(query)
   local code, body = net.fetch("https://" .. LANG .. ".wikipedia.org/w/api.php?format=json&formatversion=2&" .. query,
-    65536)
+    24576)
   if not code then return nil, tostring(body) end
   if code ~= 200 then return nil, "HTTP " .. tostring(code) end
   return body
@@ -197,18 +199,26 @@ local function search(query)
   local body, err = apiGet("action=opensearch&limit=20&namespace=0&search=" .. urlEncode(query))
   if not body then return nil, err end
   local data = jsonDecode(body)
+  body = nil
   if type(data) ~= "table" or type(data[2]) ~= "table" then return nil, "the answer was not understood" end
-  return data[2]
+  local titles = data[2]
+  data = nil
+  collectgarbage()
+  return titles
 end
 
 -- the lead (first part) of an article as plain text
 local function lead(title)
-  local body, err = apiGet("action=query&prop=extracts&explaintext=1&exintro=1&redirects=1&titles=" .. urlEncode(title))
+  local body, err = apiGet("action=query&prop=extracts&explaintext=1&exintro=1&exchars=2400&redirects=1&titles=" .. urlEncode(title))
   if not body then return nil, err end
   local data = jsonDecode(body)
+  body = nil
   local page = type(data) == "table" and data.query and data.query.pages and data.query.pages[1]
   if type(page) ~= "table" or page.missing then return nil, "no article with this title" end
-  return page.extract or ""
+  local text = page.extract or ""
+  data = nil
+  collectgarbage()  -- the answer's pieces go now, before the next connection needs the memory
+  return text
 end
 
 ---------------------------------------------------------------- navigation

@@ -34,7 +34,15 @@ local FIRE_EVERY = 0.34            -- seconds between shots
 local MOTION = { w = "fwd", s = "back", a = "turnL", [","] = "turnL", d = "turnR", ["/"] = "turnR", q = "stepL", e = "stepR" }
 local HOLD_FIRST = 450             -- ms: one press alone (no repeat yet) keeps the motion going this long
 local HOLD_GAP = 180               -- ms: without a repeat for this long the key counts as let go (a slow frame can take 100 ms)
+local TAP_MS = 80                  -- ms: with key.down (firmware v0.1.0.16) a press keeps the motion this long at most, a frame or two
+local downMode = key ~= nil and key.down ~= nil  -- the firmware tells which keys are held: a release stops at once
 local tracks = {}                  -- motion name -> { last = ms of its last event, n = events since the press began }
+
+-- how long an event keeps its motion going (ms)
+local function limitOf(t)
+  if downMode then return TAP_MS end
+  return t.n == 1 and HOLD_FIRST or HOLD_GAP
+end
 
 local TYPES = {
   imp = { name = "imp", hp = 3, speed = 1.2, ranged = true, size = 0.85 },
@@ -233,7 +241,7 @@ end
 -- one event of a motion key at the time now (ms): the key is held while its events keep coming
 local function noteKey(name, now)
   local t = tracks[name]
-  if t and now - t.last <= (t.n == 1 and HOLD_FIRST or HOLD_GAP) then
+  if t and now - t.last <= limitOf(t) then
     t.n = t.n + 1
   else
     t = { n = 1 }
@@ -242,11 +250,16 @@ local function noteKey(name, now)
   t.last = now
 end
 
--- the motions held at the time now (ms): a set with the keys of MOTION, e.g. { fwd = true, turnR = true }
-local function heldInput(now)
+-- the motions held at the time now (ms): a set with the keys of MOTION, e.g. { fwd = true, turnR = true }. pressed is what
+-- key.down gave in this frame (nil on older firmware): those keys are held now, so they count while they are down.
+local function heldInput(now, pressed)
   local input = {}
+  for _, k in ipairs(pressed or {}) do
+    local name = MOTION[k:lower()]
+    if name then input[name] = true end
+  end
   for name, t in pairs(tracks) do
-    if now - t.last <= (t.n == 1 and HOLD_FIRST or HOLD_GAP) then
+    if now - t.last <= limitOf(t) then
       input[name] = true
     else
       tracks[name] = nil
@@ -284,6 +297,7 @@ end
 -- for the tests
 game.state, game.newGame, game.step, game.handleKey, game.fire, game.aimedAt = frame, newGame, step, handleKey, fire, aimedAt
 game.input = heldInput
+function game.setDownMode(on) downMode = on end
 game.const = { RADIUS = RADIUS, WALK = WALK, SNAP = SNAP, TYPES = TYPES }
 function game.set(name, value)
   if name == "enemies" then enemies = value
@@ -320,6 +334,7 @@ local function playLevel()
     local now = sys.millis()
     local dt = math.min((now - last) / 1000, 0.1)
     last = now
+    local pressed = downMode and key.down() or nil
     local k = key.poll()
     while k do
       local r = handleKey(k, now)
@@ -332,7 +347,7 @@ local function playLevel()
       end
       k = key.poll()
     end
-    step(dt, heldInput(now))
+    step(dt, heldInput(now, pressed))
     render()
     gfx.flush()
     if P.hp <= 0 then return "dead" end

@@ -37,7 +37,7 @@ cava|1.0|an animation of bars that dance like the cava visualizer, a picture onl
 parrotDancing|1.0.0.1|a parrot that dances: flapping wings, legs, rainbow colours and sparkles (q quits)|Formula/parrotDancing.lua
 asciiDonutAnimation|1.0|the spinning ASCII donut, drawn at the size of the screen (q quits)|Formula/asciiDonutAnimation.lua
 show|1.0|shows JPEG and PNG pictures from the SD card on the screen: show FILE... (needs firmware v0.1.0.10)|Formula/show.lua
-wikipedia|1.0|the lead of a Wikipedia article as text, no key: wikipedia WORDS or wikipedia -l en WORDS|Formula/wikipedia.lua
+wikipedia|1.0.0.1|the lead of a Wikipedia article as text, no key: wikipedia WORDS or wikipedia -l en WORDS|Formula/wikipedia.lua
 server|1.0.0.1|a web page for a phone or a laptop: terminal, SD card files (upload, download), device state; server PORT [NAME] (needs v0.1.0.10)|Formula/server.lua
 gps|1.0|driver for GPS modules on a UART (NMEA sentences): an app loads it with driver.load("gps")|Driver/gps.lua
 gpsview|1.0|position, satellites and speed from a GPS module on a UART: gpsview RX TX (needs the gps driver)|Formula/gpsview.lua
@@ -64,7 +64,7 @@ doomdraw|1.0.0.1|the picture and the menus of doom: walls and floor, monsters, w
 invaders|1.0.0.1|space invaders in pixels: a d move, f fires, three lives (needs firmware v0.1.0.13)|needs:ui|Formula/invaders.lua
 breakout|1.0.0.1|break the bricks with the ball, paddle on a and d (needs firmware v0.1.0.13)|needs:ui|Formula/breakout.lua
 flappy|1.0.0.1|fly the bird through the gaps in the pipes, space flaps (needs firmware v0.1.0.13)|needs:ui|Formula/flappy.lua
-game2048|1.0.0.1|the 2048 puzzle with w a s d (needs firmware v0.1.0.13)|needs:ui|Formula/game2048.lua
+2048|1.0.0.1|the 2048 puzzle with w a s d (needs firmware v0.1.0.13)|needs:ui|Formula/game2048.lua
 maze|1.0.0.2|a random maze to get out of, with a hint key (needs firmware v0.1.0.13)|needs:ui|Formula/maze.lua
 sudoku|1.0.0.2|sudoku puzzles with a checker (needs firmware v0.1.0.13)|needs:ui|Formula/sudoku.lua
 chess|1.0.0.1|chess against a simple computer; no castling and no en passant (needs firmware v0.1.0.13)|needs:ui|Formula/chess.lua
@@ -75,11 +75,12 @@ notes|1.0.0.1|short notes on the SD card with a small editor (needs firmware v0.
 music|1.0.0.1|plays the WAV and AIFF files of a folder one after another (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/music.lua
 plot|1.0.0.1|draws a chart from a text or CSV file: plot FILE (needs firmware v0.1.0.13)|needs:ui|Formula/plot.lua
 sensors|1.0.0.2|live charts of the accelerometer, the gyroscope and the battery; every reading is logged to /home/user/sensors.csv (needs firmware v0.1.0.15)|needs:ui|Formula/sensors.lua
+setting|1.0|the settings in pictures: WiFi (scan, password, connect, save for boot), brightness, volume and connect at boot; saved for the next boot (needs firmware v0.1.0.16 and ui)|needs:ui|Formula/setting.lua
 analogclock|1.0.0.1|an analogue clock face with the date, from the network clock (needs firmware v0.1.0.13)|needs:ui|Formula/analogclock.lua
 metronome|1.0.0.1|a metronome with a click and a pendulum, 30 to 240 beats a minute (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/metronome.lua
 piano|1.0.0.1|the keyboard as a piano with black and white keys (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/piano.lua
 irtv|1.0.0.1|a remote control on the screen with the buttons taught to the remote app: irtv NAME (needs firmware v0.1.0.13)|needs:ui|Formula/irtv.lua
 gpsmap|1.0.0.1|the track of a GPS module drawn as a map: gpsmap RX TX (needs firmware v0.1.0.13 and a GPS module)|needs:gps ui|Formula/gpsmap.lua
 netmon|1.0.0.1|a chart of how fast a web address answers: netmon [URL [SECONDS]] (needs firmware v0.1.0.13, WiFi)|needs:ui|Formula/netmon.lua
-doomgame|1.0.0.1|the rules and the game loop of doom: player, monsters, shooting, pickups and menus; motion while a key is held (a driver for doom, needs firmware v0.1.0.14)|needs:doomdraw|Driver/doomgame.lua
+doomgame|1.0.0.2|the rules and the game loop of doom: player, monsters, shooting, pickups and menus; motion while a key is held (a driver for doom, needs firmware v0.1.0.14)|needs:doomdraw|Driver/doomgame.lua
 memcleaner|1.0|frees room on the SD card: finds empty files, copies, cache, temporary files, unfinished downloads and very old files, and asks y or n for each (needs firmware v0.1.0.14)|Formula/memcleaner.lua

@@ -64,7 +64,7 @@ brew install htop nano snake
 | invaders | Space Invaders w pikselach (a d, f strzela) |
 | breakout | cegiełki i piłeczka |
 | flappy | ptak lecący między rurami |
-| game2048 | układanka 2048 klawiszami w a s d |
+| 2048 | układanka 2048 klawiszami w a s d |
 | maze | losowy labirynt z podpowiedzią |
 | sudoku | sudoku ze sprawdzaniem |
 | chess | szachy z prostym komputerem (bez roszady i bicia w przelocie) |
@@ -75,6 +75,7 @@ brew install htop nano snake
 | music | odtwarzacz plików WAV i AIFF z folderu |
 | plot | wykres z pliku tekstowego lub CSV |
 | sensors | wykresy akcelerometru, żyroskopu i baterii na żywo; każdy odczyt zapisuje się na karcie SD (/home/user/sensors.csv); wymaga firmware v0.1.0.15 |
+| setting | ustawienia graficzne: WiFi (skan, hasło, połączenie, zapis do połączenia przy starcie), jasność, głośność; wymaga firmware v0.1.0.16 |
 | analogclock | zegar analogowy z datą |
 | metronome | metronom z klikiem i wahadłem |
 | piano | klawiatura jako pianino |
