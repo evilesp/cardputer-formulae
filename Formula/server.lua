@@ -5,6 +5,8 @@
 --   server PORT [NAME]    the page is at http://IP:PORT; with NAME (for example cardputer) also at http://NAME.local:PORT
 -- There is no password: anyone on the same WiFi can open the page and run commands. Do not forward the port to the
 -- internet. A command from the page stops after 20 seconds; a program that needs the keyboard stops at once.
+-- The page sends the header X-Cardputer: 1 with its changes, and a request must name the Cardputer (its address or its
+-- name). A page of another site cannot send either, so it cannot run a command here.
 -- q on the Cardputer stops the server.
 
 local PAGE = [==[
@@ -116,7 +118,7 @@ ul.files .dir { color: #f0d080; cursor: pointer; }
     $('cmd').value = '';
     say('$ ' + line + '\n');
     $('run').disabled = true;
-    fetch('/api/exec', { method: 'POST', body: line })
+    fetch('/api/exec', { method: 'POST', body: line, headers: { 'X-Cardputer': '1' } })
       .then(function (r) {
         var code = r.headers.get('X-Exit') || '0';
         return r.text().then(function (t) {
@@ -212,7 +214,7 @@ ul.files .dir { color: #f0d080; cursor: pointer; }
     var target = (cwd === '/' ? '' : cwd) + '/' + f.name;
     $('fmsg').textContent = 'Wysy\u0142anie ' + f.name + ' (' + size(f.size) + ')...';
     fetch('/api/upload?path=' + encodeURIComponent(target) + (overwrite ? '&overwrite=1' : ''),
-          { method: 'POST', body: f })
+          { method: 'POST', body: f, headers: { 'X-Cardputer': '1' } })
       .then(function (r) {
         if (r.status === 409 && !overwrite) {
           if (confirm('Plik ' + f.name + ' ju\u017c istnieje. Nadpisa\u0107?')) return upload(f, true);
