@@ -56,7 +56,9 @@ brew install htop nano snake
 | passgen | losowe hasła: passgen 20 -s |
 | iss | gdzie jest Międzynarodowa Stacja Kosmiczna (potrzebny WiFi) |
 | rtc | zegar DS3231 na I2C: odczyt, ustawianie, synchronizacja |
-| doom | Doom-podobna gra w widoku z pierwszej osoby, wersja 0.0.1: chodzenie i skręcanie literami (w s a d), bez Fn |
+| doom | Doom-podobna strzelanka z grafiką pikselową (wersja 0.1.0): chodzenie, strzelanie, wrogowie, apteczki, minimapa; same litery, bez Fn |
+| ui | biblioteka graficznego interfejsu dla aplikacji: okna, przyciski, paski, menu (na module gfx) |
+| uidemo | pokaz biblioteki ui i przykład aplikacji z grafiką |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 

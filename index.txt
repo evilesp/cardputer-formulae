@@ -57,4 +57,6 @@ todo|1.0|a task list kept on the SD card: todo add TEXT, todo done N, todo rm N,
 passgen|1.0|random passwords: passgen [LENGTH] [-s], -s adds symbols|Formula/passgen.lua
 iss|1.0|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
 rtc|1.0|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua
-doom|0.0.1|a Doom-like first-person maze in the terminal, version 0.0.1 (walking and turning only): w s walk, a d turn, q e step, space stops, ctrl-q quits|Formula/doom.lua
+doom|0.1.0|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; letter keys only, no Fn (needs firmware v0.1.0.13 and the ui package)|Formula/doom.lua
+ui|1.0|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
+uidemo|1.0|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs the ui package and firmware v0.1.0.13)|Formula/uidemo.lua
