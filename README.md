@@ -84,6 +84,38 @@ brew install htop nano snake
 | netmon | wykres szybkości odpowiedzi adresu WWW |
 | ui | biblioteka graficznego interfejsu dla aplikacji: okna, przyciski, paski, menu (na module gfx) |
 | uidemo | pokaz biblioteki ui i przykład aplikacji z grafiką |
+| steps | licznik kroków: dziś kontra cel, ostatnie 7 dni, zerowanie; liczy w tle (firmware v0.1.0.18) |
+| sleep | tryb oszczędny: godzina, data, kroki i bateria na najniższej jasności, 80 MHz, WiFi oszczędza prąd; dowolny klawisz budzi |
+| deepSleep | głęboki sen: ekran wyłączony, procesor zatrzymany; klawisz albo BOOT budzi |
+| off | wyłączenie: odcina baterię, jeśli płytka na to pozwala; inaczej głęboki sen do BOOT |
+| tiltracer | wyścig po drodze w 3D: przechylasz, aby skręcać (czujnik ruchu) |
+| tiltmaze | labirynt z kulką: przechyl Cardputer, żeby kulka dotarła do wyjścia |
+| spectrum | widmo dźwięku z mikrofonu jako 16 słupków z nutą i szczytami (firmware v0.1.0.18) |
+| sequencer | automat perkusyjny: 8 ścieżek po 16 kroków, tempo, zapis i odczyt rytmu na karcie SD |
+| morse | alfabet Morse'a z dźwiękiem: nadawanie tekstu albo nauka rozpoznawania liter i cyfr |
+| minesweeper | saper: flagi, liczby i odkrywanie pustych pól |
+| sokoban | popychanie skrzyń na miejsca: trzy poziomy, własne z /home/user/sokoban.txt |
+| lightsout | zgaś wszystkie światła: naciśnięcie zmienia pole i jego sąsiadów |
+| mastermind | odgadnij czteroelementowy kod kolorów w dziesięciu próbach |
+| pacmaze | zjadaj kropki i unikaj dwóch duchów w labiryncie: trzy życia |
+| asteroids | asteroidy: skręcasz, lecisz i strzelasz, skały pękają na mniejsze |
+| frogger | przejdź żabą przez ulicę i ruch, trzy życia |
+| bubbles | strzelaj kolorowymi bańkami w skupisko: grupy po trzy pękają, luźne spadają |
+| pomodoro | minutnik pracy i przerw: bloki po 25 minut, krótkie i długie przerwy, sygnały |
+| moodlog | dziennik nastroju: ocena 1-5 i notatka dziennie, zapis na karcie, wykres |
+| exchange | kursy walut NBP (tabela A, bez klucza) z przelicznikiem; wymaga sterownika json |
+| countdown | dni do Twoich dat z /home/user/countdown.txt; dodawanie i usuwanie |
+| cipher | szyfrowanie i odszyfrowywanie: przesunięcie Cezara i klucz Vigenère |
+| rss | nagłówki kanałów RSS i Atom z listy w /home/user/rss.txt |
+| worldclock | czas w kilku miastach z zasadami czasu letniego (Europa, USA) |
+| tuner | stroik: nuta najbliższa dźwiękowi z mikrofonu i odchyłka w centach (firmware v0.1.0.18) |
+| scope | oscyloskop na pinie analogowym (GPIO1-10): napięcie w czasie (firmware v0.1.0.18) |
+| siggen | generator fali prostokątnej na pinie: buzzer, dioda, test (firmware v0.1.0.18) |
+| functionplot | rysuje y = f(x) dla dowolnego wyrażenia z x: sin(x), x*x - 2, exp(-x*x) |
+| tanks | czołgi dla dwóch graczy na jednej klawiaturze: pojedynek artyleryjski z wiatrem |
+| wifimap | sieci WiFi według kanałów: najmocniejszy sygnał i liczba sieci, najmniej zatłoczony kanał (firmware v0.1.0.18) |
+| quiz | quiz z /home/user/quiz.csv (pytanie;odpowiedź) albo wbudowane pytania, z wynikiem |
+| json | sterownik: czytanie JSON dla innych aplikacji (driver.load("json")) |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 

@@ -84,3 +84,35 @@ gpsmap|1.0.0.1|the track of a GPS module drawn as a map: gpsmap RX TX (needs fir
 netmon|1.0.0.1|a chart of how fast a web address answers: netmon [URL [SECONDS]] (needs firmware v0.1.0.13, WiFi)|needs:ui|Formula/netmon.lua
 doomgame|1.0.0.3|the rules and the game loop of doom: player, monsters, shooting, pickups and menus; motion while a key is held (a driver for doom, needs firmware v0.1.0.14)|needs:doomdraw|Driver/doomgame.lua
 memcleaner|1.0|frees room on the SD card: finds empty files, copies, cache, temporary files, unfinished downloads and very old files, and asks y or n for each (needs firmware v0.1.0.14)|Formula/memcleaner.lua
+steps|1.0|the step counter: today's steps against a goal, the last seven days, reset or pause (firmware v0.1.0.18; counts in the background)|needs:ui|Formula/steps.lua
+sleep|1.0|low power screen: time, date, steps and battery at the lowest brightness, 80 MHz, WiFi power saving; any key wakes it (firmware v0.1.0.18; 'sleep' alone, 'sleep N' still waits)|needs:ui|Formula/sleep.lua
+deepSleep|1.0|deep sleep: screen off and processor stopped, a key or BOOT wakes the Cardputer (firmware v0.1.0.18)|Formula/deepSleep.lua
+off|1.0|switch off: the battery is cut where the board allows it, otherwise deep sleep until BOOT (firmware v0.1.0.18)|Formula/off.lua
+tiltracer|1.0|road racer in pseudo 3D: tilt to steer, w speeds up, s brakes, dodge the cones (motion sensor; firmware v0.1.0.18 for the crash sound)|needs:ui|Formula/tiltracer.lua
+tiltmaze|1.0|ball maze: tilt the Cardputer to roll the ball to the exit (motion sensor)|needs:ui|Formula/tiltmaze.lua
+spectrum|1.0|sound from the microphone as 16 bars with note and peaks (firmware v0.1.0.18, audio.listen)|needs:ui|Formula/spectrum.lua
+sequencer|1.0|drum machine: 8 tracks of 16 steps, tempo, save and load the beat on the SD card (firmware v0.1.0.18 for the sound)|needs:ui|Formula/sequencer.lua
+morse|1.0|Morse code with sound: send a text, or learn to hear letters and digits (firmware v0.1.0.18 for the tones)|needs:ui|Formula/morse.lua
+minesweeper|1.0|find the mines: flags, numbers and opening of empty squares|needs:ui|Formula/minesweeper.lua
+sokoban|1.0|push the boxes onto the targets: three levels, your own levels from /home/user/sokoban.txt|needs:ui|Formula/sokoban.lua
+lightsout|1.0|switch every light off: presses change a square and its neighbours|needs:ui|Formula/lightsout.lua
+mastermind|1.0|crack the four-colour code in ten tries, with black and white marks|needs:ui|Formula/mastermind.lua
+pacmaze|1.0|eat the dots and avoid two ghosts in a maze: three lives|needs:ui|Formula/pacmaze.lua
+asteroids|1.0|shoot the rocks: turn, thrust and fire, the rocks break into smaller ones (hold keys on firmware v0.1.0.18)|needs:ui|Formula/asteroids.lua
+frogger|1.0|get the frog across the road and the traffic, three lives|needs:ui|Formula/frogger.lua
+bubbles|1.0|shoot coloured bubbles into the cluster: groups of three pop, loose bubbles fall|needs:ui|Formula/bubbles.lua
+pomodoro|1.0|work and break timer: 25 minute blocks, short and long breaks, beeps (firmware v0.1.0.18 for the beeps)|needs:ui|Formula/pomodoro.lua
+moodlog|1.0|mood diary: a score from 1 to 5 and a note a day, saved to /home/user/mood.csv, with a graph|needs:ui|Formula/moodlog.lua
+exchange|1.0|exchange rates of the National Bank of Poland (table A, no key), with a converter (needs the json driver)|needs:ui json|Formula/exchange.lua
+countdown|1.0|days until your dates, from /home/user/countdown.txt; add and remove dates|needs:ui|Formula/countdown.lua
+cipher|1.0|encrypt and decrypt text: Caesar shift and Vigenere key, save the result to the SD card|needs:ui|Formula/cipher.lua
+rss|1.0|headlines of your RSS and Atom feeds listed in /home/user/rss.txt|needs:ui|Formula/rss.lua
+worldclock|1.0|the time in several cities with summer time rules (Europe, US) and the date|needs:ui|Formula/worldclock.lua
+tuner|1.0|instrument tuner: the note nearest to the microphone sound and the cents off pitch (firmware v0.1.0.18)|needs:ui|Formula/tuner.lua
+scope|1.0|oscilloscope for an analogue pin (GPIO1 to GPIO10): voltage over time (firmware v0.1.0.18, gpio.scope)|needs:ui|Formula/scope.lua
+siggen|1.0|square wave generator on a pin for a buzzer, LED or test (firmware v0.1.0.18, gpio.tone)|needs:ui|Formula/siggen.lua
+functionplot|1.0|draw y = f(x) for any expression with x: sin(x), x*x - 2, exp(-x*x)|needs:ui|Formula/functionplot.lua
+tanks|1.0|two players on one keyboard: artillery duel over destructible ground, with wind|needs:ui|Formula/tanks.lua
+wifimap|1.0|Wi-Fi networks by channel: the strongest signal and the number per channel, the least crowded channel (firmware v0.1.0.18)|needs:ui|Formula/wifimap.lua
+quiz|1.0|quiz from /home/user/quiz.csv (question;answer) or built-in questions, with a score|needs:ui|Formula/quiz.lua
+json|1.0|a small JSON reader for the apps: driver.load("json") gives json.decode(text) (a driver)|Driver/json.lua
