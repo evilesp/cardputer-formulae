@@ -40,3 +40,6 @@ asciiDonutAnimation|1.0|the spinning ASCII donut, drawn at the size of the scree
 show|1.0|shows JPEG and PNG pictures from the SD card on the screen: show FILE... (needs firmware v0.1.0.10)|Formula/show.lua
 wikipedia|1.0|the lead of a Wikipedia article as text, no key: wikipedia WORDS or wikipedia -l en WORDS|Formula/wikipedia.lua
 server|1.0|a web page for a phone or a laptop: terminal, SD card files (upload, download), device state; server PORT [NAME] (needs v0.1.0.10)|Formula/server.lua
+gps|1.0|driver for GPS modules on a UART (NMEA sentences): an app loads it with driver.load("gps")|Driver/gps.lua
+gpsview|1.0|position, satellites and speed from a GPS module on a UART: gpsview RX TX (needs the gps driver)|Formula/gpsview.lua
+i2cscan|1.0|lists the devices on an I2C bus, on two free pins: i2cscan SDA SCL|Formula/i2cscan.lua
