@@ -277,7 +277,7 @@ if arg and arg[1] == "--selftest" then
   end)
   ui.close()
   print(string.format("selftest ok (%d checks)", checks))
-  return
 end
 
+-- (no return above: when doom loads this driver with --selftest in its arguments, the module must still come back)
 return ui
