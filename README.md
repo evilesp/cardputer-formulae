@@ -59,6 +59,26 @@ brew install htop nano snake
 | doom | Doom-podobna strzelanka z grafiką pikselową (wersja 0.1.1): chodzenie, strzelanie, wrogowie, apteczki, minimapa; same litery, bez Fn; instalacja: brew install ui doomlevel doomdraw doom |
 | doomlevel | poziom i geometria dla doom (driver) |
 | doomdraw | rysowanie obrazu dla doom (driver) |
+| invaders | Space Invaders w pikselach (a d, f strzela) |
+| breakout | cegiełki i piłeczka |
+| flappy | ptak lecący między rurami |
+| game2048 | układanka 2048 klawiszami w a s d |
+| maze | losowy labirynt z podpowiedzią |
+| sudoku | sudoku ze sprawdzaniem |
+| chess | szachy z prostym komputerem (bez roszady i bicia w przelocie) |
+| paint | rysowanie na ekranie i zapis na karcie |
+| screensaver | wygaszacz: gwiazdy, deszcz, lampa lava |
+| filer | menedżer plików na karcie SD (bez kasowania) |
+| notes | notatki z prostym edytorem |
+| music | odtwarzacz plików WAV i AIFF z folderu |
+| plot | wykres z pliku tekstowego lub CSV |
+| sensors | wykresy akcelerometru, żyroskopu i baterii na żywo |
+| analogclock | zegar analogowy z datą |
+| metronome | metronom z klikiem i wahadłem |
+| piano | klawiatura jako pianino |
+| irtv | pilot na ekranie z przyciskami nauczonymi w aplikacji remote |
+| gpsmap | trasa z modułu GPS jako mapa |
+| netmon | wykres szybkości odpowiedzi adresu WWW |
 | ui | biblioteka graficznego interfejsu dla aplikacji: okna, przyciski, paski, menu (na module gfx) |
 | uidemo | pokaz biblioteki ui i przykład aplikacji z grafiką |
 

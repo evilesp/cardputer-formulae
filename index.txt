@@ -25,7 +25,6 @@ base64|1.0|encode or decode text: base64 [-d] TEXT|Formula/base64.lua
 uuidgen|1.0|random UUID version 4: uuidgen [COUNT]|Formula/uuidgen.lua
 shasum|1.0|SHA-256 of a file or text: shasum FILE or shasum -s TEXT|Formula/shasum.lua
 duckduckgo|1.0.0.3|text browser for DuckDuckGo: duckduckgo WORDS (pages need firmware v0.1.0.8)|Formula/duckduckgo.lua
-SystemUpdate|1.0.0.3|obsolete: SystemUpdate is built into the terminal now|Formula/SystemUpdate.lua
 imuMonitor|1.0|live view of the accelerometer and gyroscope (q = quit)|Formula/imuMonitor.lua
 sox|1.0.0.1|SoX-style audio: sox -d out.wav trim 0 5 records, sox -n synth 1 sine 440 -d plays a tone|Formula/sox.lua
 rec|1.0.0.1|record from the microphone: rec FILE trim 0 5 (rec -n stat only measures)|Formula/rec.lua
@@ -62,3 +61,23 @@ ui|1.0|a graphical toolkit for apps: windows, buttons, bars, lists, menus and me
 uidemo|1.0|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs the ui package and firmware v0.1.0.13)|Formula/uidemo.lua
 doomlevel|1.0|the level of doom: the map, the look of the walls and monsters, and the ray caster geometry (a driver for doom, needs firmware v0.1.0.13)|Driver/doomlevel.lua
 doomdraw|1.0|the picture of doom: walls and floor, monsters, weapon, crosshair, minimap and the bar at the bottom (a driver for doom, needs doomlevel and firmware v0.1.0.13)|Driver/doomdraw.lua
+invaders|1.0|space invaders in pixels: a d move, f fires, three lives (needs the ui package and firmware v0.1.0.13)|Formula/invaders.lua
+breakout|1.0|break the bricks with the ball, paddle on a and d (needs the ui package and firmware v0.1.0.13)|Formula/breakout.lua
+flappy|1.0|fly the bird through the gaps in the pipes, space flaps (needs the ui package and firmware v0.1.0.13)|Formula/flappy.lua
+game2048|1.0|the 2048 puzzle with w a s d (needs the ui package and firmware v0.1.0.13)|Formula/game2048.lua
+maze|1.0|a random maze to get out of, with a hint key (needs the ui package and firmware v0.1.0.13)|Formula/maze.lua
+sudoku|1.0|sudoku puzzles with a checker (needs the ui package and firmware v0.1.0.13)|Formula/sudoku.lua
+chess|1.0|chess against a simple computer; no castling and no en passant (needs the ui package and firmware v0.1.0.13)|Formula/chess.lua
+paint|1.0|draw pictures on the screen and save them to the SD card (needs the ui package and firmware v0.1.0.13)|Formula/paint.lua
+screensaver|1.0|stars, rain and a lava lamp for a screen that stays on (needs the ui package and firmware v0.1.0.13)|Formula/screensaver.lua
+filer|1.0|file manager for the SD card: browse, read text, copy; it cannot delete (needs the ui package and firmware v0.1.0.13)|Formula/filer.lua
+notes|1.0|short notes on the SD card with a small editor (needs the ui package and firmware v0.1.0.13)|Formula/notes.lua
+music|1.0|plays the WAV and AIFF files of a folder one after another (needs the ui package, the speaker and firmware v0.1.0.13)|Formula/music.lua
+plot|1.0|draws a chart from a text or CSV file: plot FILE (needs the ui package and firmware v0.1.0.13)|Formula/plot.lua
+sensors|1.0|live charts of the accelerometer, the gyroscope and the battery (needs the ui package and firmware v0.1.0.13)|Formula/sensors.lua
+analogclock|1.0|an analogue clock face with the date, from the network clock (needs the ui package and firmware v0.1.0.13)|Formula/analogclock.lua
+metronome|1.0|a metronome with a click and a pendulum, 30 to 240 beats a minute (needs the ui package, the speaker and firmware v0.1.0.13)|Formula/metronome.lua
+piano|1.0|the keyboard as a piano with black and white keys (needs the ui package, the speaker and firmware v0.1.0.13)|Formula/piano.lua
+irtv|1.0|a remote control on the screen with the buttons taught to the remote app: irtv NAME (needs the ui package and firmware v0.1.0.13)|Formula/irtv.lua
+gpsmap|1.0|the track of a GPS module drawn as a map: gpsmap RX TX (needs the gps and ui packages and firmware v0.1.0.13)|Formula/gpsmap.lua
+netmon|1.0|a chart of how fast a web address answers: netmon [URL [SECONDS]] (needs the ui package, WiFi and firmware v0.1.0.13)|Formula/netmon.lua
