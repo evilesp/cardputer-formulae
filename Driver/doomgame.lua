@@ -38,6 +38,7 @@ local ACCEL = 14.0                 -- cells per second, every second: the speed 
 local STOP_ACCEL = 40.0            -- and stops quickly when the key is let go
 local SNAP = 0.18                  -- a quick turn, about 10 degrees
 local FIRE_EVERY = 0.34            -- seconds between shots
+local SHOT_TIME = 0.32             -- seconds the shot is on screen (recoil, muzzle flash, smoke; doomdraw)
 
 -- The motion keys and what they do. The firmware reports a press and, while the key is held, its repeats (the first one
 -- 400 ms after the press, then one every 40 ms), and no release. So a key is held while its events keep coming.
@@ -69,7 +70,7 @@ end
 local function newGame()
   local start = level.spawn.start
   P = { x = start.x, y = start.y, angle = 0.0, hp = 100, ammo = 36, kills = 0,
-        vf = 0.0, vs = 0.0, cool = 0.0, flash = 0.0, hurt = 0.0, bob = 0.0, moving = 0.0 }
+        vf = 0.0, vs = 0.0, cool = 0.0, flash = 0.0, shot = 0.0, shotMax = SHOT_TIME, hurt = 0.0, bob = 0.0, moving = 0.0 }
   tracks = {}
   enemies, pickups, balls = {}, {}, {}
   for _, s in ipairs(level.spawn.enemies) do
@@ -115,6 +116,7 @@ local function updatePlayer(dt, input)
   P.bob = P.bob + dt * (3 + 7 * P.moving)  -- the picture sways while you walk
   P.cool = math.max(0.0, P.cool - dt)
   P.flash = math.max(0.0, P.flash - dt)
+  P.shot = math.max(0.0, P.shot - dt)  -- the shot on screen: the recoil and the muzzle flash (doomdraw)
   P.hurt = math.max(0.0, P.hurt - dt)
 end
 
@@ -151,6 +153,7 @@ local function fire()
   P.ammo = P.ammo - 1
   P.cool = FIRE_EVERY
   P.flash = 0.09
+  P.shot, P.shotMax = SHOT_TIME, SHOT_TIME  -- a whole animation: step() runs in pieces and would finish a 0.09 s flash before it is drawn
   sound(520, 60)
   local e = aimedAt()
   if e then

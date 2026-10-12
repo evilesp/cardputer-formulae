@@ -1,7 +1,8 @@
 #!lua
 -- fire: the doom fire effect, a bed of embers with flames that rise, flicker and die. space changes the colour of the fire
 -- (red, blue, green, purple), w and s make it hotter or colder, a and d blow the wind, q quits. Needs the graphics.
--- Run it with --selftest to check the palette and the spreading.
+-- The heat of every cell is packed eight to a number (8 bits each): a table with one entry per cell took about 32 KB of the
+-- Cardputer's memory, and the fire ran out of memory next to the WiFi. Run it with --selftest to check the palette and the spreading.
 
 local W, H = 240, 135
 local CELL = 5
@@ -33,20 +34,36 @@ local function palette(stops)
   return p
 end
 
+-- the heat of cell i (0 .. n-1, row by row from the top), eight cells to a number
+local function newHeat(n)
+  local h = {}
+  for w = 1, (n + 7) // 8 do h[w] = 0 end
+  return h
+end
+
+local function getHeat(h, i)
+  return (h[(i >> 3) + 1] >> ((i & 7) << 3)) & 255
+end
+
+local function setHeat(h, i, v)
+  local w = (i >> 3) + 1
+  local sh = (i & 7) << 3
+  h[w] = (h[w] & ~(255 << sh)) | (v << sh)
+end
+
 -- one step of the fire: every cell takes the heat of the cell under it, a little less, and a little to the side (the
--- wind). The cells are in a flat list, row by row from the top.
+-- wind). Rows and columns count from 0; the rows are done from the second one down, so a cell moves up only once.
 local function step(heat, cols, rows, decay, wind)
   for r = 1, rows - 1 do
-    for c = 1, cols do
-      local below = heat[r * cols + c]
+    for c = 0, cols - 1 do
+      local below = getHeat(heat, r * cols + c)
       if below > 0 then
-        local drift = math.random(0, 2) - 1 + wind
-        local to = c + drift
-        if to < 1 then to = 1 elseif to > cols then to = cols end
+        local to = c + math.random(0, 2) - 1 + wind
+        if to < 0 then to = 0 elseif to > cols - 1 then to = cols - 1 end
         local v = below - math.random(0, decay)
-        heat[(r - 1) * cols + to] = v > 0 and v or 0
+        setHeat(heat, (r - 1) * cols + to, v > 0 and v or 0)
       else
-        heat[(r - 1) * cols + c] = 0
+        setHeat(heat, (r - 1) * cols + c, 0)
       end
     end
   end
@@ -64,18 +81,23 @@ if arg[1] == "--selftest" then
   local p = palette(STOPS[1])
   check(p[0] == 0 and p[LEVELS - 1] == 0xffffff, "the palette runs from black to white")
   local cols, rows = 5, 4
-  local heat = {}
-  for i = 1, cols * rows do heat[i] = 0 end
-  for c = 1, cols do heat[(rows - 1) * cols + c] = LEVELS - 1 end
+  local heat = newHeat(cols * rows)
+  for c = 0, cols - 1 do setHeat(heat, (rows - 1) * cols + c, LEVELS - 1) end
   for _ = 1, 3 do step(heat, cols, rows, 3, 0) end
   local top = 0
-  for c = 1, cols do top = top + heat[c] end
+  for c = 0, cols - 1 do top = top + getHeat(heat, c) end
   check(top > 0, "the heat climbs from the bottom row")
-  for c = 1, cols do heat[(rows - 1) * cols + c] = 0 end
+  check(getHeat(heat, 0) <= LEVELS - 1 and getHeat(heat, 1) >= 0, "heat stays in its 8 bits")
+  for c = 0, cols - 1 do setHeat(heat, (rows - 1) * cols + c, 0) end
   for _ = 1, 40 do step(heat, cols, rows, 3, 0) end
   local total = 0
-  for i = 1, cols * rows do total = total + heat[i] end
+  for i = 0, cols * rows - 1 do total = total + getHeat(heat, i) end
   check(total == 0, "the fire dies without fuel")
+  local packed = newHeat(20)
+  setHeat(packed, 9, 33)
+  setHeat(packed, 8, 7)
+  setHeat(packed, 15, 39)
+  check(getHeat(packed, 9) == 33 and getHeat(packed, 8) == 7 and getHeat(packed, 15) == 39 and getHeat(packed, 10) == 0, "packed cells do not disturb their neighbours")
   if failed == 0 then print("selftest ok") end
   return
 end
@@ -89,8 +111,7 @@ if not gfx.open() then
   return
 end
 local ok, problem = pcall(function()
-  local heat = {}
-  for i = 1, COLS * ROWS do heat[i] = 0 end
+  local heat = newHeat(COLS * ROWS)
   local si, pal = 1, palette(STOPS[1])
   local decay, wind, fuel, shown = 5, 0, LEVELS - 1, sys.millis()
   while true do
@@ -107,13 +128,13 @@ local ok, problem = pcall(function()
       elseif k == "d" or k == "right" then wind = math.min(1, wind + 1) end
       k = key.poll()
     end
-    for c = 1, COLS do heat[(ROWS - 1) * COLS + c] = fuel - math.random(0, 3) end
+    for c = 0, COLS - 1 do setHeat(heat, (ROWS - 1) * COLS + c, fuel - math.random(0, 3)) end
     step(heat, COLS, ROWS, decay, wind)
     gfx.clear(0)
     for r = 0, ROWS - 1 do
-      for c = 1, COLS do
-        local v = heat[r * COLS + c]
-        if v > 0 then gfx.fill((c - 1) * CELL, r * CELL, CELL, CELL, pal[v]) end
+      for c = 0, COLS - 1 do
+        local v = getHeat(heat, r * COLS + c)
+        if v > 0 then gfx.fill(c * CELL, r * CELL, CELL, CELL, pal[v]) end
       end
     end
     if sys.millis() - shown < 1800 then gfx.text(4, 4, STOPS[si].name .. "  space w s a d q", 0xffffff, 1) end

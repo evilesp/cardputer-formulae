@@ -164,18 +164,28 @@ local function drawThings(horizon)
   end
 end
 
+-- the weapon in the corner: it sways while you walk, and after a shot it jumps up (the recoil) and comes down again, with
+-- a muzzle flash and a little smoke that rises from the barrel
 local function drawWeapon()
+  local k = P.shot > 0 and P.shot / P.shotMax or 0   -- 1 when the shot starts, 0 when it is over
+  local phase = 1 - k                                -- 0 at the shot, 1 at the end
+  local kick = k > 0 and math.sin(phase * math.pi) or 0
   local sway = math.floor(math.sin(P.bob) * 4 * P.moving)
-  local drop = math.floor(math.abs(math.cos(P.bob)) * 3 * P.moving) + (P.flash > 0 and 5 or 0)
+  local drop = math.floor(math.abs(math.cos(P.bob)) * 3 * P.moving) - math.floor(kick * 7)
   local bx, by = SW // 2 + sway + 40, VIEW_H + 4 + drop
   gfx.fill(bx - 4, by - 36, 8, 26, 0x50565e)      -- barrel
   gfx.fill(bx - 9, by - 28, 18, 16, 0x7a838c)     -- slide
   gfx.fill(bx - 9, by - 28, 18, 2, 0xa8b2bc)
   gfx.fill(bx - 6, by - 14, 12, 14, 0x4a3626)     -- grip
   gfx.fill(bx - 11, by - 8, 22, 12, 0xd8a078)     -- hand
-  if P.flash > 0 then
-    gfx.triangle(bx - 7, by - 38, bx + 7, by - 38, bx, by - 58, 0xffb020)
-    gfx.disc(bx, by - 40, 5, 0xfff0a0)
+  if k > 0.35 then  -- the flash at the muzzle: big and bright first, then smaller
+    local big = k > 0.7 and 1 or 0
+    gfx.triangle(bx - 6 - 3 * big, by - 40, bx + 6 + 3 * big, by - 40, bx, by - 54 - 10 * big, big == 1 and 0xff9020 or 0xffb020)
+    gfx.disc(bx, by - 42, 3 + 3 * big, 0xfff0a0)
+  end
+  if k > 0 and k < 0.9 then  -- the smoke: a grey puff that rises and grows
+    local rise = math.floor((1 - k) * 22)
+    gfx.disc(bx - 2, by - 46 - rise, 3 + rise // 6, 0x8a9098)
   end
 end
 

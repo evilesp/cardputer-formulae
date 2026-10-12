@@ -60,7 +60,7 @@ doom|0.1.1.3|a Doom-like shooter with pixel graphics: walk, shoot imps and demon
 ui|1.0.0.1|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
 uidemo|1.0.0.2|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs firmware v0.1.0.13)|needs:ui|Formula/uidemo.lua
 doomlevel|1.0.0.1|the level of doom: the map, the look of the walls and monsters, and the ray caster geometry (a driver for doom)|Driver/doomlevel.lua
-doomdraw|1.0.0.1|the picture and the menus of doom: walls and floor, monsters, weapon, crosshair, minimap and the bar at the bottom (a driver for doom)|needs:doomlevel|Driver/doomdraw.lua
+doomdraw|1.0.0.2|the picture and the menus of doom: walls and floor, monsters, weapon, crosshair, minimap and the bar at the bottom (a driver for doom)|needs:doomlevel|Driver/doomdraw.lua
 invaders|1.0.0.1|space invaders in pixels: a d move, f fires, three lives (needs firmware v0.1.0.13)|needs:ui|Formula/invaders.lua
 breakout|1.0.0.1|break the bricks with the ball, paddle on a and d (needs firmware v0.1.0.13)|needs:ui|Formula/breakout.lua
 flappy|1.0.0.1|fly the bird through the gaps in the pipes, space flaps (needs firmware v0.1.0.13)|needs:ui|Formula/flappy.lua
@@ -82,7 +82,7 @@ piano|1.0.0.1|the keyboard as a piano with black and white keys (needs firmware 
 irtv|1.0.0.1|a remote control on the screen with the buttons taught to the remote app: irtv NAME (needs firmware v0.1.0.13)|needs:ui|Formula/irtv.lua
 gpsmap|1.0.0.1|the track of a GPS module drawn as a map: gpsmap RX TX (needs firmware v0.1.0.13 and a GPS module)|needs:gps ui|Formula/gpsmap.lua
 netmon|1.0.0.1|a chart of how fast a web address answers: netmon [URL [SECONDS]] (needs firmware v0.1.0.13, WiFi)|needs:ui|Formula/netmon.lua
-doomgame|1.0.0.3|the rules and the game loop of doom: player, monsters, shooting, pickups and menus; motion while a key is held (a driver for doom, needs firmware v0.1.0.14)|needs:doomdraw|Driver/doomgame.lua
+doomgame|1.0.0.4|the rules and the game loop of doom: player, monsters, shooting, pickups and menus; motion while a key is held (a driver for doom, needs firmware v0.1.0.14)|needs:doomdraw|Driver/doomgame.lua
 memcleaner|1.0|frees room on the SD card: finds empty files, copies, cache, temporary files, unfinished downloads and very old files, and asks y or n for each (needs firmware v0.1.0.14)|Formula/memcleaner.lua
 steps|1.0|the step counter: today's steps against a goal, the last seven days, reset or pause (firmware v0.1.0.18; counts in the background)|needs:ui|Formula/steps.lua
 sleep|1.0|low power screen: time, date, steps and battery at the lowest brightness, 80 MHz, WiFi power saving; any key wakes it (firmware v0.1.0.18; 'sleep' alone, 'sleep N' still waits)|needs:ui|Formula/sleep.lua
@@ -125,7 +125,7 @@ joke|1.0|a random clean joke from JokeAPI (no key, in English)|Formula/joke.lua
 sunrise|1.0|sunrise, sunset, solar noon and day length for any place, worked out offline|Formula/sunrise.lua
 eng|1.0|engineering numbers for the electronics apps: parse 4k7 or 100nF, format with k M u n p, E series (a driver)|Driver/eng.lua
 plasma|1.0|animation: the classic plasma, five palettes (space changes them, w s speed)|Formula/plasma.lua
-fire|1.0.0.1|animation: doom-style fire in four colours, with wind (a d) and heat (w s)|Formula/fire.lua
+fire|1.0.0.2|animation: doom-style fire in four colours, with wind (a d) and heat (w s)|Formula/fire.lua
 warp|1.0|animation: a flight through a starfield at warp speed, with steering and a rainbow tunnel|Formula/warp.lua
 aurora|1.0.0.2|animation: the northern lights in moving rays over a frozen lake that mirrors them, pines and shooting stars|Formula/aurora.lua
 rain|1.0.0.2|animation: a rainy city night: three layers of rain, splashes, wet reflections, a passing car, lightning and thunder|Formula/rain.lua
