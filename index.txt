@@ -54,7 +54,7 @@ typetest|1.0|how fast and how accurately you type: typetest, or typetest WORDS f
 timer|1.0|countdown with big digits and a beep at zero: timer 25m, timer 90, timer 1h30m (space pauses, q quits)|Formula/timer.lua
 todo|1.0|a task list kept on the SD card: todo add TEXT, todo done N, todo rm N, todo clear|Formula/todo.lua
 passgen|1.0|random passwords: passgen [LENGTH] [-s], -s adds symbols|Formula/passgen.lua
-iss|1.0|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
+iss|1.0.0.1|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
 rtc|1.0|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua
 doom|0.1.1.3|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; hold w s a d , / q e to move and turn, letter keys only, no Fn (sound from firmware v0.1.0.17; x turns it off; needs firmware v0.1.0.14)|needs:doomgame|Formula/doom.lua
 ui|1.0.0.1|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
@@ -103,7 +103,7 @@ frogger|1.0|get the frog across the road and the traffic, three lives|needs:ui|F
 bubbles|1.0|shoot coloured bubbles into the cluster: groups of three pop, loose bubbles fall|needs:ui|Formula/bubbles.lua
 pomodoro|1.0|work and break timer: 25 minute blocks, short and long breaks, beeps (firmware v0.1.0.18 for the beeps)|needs:ui|Formula/pomodoro.lua
 moodlog|1.0|mood diary: a score from 1 to 5 and a note a day, saved to /home/user/mood.csv, with a graph|needs:ui|Formula/moodlog.lua
-exchange|1.0|exchange rates of the National Bank of Poland (table A, no key), with a converter (needs the json driver)|needs:ui json|Formula/exchange.lua
+exchange|1.0.0.1|exchange rates of the National Bank of Poland (table A, no key), with a converter (needs the json driver)|needs:ui json|Formula/exchange.lua
 countdown|1.0|days until your dates, from /home/user/countdown.txt; add and remove dates|needs:ui|Formula/countdown.lua
 cipher|1.0|encrypt and decrypt text: Caesar shift and Vigenere key, save the result to the SD card|needs:ui|Formula/cipher.lua
 rss|1.0|headlines of your RSS and Atom feeds listed in /home/user/rss.txt|needs:ui|Formula/rss.lua
@@ -116,3 +116,10 @@ tanks|1.0.0.1|artillery duel over destructible ground: play against the bot (eas
 wifimap|1.0|Wi-Fi networks by channel: the strongest signal and the number per channel, the least crowded channel (firmware v0.1.0.18)|needs:ui|Formula/wifimap.lua
 quiz|1.0|quiz from /home/user/quiz.csv (question;answer) or built-in questions, with a score|needs:ui|Formula/quiz.lua
 json|1.0|a small JSON reader for the apps: driver.load("json") gives json.decode(text) (a driver)|Driver/json.lua
+earthquakes|1.0|the latest earthquakes in the world from USGS (no key), with details (needs WiFi, q quits)|Formula/earthquakes.lua
+crypto|1.0|prices of popular cryptocurrencies from CoinGecko in PLN, USD or EUR with the 24 h change (no key)|Formula/crypto.lua
+connect4|1.0|four in a row against a bot (3 levels) or a friend, with falling discs|needs:ui|Formula/connect4.lua
+reversi|1.0|reversi (Othello) against a bot (3 levels) or a friend, with move hints|needs:ui|Formula/reversi.lua
+units|1.0|unit converter: length, mass, temperature, speed, area, volume, time, data, energy (units 10 km mi)|Formula/units.lua
+joke|1.0|a random clean joke from JokeAPI (no key, in English)|Formula/joke.lua
+sunrise|1.0|sunrise, sunset, solar noon and day length for any place, worked out offline|Formula/sunrise.lua

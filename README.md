@@ -104,6 +104,13 @@ brew install htop nano snake
 | pomodoro | minutnik pracy i przerw: bloki po 25 minut, krótkie i długie przerwy, sygnały |
 | moodlog | dziennik nastroju: ocena 1-5 i notatka dziennie, zapis na karcie, wykres |
 | exchange | kursy walut NBP (tabela A, bez klucza) z przelicznikiem; wymaga sterownika json |
+| earthquakes | najnowsze trzęsienia ziemi na świecie (USGS, bez klucza); `earthquakes 2.5` pokazuje też słabsze |
+| crypto | ceny kryptowalut (CoinGecko, bez klucza) w PLN, USD lub EUR ze zmianą z 24 h; tylko informacja, nie porada |
+| connect4 | cztery w rzędzie z botem (3 poziomy) albo we dwoje; a/d kolumna, spacja rzut |
+| reversi | reversi (Othello) z botem (3 poziomy) albo we dwoje; h pokazuje możliwe ruchy |
+| units | przelicznik jednostek: `units 10 km mi`, `units 98.6 F C`, `units list` |
+| joke | losowy żart z JokeAPI (bez klucza, po angielsku, tryb bezpieczny) |
+| sunrise | wschód i zachód słońca, południe słoneczne i długość dnia, liczone bez internetu: `sunrise 50.06 19.94` |
 | countdown | dni do Twoich dat z /home/user/countdown.txt; dodawanie i usuwanie |
 | cipher | szyfrowanie i odszyfrowywanie: przesunięcie Cezara i klucz Vigenère |
 | rss | nagłówki kanałów RSS i Atom z listy w /home/user/rss.txt |

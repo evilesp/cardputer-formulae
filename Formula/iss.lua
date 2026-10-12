@@ -48,16 +48,18 @@ local function draw(pos, message)
   term.flush()
 end
 
+-- the app's own screen first: drawing before it took the terminal (and cleared it on older firmware)
+term.fullscreen(true)
 local pos, message = nil, "fetching the position..."
 draw(nil, message)
 pos, message = fetch()
 if not pos then
+  term.fullscreen(false)
   print("iss: " .. tostring(message))
   return
 end
 local nextAt = sys.millis() + REFRESH_MS
 
-term.fullscreen(true)
 local quit = false
 while not quit do
   draw(pos, message)

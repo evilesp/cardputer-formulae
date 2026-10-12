@@ -6,6 +6,14 @@
 
 local URL = "https://api.nbp.pl/api/exchangerates/tables/A/?format=json"
 
+-- The font of the screen has ASCII letters only: the Polish names of the currencies lose their accents
+local PLAIN = { ["ą"] = "a", ["ć"] = "c", ["ę"] = "e", ["ł"] = "l", ["ń"] = "n", ["ó"] = "o", ["ś"] = "s", ["ź"] = "z",
+                ["ż"] = "z", ["Ą"] = "A", ["Ć"] = "C", ["Ę"] = "E", ["Ł"] = "L", ["Ń"] = "N", ["Ó"] = "O", ["Ś"] = "S",
+                ["Ź"] = "Z", ["Ż"] = "Z" }
+local function plain(text)
+  return (text:gsub("[\xC2-\xF4][\x80-\xBF]*", function(ch) return PLAIN[ch] or "?" end))
+end
+
 -- the list of { code, currency, mid } from the answer of the API, sorted by code; nil when the text is not that table
 local function ratesOf(json, text)
   local data, why = json.decode(text)
@@ -15,7 +23,7 @@ local function ratesOf(json, text)
   local out = {}
   for _, r in ipairs(table_.rates) do
     if type(r.code) == "string" and type(r.mid) == "number" then
-      out[#out + 1] = { code = r.code, currency = r.currency or r.code, mid = r.mid }
+      out[#out + 1] = { code = r.code, currency = plain(r.currency or r.code), mid = r.mid }
     end
   end
   table.sort(out, function(a, b) return a.code < b.code end)
@@ -49,6 +57,7 @@ if arg[1] == "--selftest" then
   check(ratesOf(json, '{"error": "no"}') == nil, "an answer that is not a table is refused")
   check(ratesOf(json, "broken") == nil, "broken text is refused")
   check(math.abs(convert(100, 4.25) - 425) < 1e-9, "100 euro is 425 zloty at 4.25")
+  check(plain("dolar amerykański") == "dolar amerykanski" and plain("złoty") == "zloty", "Polish letters become ASCII")
   check(json.decode('{"a": 1, "b": [true, false, "x\\ny"], "c": {"d": -2.5e1}}').c.d == -25, "json: numbers and nesting")
   check(json.decode('"\\u0141\\u00f3d\\u017a"') == "\u{141}\u{f3}d\u{17a}", "json: unicode escapes")
   if failed == 0 then print("selftest ok") end
@@ -126,6 +135,7 @@ if not w then
   return
 end
 local ok, problem = pcall(function()
+  draw()  -- "downloading..." shows while the table comes
   download()
   while true do
     draw()
