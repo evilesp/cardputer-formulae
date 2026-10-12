@@ -153,6 +153,7 @@ brew install htop nano snake
 | colors | próbnik kolorów: suwaki RGB lub HSV, #RRGGBB, 0xRRGGBB dla gfx i RGB565 dla wyświetlacza |
 | dice | rzut kośćmi: d4 do d100, kilka kości, premia, przewaga, własne rzuty typu 3d6+2 |
 | GamePerformance | więcej pamięci dla gier: na czas gry wyłącza WiFi (zwalnia 40–50 KB), po grze WiFi wraca i łączy się w tle; `GamePerformance on`, `off` albo `auto` (samo przy każdej grze i animacji); wymaga firmware v0.1.0.23 |
+| roman | zamiana liczb na cyfry rzymskie i z powrotem: `roman 1994`, `roman MMXXVI` (od 1 do 3999) |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
