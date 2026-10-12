@@ -183,11 +183,39 @@ local function shuffled(list)
   return t
 end
 
+-- The built-in questions stay in the text of BANK: only where each line starts and its category are kept, and a question is
+-- read from its line when it is asked (all of them as tables took about 40 KB of the Cardputer's memory).
+local LINE_START, LINE_CAT = {}, {}
+do
+  local pos = 1
+  while pos <= #BANK do
+    local e = BANK:find("\n", pos, true) or (#BANK + 1)
+    local bar = BANK:find("|", pos, true)
+    if e > pos and bar and bar < e then
+      LINE_START[#LINE_START + 1] = pos
+      LINE_CAT[#LINE_CAT + 1] = BANK:sub(pos, bar - 1)
+    end
+    pos = e + 1
+  end
+end
+
+-- a question of the list: a number is line n of BANK, a table is one of your own questions
+local function questionOf(q)
+  if type(q) ~= "number" then return q end
+  local s = LINE_START[q]
+  local e = BANK:find("\n", s, true) or (#BANK + 1)
+  return parseBank(BANK:sub(s, e - 1))[1]
+end
+
+local function categoryOf(q)
+  return type(q) == "number" and LINE_CAT[q] or q.category
+end
+
 -- the questions of one round: up to `n` of the category ("All" takes every one), none twice
 local function pickRound(all, category, n)
   local pool = {}
   for _, q in ipairs(all) do
-    if category == "All" or q.category == category then pool[#pool + 1] = q end
+    if category == "All" or categoryOf(q) == category then pool[#pool + 1] = q end
   end
   local mixed = shuffled(pool)
   local out = {}
@@ -199,9 +227,10 @@ end
 local function categoriesOf(all)
   local seen, out = {}, {}
   for _, q in ipairs(all) do
-    if not seen[q.category] then
-      seen[q.category] = true
-      out[#out + 1] = q.category
+    local c = categoryOf(q)
+    if not seen[c] then
+      seen[c] = true
+      out[#out + 1] = c
     end
   end
   return out
@@ -260,6 +289,10 @@ if arg[1] == "--selftest" then
   end
   check(good, "every question has four different answers and fits the screen")
   check(#categoriesOf(bank) == 7, "seven categories")
+  local lazy = {}
+  for i = 1, #LINE_START do lazy[i] = i end
+  check(#lazy == #bank and questionOf(5).question == bank[5].question and categoryOf(5) == bank[5].category, "the questions read from their lines")
+  check(#categoriesOf(lazy) == 7 and #pickRound(lazy, "Math", 100) == #pickRound(bank, "Math", 100), "categories and rounds of the line numbers")
   local round = pickRound(bank, "All", ROUND)
   local twice = {}
   for _, q in ipairs(round) do
@@ -292,7 +325,8 @@ if not ui then
 end
 
 local W, H = 240, 135
-local all = parseBank(BANK)
+local all = {}
+for i = 1, #LINE_START do all[i] = i end
 local custom = fs.read("/home/user/quiz.csv")
 if custom then
   for _, q in ipairs(parseQuiz(custom)) do all[#all + 1] = q end
@@ -415,7 +449,7 @@ local ok, problem = pcall(function()
     local round = pickRound(all, category, ROUND)
     local score, quit = 0, false
     for i, q in ipairs(round) do
-      local r = ask(q, i, #round, score)
+      local r = ask(questionOf(q), i, #round, score)
       if r == nil then
         quit = true
         break

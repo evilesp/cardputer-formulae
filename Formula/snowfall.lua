@@ -51,10 +51,12 @@ if not gfx.open() then
   return
 end
 
+-- one colour between a and b (t from 0 to 1); no closure inside: it runs hundreds of times a frame
 local function mix(a, b, t)
   if t <= 0 then return a elseif t >= 1 then return b end
-  local function ch(sh) return math.floor(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t + 0.5) end
-  return (ch(16) << 16) | (ch(8) << 8) | ch(0)
+  local ar, ag, ab = (a >> 16) & 255, (a >> 8) & 255, a & 255
+  return (math.floor(ar + (((b >> 16) & 255) - ar) * t + 0.5) << 16) | (math.floor(ag + (((b >> 8) & 255) - ag) * t + 0.5) << 8)
+    | math.floor(ab + ((b & 255) - ab) * t + 0.5)
 end
 
 local function noise(n)
@@ -62,21 +64,19 @@ local function noise(n)
   return x - math.floor(x)
 end
 
--- made once: the pines (x, height, near or far), the stars, the hills and the sparkles in the snow
+-- made once: the pines. The stars, the hills and the sparkles are worked out from their number each frame (lists of them
+-- did not fit in the memory of the Cardputer next to the snow).
 local trees = {}
 for i = 1, 12 do
   local x = i * 20 - 12 + math.floor(noise(i) * 10)
   if x < 86 or x > 146 then trees[#trees + 1] = { x = x, h = 16 + math.floor(noise(i + 5) * 22) } end  -- none in front of the cabin
 end
 table.sort(trees, function(a, b) return a.h < b.h end)
-local stars = {}
-for i = 1, 55 do stars[i] = { x = math.floor(noise(i * 1.3) * W), y = math.floor(noise(i * 2.1) * 60), p = noise(i) * 6.28 } end
-local hills = {}
-for x = 0, W - 1 do
-  hills[x] = { math.floor(GROUND - 22 - 8 * math.sin(x * 0.02 + 0.5) - 4 * math.sin(x * 0.07)), math.floor(GROUND - 10 - 5 * math.sin(x * 0.035 + 2)) }
+local function hill(x, far)
+  if far then return math.floor(GROUND - 22 - 8 * math.sin(x * 0.02 + 0.5) - 4 * math.sin(x * 0.07)) end
+  return math.floor(GROUND - 10 - 5 * math.sin(x * 0.035 + 2))
 end
-local sparkles = {}
-for i = 1, 30 do sparkles[i] = { x = math.floor(noise(i * 3.3) * W), y = GROUND + 2 + math.floor(noise(i * 4.7) * (H - GROUND - 3)), p = noise(i) * 6.28 } end
+local MAX_FLAKES = 150
 local pile = {}
 for x = 0, W - 1 do pile[x] = 0 end
 
@@ -97,9 +97,13 @@ local function pine(x, h, depth)
 end
 
 local ok, problem = pcall(function()
-  local flakes = {}
-  for i = 1, 180 do flakes[i] = newFlake(i % 3 + 1) end
-  local count, wind, baseWind, shown, t = 100, 0.15, 0.15, sys.millis(), 0
+  -- the flakes in flat lists: x, y, layer and the phase of their swaying
+  local FX, FY, FL, FP = {}, {}, {}, {}
+  for i = 1, MAX_FLAKES do
+    local f = newFlake(i % 3 + 1)
+    FX[i], FY[i], FL[i], FP[i] = f.x, f.y, f.layer, f.ph
+  end
+  local count, wind, baseWind, shown, t = 90, 0.15, 0.15, sys.millis(), 0
   local smoke = {}
   local depth = 0
   while true do
@@ -108,7 +112,7 @@ local ok, problem = pcall(function()
       if k == "q" or k == "ctrl-q" then return end
       if k == "a" or k == "left" then baseWind = math.max(-1.2, baseWind - 0.2)
       elseif k == "d" or k == "right" then baseWind = math.min(1.2, baseWind + 0.2)
-      elseif k == "w" or k == "up" then count = math.min(180, count + 20)
+      elseif k == "w" or k == "up" then count = math.min(MAX_FLAKES, count + 20)
       elseif k == "s" or k == "down" then count = math.max(10, count - 20)
       elseif k == " " then wind = baseWind >= 0 and 1.6 or -1.6 end
       k = key.poll()
@@ -120,7 +124,9 @@ local ok, problem = pcall(function()
     depth = math.min(1, depth + 0.0004)
     -- the sky, cold and deep blue, a little lighter low down
     for y = 0, GROUND, 4 do gfx.fill(0, y, W, 4, mix(0x050a1c, 0x24345a, (y / GROUND) ^ 1.3)) end
-    for _, s in ipairs(stars) do gfx.pixel(s.x, s.y, mix(0x1a2240, 0xe8ecff, 0.4 + 0.6 * math.abs(math.sin(t * 0.03 + s.p)))) end
+    for i = 1, 55 do
+      gfx.pixel(math.floor(noise(i * 1.3) * W), math.floor(noise(i * 2.1) * 60), mix(0x1a2240, 0xe8ecff, 0.4 + 0.6 * math.abs(math.sin(t * 0.03 + i))))
+    end
     -- the moon with its halo
     for r = 30, 18, -4 do gfx.disc(196, 28, r, mix(mix(0x0a1228, 0x1c2a4a, 0.5), 0x6a7a9a, (30 - r) / 40)) end
     gfx.disc(196, 28, 15, 0xeef0dc)
@@ -129,8 +135,8 @@ local ok, problem = pcall(function()
     gfx.disc(198, 21, 1, 0xd4d8c0)
     -- the hills far away, white in the moonlight
     for x = 0, W - 1 do
-      gfx.vline(x, hills[x][1], GROUND, 0x8a98b8)
-      gfx.vline(x, hills[x][2], GROUND, 0xb0bcd4)
+      gfx.vline(x, hill(x, true), GROUND, 0x8a98b8)
+      gfx.vline(x, hill(x, false), GROUND, 0xb0bcd4)
     end
     -- the ground: snow in the blue of the night, with sparkles and the pile that grows
     gfx.fill(0, GROUND, W, H - GROUND, 0xc8d4e8)
@@ -138,8 +144,10 @@ local ok, problem = pcall(function()
     for x = 0, W - 1 do
       if pile[x] > 0.5 then gfx.vline(x, GROUND - math.floor(pile[x]), GROUND, 0xd8e2f2) end
     end
-    for _, s in ipairs(sparkles) do
-      if math.sin(t * 0.08 + s.p) > 0.85 then gfx.pixel(s.x, s.y, 0xffffff) end
+    for i = 1, 30 do
+      if math.sin(t * 0.08 + i * 2.7) > 0.85 then
+        gfx.pixel(math.floor(noise(i * 3.3) * W), GROUND + 2 + math.floor(noise(i * 4.7) * (H - GROUND - 3)), 0xffffff)
+      end
     end
     for _, tr in ipairs(trees) do pine(tr.x, tr.h, depth) end
     -- the cabin of logs, the snow on its roof, the warm window and its light on the snow
@@ -172,22 +180,24 @@ local ok, problem = pcall(function()
     smoke = alive
     -- the flakes: far ones small and grey, near ones big and bright like stars
     for i = 1, count do
-      local f = flakes[i]
-      if drift(f, wind, t) then
-        local x = math.max(0, math.min(W - 1, math.floor(f.x)))
-        pile[x] = math.min(8, pile[x] + 0.1)
-        if x > 0 and pile[x - 1] < pile[x] - 1 then pile[x - 1] = pile[x - 1] + 0.08 end
-        if x < W - 1 and pile[x + 1] < pile[x] - 1 then pile[x + 1] = pile[x + 1] + 0.08 end
-        flakes[i] = newFlake(f.layer)
-        flakes[i].y = -3
+      local layer = FL[i]
+      local y = FY[i] + SPEED[layer]
+      local x = FX[i] + wind * SPEED[layer] + math.sin(t * 0.04 + FP[i]) * 0.25
+      if y >= GROUND - 2 then
+        local px = math.max(0, math.min(W - 1, math.floor(x)))
+        pile[px] = math.min(8, pile[px] + 0.1)
+        if px > 0 and pile[px - 1] < pile[px] - 1 then pile[px - 1] = pile[px - 1] + 0.08 end
+        if px < W - 1 and pile[px + 1] < pile[px] - 1 then pile[px + 1] = pile[px + 1] + 0.08 end
+        FX[i], FY[i] = math.random(-20, W + 20), -3
       else
-        if f.x < -3 then f.x = W + 3 elseif f.x > W + 3 then f.x = -3 end
-        local x, y = math.floor(f.x), math.floor(f.y)
-        if f.layer == 3 then
-          gfx.fill(x - 1, y, 3, 1, 0xffffff)
-          gfx.fill(x, y - 1, 1, 3, 0xffffff)
+        if x < -3 then x = W + 3 elseif x > W + 3 then x = -3 end
+        FX[i], FY[i] = x, y
+        local ix, iy = math.floor(x), math.floor(y)
+        if layer == 3 then
+          gfx.fill(ix - 1, iy, 3, 1, 0xffffff)
+          gfx.fill(ix, iy - 1, 1, 3, 0xffffff)
         else
-          gfx.fill(x, y, SIZE[f.layer], SIZE[f.layer], SHADE[f.layer])
+          gfx.fill(ix, iy, SIZE[layer], SIZE[layer], SHADE[layer])
         end
       end
     end

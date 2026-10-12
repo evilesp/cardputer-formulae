@@ -2,7 +2,7 @@
 -- tiltracer: a race against five bots on a track with bends and hills, in pseudo 3D. The car speeds up by itself; s brakes,
 -- a and d steer (or tilt the Cardputer to steer, t switches the tilt on and off). Bump into a car and you lose speed; off the
 -- road you are slow. Three laps (or five); you start last and must get to the front. Choose easy, normal or hard bots.
--- r starts the race again, ctrl-q quits. Needs the graphics and the ui package; the motion sensor is used when it is there.
+-- r starts the race again, ctrl-q quits. Needs the graphics; the motion sensor is used when it is there.
 -- Run it with --selftest to check the track, the steering and the race order.
 
 local W, H = 240, 135
@@ -71,6 +71,15 @@ local function steerFromSensor(ax)
 end
 
 -- the order of the race: everyone by laps done and then by distance, the leader first
+-- your place: 1 + the cars ahead of you (no list is made: this runs every frame)
+local function placeOf(me, cars)
+  local mine, place = me.lap * TRACK + me.z, 1
+  for _, c in ipairs(cars) do
+    if c ~= me and c.lap * TRACK + c.z > mine then place = place + 1 end
+  end
+  return place
+end
+
 local function standings(cars)
   local order = {}
   for i, c in ipairs(cars) do order[i] = c end
@@ -100,6 +109,8 @@ if arg[1] == "--selftest" then
   check(steerFromSensor(-0.3) > 0.4 and steerFromSensor(0.3) < -0.4 and steerFromSensor(5) == -1, "tilting steers, limited")
   local order = standings({ { name = "a", lap = 0, z = 500 }, { name = "b", lap = 1, z = 100 }, { name = "c", lap = 0, z = 900 } })
   check(order[1].name == "b" and order[2].name == "c" and order[3].name == "a", "laps count before distance")
+  local a, b2, c = { lap = 0, z = 500 }, { lap = 1, z = 100 }, { lap = 0, z = 900 }
+  check(placeOf(a, { a, b2, c }) == 3 and placeOf(b2, { a, b2, c }) == 1, "places")
   check(lapTime(83400) == "1:23.4" and lapTime(5000) == "0:05.0", "lap times")
   if failed == 0 then print("selftest ok") end
   return
@@ -109,16 +120,44 @@ if not gfx then
   print("tiltracer needs the graphics of firmware v0.1.0.13: SystemUpdateBeta")
   return
 end
-local ui, uiErr = driver.load("ui", true)
-if not ui then
-  print("tiltracer: " .. tostring(uiErr))
-  return
+-- The race draws its own text and menu: the ui package would take 13 KB of the memory the race needs.
+local ui = {}
+function ui.label(x, y, text, colour, size) gfx.text(x, y, text, colour, size or 1) end
+function ui.center(y, text, colour, size)
+  size = size or 1
+  gfx.text((W - #text * 6 * size) // 2, y, text, colour, size)
+end
+-- a menu: w and s move, enter chooses, ctrl-q goes back (nil)
+function ui.choose(title, items, opts)
+  local sel = opts and opts.selected or 1
+  while true do
+    gfx.clear(0x10131c)
+    gfx.fill(50, 30, 140, 22 + #items * 14, 0x1c2233)
+    gfx.rect(50, 30, 140, 22 + #items * 14, 0x5870b0)
+    gfx.text(58, 36, title, 0xe8ecf4, 1)
+    for i, item in ipairs(items) do
+      if i == sel then gfx.fill(52, 50 + (i - 1) * 14, 136, 12, 0x3cc878) end
+      gfx.text(58, 52 + (i - 1) * 14, item, i == sel and 0x10131c or 0xe8ecf4, 1)
+    end
+    gfx.flush()
+    local k = key.poll()
+    while k do
+      if k == "w" or k == "up" then sel = sel > 1 and sel - 1 or #items
+      elseif k == "s" or k == "down" then sel = sel < #items and sel + 1 or 1
+      elseif k == "enter" or k == " " then return sel
+      elseif k == "ctrl-q" then return nil end
+      k = key.poll()
+    end
+    sys.sleep(30)
+  end
 end
 
+-- one colour between a and b (t from 0 to 1); no closure inside: it runs hundreds of times a frame
 local function mix(a, b, t)
   if t <= 0 then return a elseif t >= 1 then return b end
-  local function ch(sh) return math.floor(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t + 0.5) end
-  return (ch(16) << 16) | (ch(8) << 8) | ch(0)
+  local ar, ag, ab = (a >> 16) & 255, (a >> 8) & 255, a & 255
+  return (math.floor(ar + (((b >> 16) & 255) - ar) * t + 0.5) << 16) | (math.floor(ag + (((b >> 8) & 255) - ag) * t + 0.5) << 8)
+    | math.floor(ab + ((b & 255) - ab) * t + 0.5)
 end
 
 local SKY_TOP, SKY_LOW, FOG = 0x2a6ab8, 0x9ccaf0, 0xa8d0f0
@@ -134,10 +173,10 @@ local LEVELS = { { name = "easy", lo = 0.70, hi = 0.80 }, { name = "normal", lo 
 local sx1, sy1, sw1, sx2, sy2, sw2, sclip, sscale = {}, {}, {}, {}, {}, {}, {}, {}
 local sidx = {}
 
--- the far mountains: two rows of peaks, made once
-local peaks = {}
-for i = 1, 24 do peaks[i] = { h = 10 + noise(i) * 22, far = i % 2 == 0 } end
+-- the height of far mountain number i (worked out each time: a list of them is memory the race needs)
+local function peakHeight(i) return 10 + noise(i % 24 + 1) * 22 end
 
+local everyone = {}  -- you and the bots, one list made at the start of a race
 local player, bots, laps, level, state, raceStart, countStart, finishPos, lapStart, bestLap, lastLap, skyOffset, useTilt
 local bumpT = 0
 
@@ -149,6 +188,8 @@ local function newRace()
     bots[i] = { z = (i * 3 + (i % 2) * 2) * SEG, x = (i % 2 == 0) and -0.45 or 0.45, speed = 0, lap = 0, name = BOT_NAMES[i],
                 color = BOT_COLORS[i], top = MAX_SPEED * (lv.lo + (lv.hi - lv.lo) * (i - 1) / 4), aim = 0, aimT = 0 }
   end
+  everyone = { player }
+  for _, b in ipairs(bots) do everyone[#everyone + 1] = b end
   state, countStart, finishPos, bestLap, lastLap, skyOffset = "count", sys.millis(), nil, nil, nil, 0
 end
 
@@ -208,8 +249,7 @@ local function drawBackground()
     local base = H // 2 + 4
     local shift = (skyOffset * (pass == 1 and 0.3 or 0.6)) % span
     for i = -1, W // span + 1 do
-      local p = peaks[((i + math.floor(skyOffset * (pass == 1 and 0.3 or 0.6) / span)) % #peaks) + 1]
-      local h = math.floor(p.h * (pass == 1 and 1 or 0.6))
+      local h = math.floor(peakHeight(i + math.floor(skyOffset * (pass == 1 and 0.3 or 0.6) / span)) * (pass == 1 and 1 or 0.6))
       local x = math.floor(i * span - shift)
       gfx.triangle(x, base, x + span // 2, base - h, x + span + span // 2, base, colour)
     end
@@ -256,8 +296,6 @@ local function render()
     end
   end
   -- the trees, the start gate and the cars, far ones first
-  local all = { player }
-  for _, b in ipairs(bots) do all[#all + 1] = b end
   for k = count, 1, -1 do
     local i, scale = sidx[k], sscale[k]
     local clip = sclip[k]
@@ -302,7 +340,7 @@ local function updateBots(dt)
       b.aim = (noise(b.z + b.top) * 2 - 1) * 0.6
       b.aimT = 2 + noise(b.z) * 3
     end
-    for _, o in ipairs({ player, table.unpack(bots) }) do
+    for _, o in ipairs(everyone) do
       if o ~= b then
         local ahead = ((o.lap * TRACK + o.z) - (b.lap * TRACK + b.z))
         if ahead > 0 and ahead < 8 * SEG and math.abs(o.x - b.x) < 0.5 and o.speed < b.speed then
@@ -352,16 +390,13 @@ local function updatePlayer(dt, steer, brake)
     lapStart = now
     if player.lap >= laps and state == "race" then
       state = "done"
-      local order = standings({ player, table.unpack(bots) })
-      for p, c in ipairs(order) do if c == player then finishPos = p end end
+      finishPos = placeOf(player, everyone)
     end
   end
 end
 
 local function hud()
-  local order = standings({ player, table.unpack(bots) })
-  local pos = 1
-  for p, c in ipairs(order) do if c == player then pos = p end end
+  local pos = placeOf(player, everyone)
   gfx.fill(0, 0, W, 11, 0x101820)
   ui.label(3, 2, "POS " .. (finishPos or pos) .. "/6", 0xffe060)
   ui.label(62, 2, "LAP " .. math.min(laps, player.lap + 1) .. "/" .. laps, 0xe8ecf4)
@@ -384,7 +419,7 @@ local function hud()
   if useTilt then ui.label(3, H - 10, "tilt", 0x8a94aa) end
 end
 
-local w, h = ui.open()
+local w, h = gfx.open()
 if not w then
   print("tiltracer: " .. tostring(h))
   return
@@ -438,5 +473,5 @@ local ok, problem = pcall(function()
     sys.sleep(5)
   end
 end)
-ui.close()
+gfx.close()
 if not ok and not tostring(problem):find("interrupted", 1, true) then print("tiltracer: " .. tostring(problem)) end

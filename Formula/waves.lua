@@ -8,10 +8,12 @@
 local W, H = 240, 135
 local HORIZON = 64
 
+-- one colour between a and b (t from 0 to 1); no closure inside: it runs hundreds of times a frame
 local function mix(a, b, t)
   if t <= 0 then return a elseif t >= 1 then return b end
-  local function ch(sh) return math.floor(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t + 0.5) end
-  return (ch(16) << 16) | (ch(8) << 8) | ch(0)
+  local ar, ag, ab = (a >> 16) & 255, (a >> 8) & 255, a & 255
+  return (math.floor(ar + (((b >> 16) & 255) - ar) * t + 0.5) << 16) | (math.floor(ag + (((b >> 8) & 255) - ag) * t + 0.5) << 8)
+    | math.floor(ab + ((b & 255) - ab) * t + 0.5)
 end
 
 -- the colours of the evening: time 0 the sun is high, 1 is night. Four stops for the top of the sky, the horizon and the sea.

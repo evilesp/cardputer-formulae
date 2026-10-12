@@ -160,12 +160,19 @@ local function impactOf(s, ground, tanks, owner)
   return nil
 end
 
--- the whole flight of a shell, without drawing: where it lands, and (when keepPath) the points of the flight
+-- the whole flight of a shell, without drawing: where it lands, and (when keepPath) the points of the flight. keepPath may be
+-- a list to fill again (x1, y1, x2, y2, ... flat): the preview runs every frame, and a new table for every point of every
+-- frame was more garbage than the memory of the Cardputer could take.
 local function simulate(ground, tanks, owner, wind, s, keepPath)
-  local path = keepPath and {} or nil
+  local path = keepPath and (type(keepPath) == "table" and keepPath or {}) or nil
+  local n = 0
+  if path then for i = #path, 1, -1 do path[i] = nil end end
   for step = 1, 500 do
     shellStep(s, wind)
-    if path and step % 2 == 0 then path[#path + 1] = { s.x, s.y } end
+    if path and step % 2 == 0 then
+      path[n + 1], path[n + 2] = s.x, s.y
+      n = n + 2
+    end
     local hit, who = impactOf(s, ground, tanks, owner)
     if hit then return { kind = hit, target = who, x = clamp(s.x, 0, W - 1), y = s.y, path = path } end
   end
@@ -461,10 +468,13 @@ local function poly(p, colour)
   end
 end
 
+local skyColours  -- the colour of every row of the sky, worked out once (not 135 colours every frame)
 local function drawSky()
-  for y = 0, H - 1 do
-    gfx.hline(0, W - 1, y, ui.mix(0x1a2f66, 0xf4a060, math.min(1, y / 75)))
+  if not skyColours then
+    skyColours = {}
+    for y = 0, H - 1 do skyColours[y] = ui.mix(0x1a2f66, 0xf4a060, math.min(1, y / 75)) end
   end
+  for y = 0, H - 1 do gfx.hline(0, W - 1, y, skyColours[y]) end
 end
 
 local function drawClouds(g)
@@ -500,12 +510,12 @@ end
 -- the dotted line of the flight the shell will take, and a cross where it lands
 local function drawPreview(g)
   local tk = g.tanks[g.turn]
-  local r = simulate(g.ground, g.tanks, g.turn, g.wind, newShell(tk, g.turn), true)
-  local path = r.path or {}
-  for i, p in ipairs(path) do
-    gfx.pixel(round(p[1]), round(p[2]), 0xe8f0ff)
-    local q = path[i + 1]
-    if q then gfx.pixel(round((p[1] + q[1]) / 2), round((p[2] + q[2]) / 2), 0xe8f0ff) end
+  g.previewPath = g.previewPath or {}
+  local r = simulate(g.ground, g.tanks, g.turn, g.wind, newShell(tk, g.turn), g.previewPath)
+  local path = r.path
+  for i = 1, #path - 1, 2 do
+    gfx.pixel(round(path[i]), round(path[i + 1]), 0xe8f0ff)
+    if path[i + 2] then gfx.pixel(round((path[i] + path[i + 2]) / 2), round((path[i + 1] + path[i + 3]) / 2), 0xe8f0ff) end
   end
   local lx, ly = round(r.x), round(r.y)
   gfx.line(lx - 3, ly - 3, lx + 3, ly + 3, 0xff5050)
@@ -649,7 +659,7 @@ if arg[1] == "--selftest" then
   check(blown.x > calm.x, "a wind from the left pushes the shell right")
   local tk = { x = 20, y = 91, tilt = 0, angle = 45, power = 40 }
   local r = simulate(flat, {}, 1, 0, newShell(tk, 1), true)
-  check(r.path and #r.path > 5, "the preview has points of the flight")
+  check(r.path and #r.path > 10 and #r.path % 2 == 0, "the preview has points of the flight, x and y")
   check(damageAt(0) == 60 and damageAt(BLAST + 10) == 0 and damageAt(20) > 0 and damageAt(20) < 60, "the damage falls with the distance")
   local g = {}
   for x = 0, W - 1 do g[x] = 94 end

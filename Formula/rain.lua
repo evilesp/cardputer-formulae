@@ -10,10 +10,12 @@ local STREET = 104   -- where the street begins
 local LAYERS = { { speed = 4, len = 3, col = 0x3a4866, wind = 0.6 }, { speed = 6.5, len = 6, col = 0x6a7ea6, wind = 0.8 },
                  { speed = 10, len = 11, col = 0xb0c4ea, wind = 1 } }
 
+-- one colour between a and b (t from 0 to 1); no closure inside: it runs hundreds of times a frame
 local function mix(a, b, t)
   if t <= 0 then return a elseif t >= 1 then return b end
-  local function ch(sh) return math.floor(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t + 0.5) end
-  return (ch(16) << 16) | (ch(8) << 8) | ch(0)
+  local ar, ag, ab = (a >> 16) & 255, (a >> 8) & 255, a & 255
+  return (math.floor(ar + (((b >> 16) & 255) - ar) * t + 0.5) << 16) | (math.floor(ag + (((b >> 8) & 255) - ag) * t + 0.5) << 8)
+    | math.floor(ab + ((b & 255) - ab) * t + 0.5)
 end
 
 local function noise(n)
@@ -24,6 +26,10 @@ end
 local function newDrop(layer, top)
   return { x = math.random(-40, W + 40), y = top and math.random(-H, 0) or math.random(-H, H), layer = layer }
 end
+
+-- the drops of the show are kept in three flat lists (x, y, layer): a table per drop took about 130 bytes, and the rain
+-- with its city did not fit in the memory of the Cardputer
+local MAX_DROPS = 160
 
 -- moves a drop; true when it reached the street (near drops fall further down the street, they are closer to you)
 local function fall(d, wind)
@@ -84,7 +90,7 @@ if not gfx then
   return
 end
 
--- the buildings, made once: x, width, height, and which windows are lit
+-- the buildings, made once: x, width, height and colour. Their windows are worked out when they are drawn (no list of them).
 local buildings = {}
 do
   local x = -6
@@ -93,14 +99,20 @@ do
     i = i + 1
     local w = 22 + math.floor(noise(i) * 18)
     local h = 30 + math.floor(noise(i + 20) * 46)
-    local wins = {}
-    for wy = STREET - h + 5, STREET - 10, 8 do
-      for wx = x + 4, x + w - 7, 7 do
-        if noise(wx * 0.37 + wy * 0.91) > 0.55 then wins[#wins + 1] = { wx, wy, noise(wx + wy) > 0.5 and 0xf0c060 or 0xd8e0f0 } end
+    buildings[#buildings + 1] = { x = x, w = w, h = h, col = mix(0x0c1220, 0x161e30, noise(i + 40)) }
+    x = x + w + 1
+  end
+end
+-- calls f(x, y, colour, n) for each lit window of building b at the time t
+local function eachWindow(b, i, t, f)
+  local n = 0
+  for wy = STREET - b.h + 5, STREET - 10, 8 do
+    for wx = b.x + 4, b.x + b.w - 7, 7 do
+      if noise(wx * 0.37 + wy * 0.91) > 0.55 then
+        n = n + 1
+        if noise(n * 3.7 + i + (t // 400)) > 0.12 then f(wx, wy, noise(wx + wy) > 0.5 and 0xf0c060 or 0xd8e0f0, n) end
       end
     end
-    buildings[#buildings + 1] = { x = x, w = w, h = h, wins = wins, col = mix(0x0c1220, 0x161e30, noise(i + 40)) }
-    x = x + w + 1
   end
 end
 local LAMP_X = 172
@@ -110,9 +122,14 @@ if not gfx.open() then
   return
 end
 local ok, problem = pcall(function()
-  local count, wind, sound = 110, 0.3, true
-  local drops, splashes = {}, {}
-  for i = 1, 200 do drops[i] = newDrop(i % 3 + 1, false) end
+  local count, wind, sound = 100, 0.3, true
+  local DX, DY, DL = {}, {}, {}
+  for i = 1, MAX_DROPS do
+    local d = newDrop(i % 3 + 1, false)
+    DX[i], DY[i], DL[i] = d.x, d.y, d.layer
+  end
+  local SPX, SPY, SPA, SPL, nSplash = {}, {}, {}, {}, 0  -- the splashes, also flat
+  for i = 1, 40 do SPX[i], SPY[i], SPA[i], SPL[i] = 0, 0, 0, 0 end
   local flash, boltSegs, boltLife, nextFlash = 0, nil, 0, sys.millis() + 7000
   local thunderAt, thunderStep = nil, 0
   local car, nextCar = nil, sys.millis() + 3000
@@ -129,7 +146,7 @@ local ok, problem = pcall(function()
       if k == "q" or k == "ctrl-q" then return end
       if k == " " then strike()
       elseif k == "m" then sound = not sound
-      elseif k == "w" or k == "up" then count = math.min(200, count + 30)
+      elseif k == "w" or k == "up" then count = math.min(MAX_DROPS, count + 30)
       elseif k == "s" or k == "down" then count = math.max(20, count - 30)
       elseif k == "a" or k == "left" then wind = math.max(-1.6, wind - 0.3)
       elseif k == "d" or k == "right" then wind = math.min(1.6, wind + 0.3) end
@@ -165,22 +182,20 @@ local ok, problem = pcall(function()
     -- the buildings and their windows, which go on and off now and then
     for i, b in ipairs(buildings) do
       gfx.fill(b.x, STREET - b.h, b.w, b.h, mix(b.col, 0x6a78a0, lit * 0.5))
-      for j, wnd in ipairs(b.wins) do
-        if noise(j * 3.7 + i + (t // 400)) > 0.12 then gfx.fill(wnd[1], wnd[2], 3, 4, wnd[3]) end
-      end
+      eachWindow(b, i, t, function(x, y, c) gfx.fill(x, y, 3, 4, c) end)
     end
     -- the street, wet and dark, with the lights mirrored in it as shaking streaks
     gfx.fill(0, STREET, W, H - STREET, mix(0x0c1018, 0x50607c, lit * 0.6))
     for i, b in ipairs(buildings) do
-      for j, wnd in ipairs(b.wins) do
-        if j % 2 == 0 and noise(j * 3.7 + i + (t // 400)) > 0.12 then
-          local ry = STREET + (STREET - wnd[2]) // 3
+      eachWindow(b, i, t, function(x, y, c, n)
+        if n % 2 == 0 then
+          local ry = STREET + (STREET - y) // 3
           if ry < H then
-            local wob = math.floor(math.sin(t * 0.4 + j) * 1.5)
-            gfx.vline(wnd[1] + 1 + wob, ry, math.min(H - 1, ry + 3), mix(0x0c1018, wnd[3], 0.35))
+            local wob = math.floor(math.sin(t * 0.4 + n) * 1.5)
+            gfx.vline(x + 1 + wob, ry, math.min(H - 1, ry + 3), mix(0x0c1018, c, 0.35))
           end
         end
-      end
+      end)
     end
     -- the street lamp, its cone of light in the rain and its long reflection
     gfx.vline(LAMP_X, 54, STREET + 2, 0x2a3040)
@@ -216,33 +231,41 @@ local ok, problem = pcall(function()
     end
     -- the drops: far ones first
     for i = 1, count do
-      local d = drops[i]
-      if fall(d, wind) then
-        if #splashes < 50 then splashes[#splashes + 1] = { x = math.floor(d.x), y = math.floor(d.y), age = 0, layer = d.layer } end
-        drops[i] = newDrop(d.layer, true)
-        drops[i].y = -10
+      local layer = DL[i]
+      local L = LAYERS[layer]
+      local x = DX[i] + wind * L.speed * 0.3 * L.wind
+      local y = DY[i] + L.speed
+      if y >= STREET + (layer - 1) * 12 then
+        if nSplash < 40 then
+          nSplash = nSplash + 1
+          SPX[nSplash], SPY[nSplash], SPA[nSplash], SPL[nSplash] = math.floor(x), math.floor(y), 0, layer
+        end
+        DX[i], DY[i] = math.random(-40, W + 40), -10
       else
-        local L = LAYERS[d.layer]
-        local inLamp = d.layer > 1 and math.abs(d.x - (LAMP_X - 4)) < (d.y - 56) * 0.5 and d.y > 56
-        local inBeam = car and d.x > car.x + 30 and d.x < car.x + 110 and math.abs(d.y - (STREET + 10)) < (d.x - car.x - 30) * 0.2 + 4
+        DX[i], DY[i] = x, y
+        local inLamp = layer > 1 and y > 56 and math.abs(x - (LAMP_X - 4)) < (y - 56) * 0.5
+        local inBeam = car and x > car.x + 30 and x < car.x + 110 and math.abs(y - (STREET + 10)) < (x - car.x - 30) * 0.2 + 4
         local colour = (inLamp or inBeam) and 0xfff0c0 or mix(L.col, 0xffffff, lit * 0.7)
-        gfx.line(math.floor(d.x), math.floor(d.y), math.floor(d.x - wind * L.len * 0.3), math.floor(d.y - L.len), colour)
+        gfx.line(math.floor(x), math.floor(y), math.floor(x - wind * L.len * 0.3), math.floor(y - L.len), colour)
       end
     end
     -- the splashes: a little crown of two dots that spreads and fades
-    local keep = {}
-    for _, s in ipairs(splashes) do
-      s.age = s.age + 1
-      if s.age < 5 then
-        local spread = s.age * (s.layer)
-        local c = mix(0x9ab0d8, 0x0c1018, s.age / 5)
-        gfx.pixel(s.x - spread, s.y - 2 + s.age // 2, c)
-        gfx.pixel(s.x + spread, s.y - 2 + s.age // 2, c)
-        if s.layer == 3 then gfx.hline(s.x - spread, s.x + spread, s.y + 1, mix(0x40506c, 0x0c1018, s.age / 5)) end
-        keep[#keep + 1] = s
+    local j = 1
+    while j <= nSplash do
+      SPA[j] = SPA[j] + 1
+      local age = SPA[j]
+      if age < 5 then
+        local spread, sx, sy = age * SPL[j], SPX[j], SPY[j]
+        local c = mix(0x9ab0d8, 0x0c1018, age / 5)
+        gfx.pixel(sx - spread, sy - 2 + age // 2, c)
+        gfx.pixel(sx + spread, sy - 2 + age // 2, c)
+        if SPL[j] == 3 then gfx.hline(sx - spread, sx + spread, sy + 1, mix(0x40506c, 0x0c1018, age / 5)) end
+        j = j + 1
+      else
+        SPX[j], SPY[j], SPA[j], SPL[j] = SPX[nSplash], SPY[nSplash], SPA[nSplash], SPL[nSplash]
+        nSplash = nSplash - 1
       end
     end
-    splashes = keep
     if now - shown < 1800 then gfx.text(4, 4, "space m w s a d q", 0xffffff, 1) end
     gfx.flush()
     sys.sleep(5)

@@ -353,7 +353,7 @@ if not ui then
   print("components: " .. tostring(uiErr))
   return
 end
-local eng, engErr = driver.load("eng")
+local eng, engErr = driver.load("eng", true)
 if not eng then
   print("components: " .. tostring(engErr))
   return

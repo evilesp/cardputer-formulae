@@ -55,7 +55,7 @@ if not ui then
   print("rcfilter: " .. tostring(uiErr))
   return
 end
-local eng, engErr = driver.load("eng")
+local eng, engErr = driver.load("eng", true)
 if not eng then
   print("rcfilter: " .. tostring(engErr))
   return

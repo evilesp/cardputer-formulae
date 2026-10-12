@@ -84,7 +84,7 @@ if not ui then
   print("eseries: " .. tostring(uiErr))
   return
 end
-local eng, engErr = driver.load("eng")
+local eng, engErr = driver.load("eng", true)
 if not eng then
   print("eseries: " .. tostring(engErr))
   return

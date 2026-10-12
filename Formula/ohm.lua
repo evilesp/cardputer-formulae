@@ -78,7 +78,7 @@ if not ui then
   print("ohm: " .. tostring(uiErr))
   return
 end
-local eng, engErr = driver.load("eng")
+local eng, engErr = driver.load("eng", true)
 if not eng then
   print("ohm: " .. tostring(engErr))
   return

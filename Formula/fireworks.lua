@@ -3,18 +3,28 @@
 -- bang into many kinds of shells: peony, chrysanthemum with trails, golden willow that hangs and falls slowly, rings, double
 -- rings, palms, crossettes that split again, glitter that twinkles, hearts and crackling stars. The smoke stays in the sky
 -- for a while and the water mirrors it all. space launches a rocket (more come by themselves), w and s change how often,
--- a and d move the launch place, m turns the sound off and on, q quits.
+-- a and d move the launch place, m turns the sound off and on (a sign in the corner shows it), q quits.
 -- Needs the graphics (firmware v0.1.0.13); the whistle and the bangs need audio.beep (firmware v0.1.0.18). Run it with --selftest.
 
 local W, H = 240, 135
 local SEA = 106
 local GRAVITY = 0.045
-local MAX_SPARKS = 300
+local MAX_SPARKS = 160
+-- The stars are kept in flat lists of numbers, not one table each: a table per star took about 400 bytes, and three hundred
+-- of them filled the memory of the Cardputer. Colour, flags and the speed of fading share one number.
+local TRAIL, TWINKLE, SPLIT, CRACKLE, HEAVY, SOFT = 1, 2, 4, 8, 16, 32
+local DECAYS = { 0.006, 0.009, 0.010, 0.012, 0.013, 0.014, 0.016, 0.018 }
+local function pack(colour, flags, decay) return colour | (flags << 24) | ((decay - 1) << 30) end
+local function colourOf(cf) return cf & 0xFFFFFF end
+local function flagsOf(cf) return (cf >> 24) & 63 end
+local function decayOf(cf) return DECAYS[((cf >> 30) & 7) + 1] end
 
+-- one colour between a and b (t from 0 to 1); no closure inside: it runs hundreds of times a frame
 local function mix(a, b, t)
   if t <= 0 then return a elseif t >= 1 then return b end
-  local function ch(sh) return math.floor(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t + 0.5) end
-  return (ch(16) << 16) | (ch(8) << 8) | ch(0)
+  local ar, ag, ab = (a >> 16) & 255, (a >> 8) & 255, a & 255
+  return (math.floor(ar + (((b >> 16) & 255) - ar) * t + 0.5) << 16) | (math.floor(ag + (((b >> 8) & 255) - ag) * t + 0.5) << 8)
+    | math.floor(ab + ((b & 255) - ab) * t + 0.5)
 end
 
 local function hue(h, v)
@@ -32,58 +42,57 @@ end
 local GOLD = 0xffc860
 local KINDS = { "peony", "chrysanthemum", "willow", "ring", "doublering", "palm", "crossette", "glitter", "heart", "crackle" }
 
--- the stars of a shell bursting at (x, y): a list of sparks { x, y, vx, vy, life, decay, colour, trail, twinkle, split, crackle }
-local function shell(kind, x, y, h)
-  local out = {}
-  local function spark(vx, vy, colour, opts)
-    local s = { x = x, y = y, px = x, py = y, vx = vx, vy = vy, life = 1, decay = 0.012, colour = colour }
-    if opts then for k, v in pairs(opts) do s[k] = v end end
-    out[#out + 1] = s
-  end
+-- the stars of a shell bursting at (x, y): emit(x, y, vx, vy, packed colour and flags) is called for each
+local function shell(kind, x, y, h, emit)
   local main, second = hue(h, 1), hue(h + 0.45, 1)
+  local n = 0
+  local function star(vx, vy, colour, flags, decay)
+    n = n + 1
+    emit(x, y, vx, vy, pack(colour, flags or 0, decay or 5))
+  end
   if kind == "peony" or kind == "crackle" or kind == "glitter" then
-    for i = 1, 46 do
+    for _ = 1, 40 do
       local a, sp = math.random() * 6.283, 0.8 + math.random() * 1.6
-      spark(math.cos(a) * sp, math.sin(a) * sp, kind == "glitter" and GOLD or main,
-            { twinkle = kind == "glitter", crackle = kind == "crackle", decay = kind == "glitter" and 0.009 or 0.013 })
+      if kind == "glitter" then star(math.cos(a) * sp, math.sin(a) * sp, GOLD, TWINKLE, 2)
+      else star(math.cos(a) * sp, math.sin(a) * sp, main, kind == "crackle" and CRACKLE or 0, 5) end
     end
   elseif kind == "chrysanthemum" then
-    for i = 1, 40 do
-      local a, sp = i / 40 * 6.283, 1.7 + math.random() * 0.4
-      spark(math.cos(a) * sp, math.sin(a) * sp, main, { trail = true, decay = 0.011 })
+    for i = 1, 36 do
+      local a, sp = i / 36 * 6.283, 1.7 + math.random() * 0.4
+      star(math.cos(a) * sp, math.sin(a) * sp, main, TRAIL, 3)
     end
   elseif kind == "willow" then
-    for i = 1, 36 do
-      local a, sp = i / 36 * 6.283, 1.2 + math.random() * 0.5
-      spark(math.cos(a) * sp, math.sin(a) * sp, GOLD, { trail = true, decay = 0.006, drag = 0.965, heavy = true })
+    for i = 1, 32 do
+      local a, sp = i / 32 * 6.283, 1.2 + math.random() * 0.5
+      star(math.cos(a) * sp, math.sin(a) * sp, GOLD, TRAIL | HEAVY, 1)
     end
   elseif kind == "ring" or kind == "doublering" then
-    for i = 1, 36 do
-      local a = i / 36 * 6.283
-      spark(math.cos(a) * 2.0, math.sin(a) * 1.3, main, { decay = 0.014 })
-      if kind == "doublering" then spark(math.cos(a) * 1.2, math.sin(a) * 0.8, second, { decay = 0.016 }) end
+    for i = 1, (kind == "ring" and 36 or 28) do
+      local a = i / (kind == "ring" and 36 or 28) * 6.283
+      star(math.cos(a) * 2.0, math.sin(a) * 1.3, main, 0, 6)
+      if kind == "doublering" then star(math.cos(a) * 1.2, math.sin(a) * 0.8, second, 0, 7) end
     end
   elseif kind == "palm" then
     for i = 1, 8 do
       local a = i / 8 * 6.283 - 1.57
       for j = 0, 3 do
-        spark(math.cos(a) * (1.5 + j * 0.25), math.sin(a) * (1.5 + j * 0.25) - 0.4, j == 0 and 0xffffff or GOLD, { trail = j == 0, decay = 0.009 })
+        star(math.cos(a) * (1.5 + j * 0.25), math.sin(a) * (1.5 + j * 0.25) - 0.4, j == 0 and 0xffffff or GOLD, j == 0 and TRAIL or 0, 2)
       end
     end
   elseif kind == "crossette" then
     for i = 1, 10 do
       local a = i / 10 * 6.283
-      spark(math.cos(a) * 1.6, math.sin(a) * 1.6, main, { split = true, trail = true, decay = 0.012 })
+      star(math.cos(a) * 1.6, math.sin(a) * 1.6, main, SPLIT | TRAIL, 4)
     end
   elseif kind == "heart" then
-    for i = 1, 40 do
-      local a = i / 40 * 6.283
+    for i = 1, 36 do
+      local a = i / 36 * 6.283
       local px = 16 * math.sin(a) ^ 3
       local py = -(13 * math.cos(a) - 5 * math.cos(2 * a) - 2 * math.cos(3 * a) - math.cos(4 * a))
-      spark(px * 0.12, py * 0.12, hue(0.95, 1), { decay = 0.012, drag = 0.97 })
+      star(px * 0.12, py * 0.12, hue(0.95, 1), SOFT, 4)
     end
   end
-  return out
+  return n
 end
 
 if arg[1] == "--selftest" then
@@ -94,17 +103,25 @@ if arg[1] == "--selftest" then
       print("selftest failed: " .. what)
     end
   end
+  local got = {}
+  local function collect(x, y, vx, vy, cf) got[#got + 1] = { vx = vx, vy = vy, cf = cf } end
   for _, k in ipairs(KINDS) do
-    local s = shell(k, 100, 40, 0.3)
+    got = {}
+    local n = shell(k, 100, 40, 0.3, collect)
     local least = k == "crossette" and 10 or 30  -- a crossette has few stars, each splits into four later
-    check(#s >= least and #s <= 80, k .. " has between " .. least .. " and 80 stars (" .. #s .. ")")
+    check(n == #got and n >= least and n <= 60, k .. " has between " .. least .. " and 60 stars (" .. n .. ")")
   end
-  local ring = shell("ring", 0, 0, 0)
-  check(math.abs(ring[1].vx ^ 2 / 4 + ring[1].vy ^ 2 / 1.69 - 1) < 1e-9, "a ring is an ellipse seen from the side")
-  local w = shell("willow", 0, 0, 0)
-  check(w[1].colour == GOLD and w[1].decay < 0.01, "a willow is gold and slow")
-  local c = shell("crossette", 0, 0, 0)
-  check(c[1].split, "crossette stars split")
+  got = {}
+  shell("ring", 0, 0, 0, collect)
+  check(math.abs(got[1].vx ^ 2 / 4 + got[1].vy ^ 2 / 1.69 - 1) < 1e-9, "a ring is an ellipse seen from the side")
+  got = {}
+  shell("willow", 0, 0, 0, collect)
+  check(colourOf(got[1].cf) == GOLD and decayOf(got[1].cf) < 0.01 and flagsOf(got[1].cf) & HEAVY ~= 0, "a willow is gold, heavy and slow")
+  got = {}
+  shell("crossette", 0, 0, 0, collect)
+  check(flagsOf(got[1].cf) & SPLIT ~= 0, "crossette stars split")
+  local cf = pack(0x123456, TRAIL | CRACKLE, 8)
+  check(colourOf(cf) == 0x123456 and flagsOf(cf) == TRAIL | CRACKLE and decayOf(cf) == 0.018, "colour, flags and fading in one number")
   check(hue(0, 1) == 0xff3333 and hue(0, -1) == 0, "colours are bright and limited")
   if failed == 0 then print("selftest ok") end
   return
@@ -132,10 +149,19 @@ if not gfx.open() then
   return
 end
 local ok, problem = pcall(function()
-  local rockets, sparks, flashes, smoke = {}, {}, {}, {}
+  local rockets, flashes, smoke = {}, {}, {}
+  local SX, SY, SVX, SVY, SLIFE, SCF = {}, {}, {}, {}, {}, {}
+  for i = 1, MAX_SPARKS do SX[i], SY[i], SVX[i], SVY[i], SLIFE[i], SCF[i] = 0, 0, 0, 0, 0, 0 end
+  local nSparks = 0
+  local function emit(x, y, vx, vy, cf, life)
+    if nSparks >= MAX_SPARKS then return end
+    nSparks = nSparks + 1
+    SX[nSparks], SY[nSparks], SVX[nSparks], SVY[nSparks], SLIFE[nSparks], SCF[nSparks] = x, y, vx, vy, life or 1, cf
+  end
   local sounds = {}  -- { at, freq, ms }: the bangs and the crackles, played in order
   local launchX, rate, sound = W / 2, 1.0, audio ~= nil and audio.beep ~= nil
   local nextAuto, shown, glow = sys.millis() + 500, sys.millis(), 0
+  local soundShown = nil
   local function beepLater(delay, freq, ms) sounds[#sounds + 1] = { at = sys.millis() + delay, freq = freq, ms = ms } end
   local function launch()
     local x = math.max(30, math.min(W - 30, launchX + math.random(-60, 60)))
@@ -147,7 +173,9 @@ local ok, problem = pcall(function()
     while k do
       if k == "q" or k == "ctrl-q" then return end
       if k == " " then launch()
-      elseif k == "m" then sound = not sound
+      elseif k == "m" then
+        sound = not sound
+        soundShown = sys.millis()
       elseif k == "w" or k == "up" then rate = math.min(3, rate + 0.5)
       elseif k == "s" or k == "down" then rate = math.max(0.3, rate - 0.5)
       elseif k == "a" or k == "left" then launchX = math.max(40, launchX - 25)
@@ -198,9 +226,7 @@ local ok, problem = pcall(function()
         if #sounds == 0 and math.floor(r.y) % 3 == 0 then pcall(audio.beep, math.min(3200, r.whistle), 40) end
       end
       if r.vy >= -0.4 or r.y < 18 then
-        for _, p in ipairs(shell(r.kind, r.x, r.y, r.h)) do
-          if #sparks < MAX_SPARKS then sparks[#sparks + 1] = p end
-        end
+        shell(r.kind, r.x, r.y, r.h, emit)
         flashes[#flashes + 1] = { x = r.x, y = r.y, life = 1, colour = hue(r.h, 1) }
         smoke[#smoke + 1] = { x = r.x, y = r.y + 4, r = 10, life = 1, tint = hue(r.h, 1) }
         glow = math.min(1, glow + 0.55)
@@ -226,42 +252,50 @@ local ok, problem = pcall(function()
       end
     end
     flashes = keepFlash
-    -- the stars of the shells
-    local keep, born = {}, {}
-    for _, p in ipairs(sparks) do
-      p.px, p.py = p.x, p.y
-      local drag = p.drag or 0.975
-      p.vx, p.vy = p.vx * drag, p.vy * drag + (p.heavy and GRAVITY * 1.2 or GRAVITY)
-      p.x, p.y = p.x + p.vx, p.y + p.vy
-      p.life = p.life - p.decay
-      if p.split and p.life < 0.55 then  -- a crossette star splits into four
-        p.split = nil
+    -- the stars of the shells; a star that is gone takes the place of the last one
+    local i = 1
+    while i <= nSparks do
+      local cf = SCF[i]
+      local flags = flagsOf(cf)
+      local drag = (flags & HEAVY ~= 0) and 0.965 or ((flags & SOFT ~= 0) and 0.97 or 0.975)
+      local vx, vy = SVX[i] * drag, SVY[i] * drag + ((flags & HEAVY ~= 0) and GRAVITY * 1.2 or GRAVITY)
+      local x, y = SX[i] + vx, SY[i] + vy
+      local life = SLIFE[i] - decayOf(cf)
+      if flags & SPLIT ~= 0 and life < 0.55 then  -- a crossette star splits into four
+        local colour = mix(colourOf(cf), 0xffffff, 0.4)
         for a = 0, 3 do
           local ang = a * 1.571 + 0.785
-          born[#born + 1] = { x = p.x, y = p.y, px = p.x, py = p.y, vx = math.cos(ang) * 1.1, vy = math.sin(ang) * 1.1, life = 0.6,
-                              decay = 0.018, colour = mix(p.colour, 0xffffff, 0.4) }
+          emit(x, y, math.cos(ang) * 1.1, math.sin(ang) * 1.1, pack(colour, 0, 8), 0.6)
         end
-        p.life = 0
+        life = 0
       end
-      if p.life > 0 and p.y < SEA then
-        local fade = p.life < 0.35 and p.life / 0.35 or 1
-        local colour = mix(sky, p.life < 0.3 and mix(p.colour, 0xff9040, 0.5) or p.colour, fade)
-        local draw = not p.twinkle or math.random() < 0.6
-        if draw then
-          local x, y = math.floor(p.x), math.floor(p.y)
-          if p.trail then gfx.line(math.floor(p.px - p.vx * 3), math.floor(p.py - p.vy * 3), x, y, mix(sky, colour, 0.55)) end
-          gfx.fill(x, y, p.life > 0.5 and 2 or 1, p.life > 0.5 and 2 or 1, colour)
-          if p.life > 0.2 then gfx.pixel(x, SEA + (SEA - y) // 3, mix(0x040814, colour, 0.4)) end  -- in the water
+      if life > 0 and y < SEA then
+        SX[i], SY[i], SVX[i], SVY[i], SLIFE[i] = x, y, vx, vy, life
+        local base = colourOf(cf)
+        local fade = life < 0.35 and life / 0.35 or 1
+        local colour = mix(sky, life < 0.3 and mix(base, 0xff9040, 0.5) or base, fade)
+        if flags & TWINKLE == 0 or math.random() < 0.6 then
+          local ix, iy = math.floor(x), math.floor(y)
+          if flags & TRAIL ~= 0 then gfx.line(math.floor(x - vx * 4), math.floor(y - vy * 4), ix, iy, mix(sky, colour, 0.55)) end
+          local size = life > 0.5 and 2 or 1
+          gfx.fill(ix, iy, size, size, colour)
+          if life > 0.2 then gfx.pixel(ix, SEA + (SEA - iy) // 3, mix(0x040814, colour, 0.4)) end  -- in the water
         end
-        if p.crackle and p.life < 0.25 and math.random() < 0.3 then gfx.fill(math.floor(p.x) - 1, math.floor(p.y) - 1, 3, 3, 0xffffff) end
-        keep[#keep + 1] = p
+        if flags & CRACKLE ~= 0 and life < 0.25 and math.random() < 0.3 then gfx.fill(math.floor(x) - 1, math.floor(y) - 1, 3, 3, 0xffffff) end
+        i = i + 1
+      else
+        SX[i], SY[i], SVX[i], SVY[i], SLIFE[i], SCF[i] = SX[nSparks], SY[nSparks], SVX[nSparks], SVY[nSparks], SLIFE[nSparks], SCF[nSparks]
+        nSparks = nSparks - 1
       end
     end
-    for _, b in ipairs(born) do
-      if #keep < MAX_SPARKS then keep[#keep + 1] = b end
-    end
-    sparks = keep
     if now - shown < 1800 then gfx.text(4, 4, "space m w s a d q", 0xffffff, 1) end
+    -- the sound: on or off (m), shown for a moment after it changes and as a small sign in the corner
+    if now - (soundShown or 0) < 1500 then gfx.text(4, 14, sound and "sound on (m mutes)" or "sound off (m turns it on)", 0xffe060, 1) end
+    if audio and audio.beep then
+      gfx.fill(W - 12, 3, 3, 5, 0x8a94aa)
+      gfx.triangle(W - 9, 5, W - 6, 2, W - 6, 9, 0x8a94aa)
+      if not sound then gfx.line(W - 13, 2, W - 3, 10, 0xff5050) end
+    end
     gfx.flush()
     sys.sleep(5)
   end

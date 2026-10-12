@@ -88,7 +88,7 @@ steps|1.0|the step counter: today's steps against a goal, the last seven days, r
 sleep|1.0|low power screen: time, date, steps and battery at the lowest brightness, 80 MHz, WiFi power saving; any key wakes it (firmware v0.1.0.18; 'sleep' alone, 'sleep N' still waits)|needs:ui|Formula/sleep.lua
 deepSleep|1.0.0.1|deep sleep: screen off and processor stopped, a key or BOOT wakes the Cardputer (firmware v0.1.0.18)|Formula/deepSleep.lua
 off|1.0|switch off: the battery is cut where the board allows it, otherwise deep sleep until BOOT (firmware v0.1.0.18)|Formula/off.lua
-tiltracer|1.0.0.2|a race against five bots on a 3D track with bends and hills: 3 or 5 laps, positions, lap times; steer with a d or by tilting|needs:ui|Formula/tiltracer.lua
+tiltracer|1.0.0.3|a race against five bots on a 3D track with bends and hills: 3 or 5 laps, positions, lap times; steer with a d or by tilting|Formula/tiltracer.lua
 tiltmaze|1.0.0.1|ball maze: tilt the Cardputer to roll the ball to the exit (motion sensor)|needs:ui|Formula/tiltmaze.lua
 spectrum|1.0|sound from the microphone as 16 bars with note and peaks (firmware v0.1.0.18, audio.listen)|needs:ui|Formula/spectrum.lua
 sequencer|1.0|drum machine: 8 tracks of 16 steps, tempo, save and load the beat on the SD card (firmware v0.1.0.18 for the sound)|needs:ui|Formula/sequencer.lua
@@ -112,9 +112,9 @@ tuner|1.0|instrument tuner: the note nearest to the microphone sound and the cen
 scope|1.0|oscilloscope for an analogue pin (GPIO1 to GPIO10): voltage over time (firmware v0.1.0.18, gpio.scope)|needs:ui|Formula/scope.lua
 siggen|1.0|square wave generator on a pin for a buzzer, LED or test (firmware v0.1.0.18, gpio.tone)|needs:ui|Formula/siggen.lua
 functionplot|1.0|draw y = f(x) for any expression with x: sin(x), x*x - 2, exp(-x*x)|needs:ui|Formula/functionplot.lua
-tanks|1.0.0.1|artillery duel over destructible ground: play against the bot (easy, normal, hard) or two players, drive, aim with a dotted flight line, wind, craters, 3D-style tanks|needs:ui|Formula/tanks.lua
+tanks|1.0.0.2|artillery duel over destructible ground: play against the bot (easy, normal, hard) or two players, drive, aim with a dotted flight line, wind, craters, 3D-style tanks|needs:ui|Formula/tanks.lua
 wifimap|1.0|Wi-Fi networks by channel: the strongest signal and the number per channel, the least crowded channel (firmware v0.1.0.18)|needs:ui|Formula/wifimap.lua
-quiz|1.0.0.1|104 questions in 7 categories to choose from (A-D), rounds of 10, best scores; own questions in quiz.csv|needs:ui|Formula/quiz.lua
+quiz|1.0.0.2|104 questions in 7 categories to choose from (A-D), rounds of 10, best scores; own questions in quiz.csv|needs:ui|Formula/quiz.lua
 json|1.0|a small JSON reader for the apps: driver.load("json") gives json.decode(text) (a driver)|Driver/json.lua
 earthquakes|1.0|the latest earthquakes in the world from USGS (no key), with details (needs WiFi, q quits)|Formula/earthquakes.lua
 crypto|1.0|prices of popular cryptocurrencies from CoinGecko in PLN, USD or EUR with the 24 h change (no key)|Formula/crypto.lua
@@ -125,27 +125,28 @@ joke|1.0|a random clean joke from JokeAPI (no key, in English)|Formula/joke.lua
 sunrise|1.0|sunrise, sunset, solar noon and day length for any place, worked out offline|Formula/sunrise.lua
 eng|1.0|engineering numbers for the electronics apps: parse 4k7 or 100nF, format with k M u n p, E series (a driver)|Driver/eng.lua
 plasma|1.0|animation: the classic plasma, five palettes (space changes them, w s speed)|Formula/plasma.lua
-fire|1.0|animation: doom-style fire in four colours, with wind (a d) and heat (w s)|Formula/fire.lua
+fire|1.0.0.1|animation: doom-style fire in four colours, with wind (a d) and heat (w s)|Formula/fire.lua
 warp|1.0|animation: a flight through a starfield at warp speed, with steering and a rainbow tunnel|Formula/warp.lua
-aurora|1.0.0.1|animation: the northern lights in moving rays over a frozen lake that mirrors them, pines and shooting stars|Formula/aurora.lua
-rain|1.0.0.1|animation: a rainy city night: three layers of rain, splashes, wet reflections, a passing car, lightning and thunder|Formula/rain.lua
-fireworks|1.0.0.1|animation: ten kinds of shells (willow, palm, crossette, glitter, rings, hearts...), flashes, smoke and sound|Formula/fireworks.lua
-lavalamp|1.0|animation: a lava lamp with merging blobs of wax, four colour themes|Formula/lavalamp.lua
+aurora|1.0.0.2|animation: the northern lights in moving rays over a frozen lake that mirrors them, pines and shooting stars|Formula/aurora.lua
+rain|1.0.0.2|animation: a rainy city night: three layers of rain, splashes, wet reflections, a passing car, lightning and thunder|Formula/rain.lua
+fireworks|1.0.0.2|animation: ten kinds of shells (willow, palm, crossette, glitter, rings, hearts...), flashes, smoke and sound|Formula/fireworks.lua
+lavalamp|1.0.0.1|animation: a lava lamp with merging blobs of wax, four colour themes|Formula/lavalamp.lua
 spirograph|1.0|animation: a spirograph draws coloured curves one after another (space for a new one)|Formula/spirograph.lua
-snowfall|1.0.0.1|animation: a winter night: a log cabin with smoke, snow piling on the roof and the pines, moonlight and gusts|Formula/snowfall.lua
-waves|1.0.0.1|animation: a sunset over the sea with a glittering path of light, swells with foam, clouds, a sailboat, moon and stars|Formula/waves.lua
+snowfall|1.0.0.2|animation: a winter night: a log cabin with smoke, snow piling on the roof and the pines, moonlight and gusts|Formula/snowfall.lua
+waves|1.0.0.2|animation: a sunset over the sea with a glittering path of light, swells with foam, clouds, a sailboat, moon and stars|Formula/waves.lua
 memory|1.0.0.1|find the pairs alone, against a fair bot (easy, normal, hard: it forgets) or with a friend; three table sizes|needs:ui|Formula/memory.lua
 fifteen|1.0|the sliding puzzle in 3x3, 4x4 and 5x5, always solvable, best results kept|needs:ui|Formula/fifteen.lua
 battleship|1.0|sink the enemy fleet on a 10x10 sea against a bot that hunts and follows a hit|needs:ui|Formula/battleship.lua
 checkers|1.0.0.1|English draughts against a bot (3 levels) or a friend: forced jumps, kings, take back|needs:ui|Formula/checkers.lua
 gomoku|1.0.0.1|five in a row on a wooden 15x15 board with shaded stones, against a bot (3 levels) or a friend|needs:ui|Formula/gomoku.lua
-components|1.0|read parts: resistor colour bands (3-6 bands, both ways), SMD resistor, capacitor and inductor codes, inductor bands|needs:ui eng|Formula/components.lua
-ohm|1.0|Ohm's law and power: set any two of V, I, R, P and get the other two|needs:ui eng|Formula/ohm.lua
-divider|1.0|voltage divider: Vout, the R2 for a Vout, the best pair of E12/E24/E96 values|needs:ui eng|Formula/divider.lua
-ledcalc|1.0|the series resistor for LEDs with the next E12/E24 values, current and power|needs:ui eng|Formula/ledcalc.lua
-rcfilter|1.0|RC cutoff, LC resonance, 555 astable and monostable, charging time|needs:ui eng|Formula/rcfilter.lua
-eseries|1.0|E series: the nearest standard value, two parts for a value (series or parallel), lists of the series|needs:ui eng|Formula/eseries.lua
+components|1.0.0.1|read parts: resistor colour bands (3-6 bands, both ways), SMD resistor, capacitor and inductor codes, inductor bands|needs:ui eng|Formula/components.lua
+ohm|1.0.0.1|Ohm's law and power: set any two of V, I, R, P and get the other two|needs:ui eng|Formula/ohm.lua
+divider|1.0.0.1|voltage divider: Vout, the R2 for a Vout, the best pair of E12/E24/E96 values|needs:ui eng|Formula/divider.lua
+ledcalc|1.0.0.1|the series resistor for LEDs with the next E12/E24 values, current and power|needs:ui eng|Formula/ledcalc.lua
+rcfilter|1.0.0.1|RC cutoff, LC resonance, 555 astable and monostable, charging time|needs:ui eng|Formula/rcfilter.lua
+eseries|1.0.0.1|E series: the nearest standard value, two parts for a value (series or parallel), lists of the series|needs:ui eng|Formula/eseries.lua
 baseconv|1.0|numbers in decimal, hex, binary, octal and as a character, with 32 bits you can flip|needs:ui|Formula/baseconv.lua
 stopwatch|1.0|a stopwatch with laps and the best and worst lap|needs:ui|Formula/stopwatch.lua
 colors|1.0|a colour picker: RGB or HSV sliders, #RRGGBB, 0xRRGGBB for gfx and RGB565 for the display|needs:ui|Formula/colors.lua
 dice|1.0|a dice roller: d4 to d100, several dice, bonus, advantage, typed rolls like 3d6+2|needs:ui|Formula/dice.lua
+GamePerformance|1.0|more memory for games: the WiFi off while you play (on, off, or auto for every game), back in the background after|Formula/GamePerformance.lua
