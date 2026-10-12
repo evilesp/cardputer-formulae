@@ -151,3 +151,4 @@ colors|1.0|a colour picker: RGB or HSV sliders, #RRGGBB, 0xRRGGBB for gfx and RG
 dice|1.0|a dice roller: d4 to d100, several dice, bonus, advantage, typed rolls like 3d6+2|needs:ui|Formula/dice.lua
 GamePerformance|1.0|more memory for games: the WiFi off while you play (on, off, or auto for every game), back in the background after|Formula/GamePerformance.lua
 tipcalc|1.0|the tip and the split of a bill: tipcalc 85.50 15 3 (tip percent and people are optional)|Formula/tipcalc.lua
+moon|1.0|the phase of the Moon for a date: name, age, lit part, next new and full moon, and a drawing (moon [YYYY-MM-DD])|Formula/moon.lua

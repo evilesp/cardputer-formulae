@@ -112,6 +112,7 @@ brew install htop nano snake
 | units | przelicznik jednostek: `units 10 km mi`, `units 98.6 F C`, `units list` |
 | joke | losowy żart z JokeAPI (bez klucza, po angielsku, tryb bezpieczny) |
 | sunrise | wschód i zachód słońca, południe słoneczne i długość dnia, liczone bez internetu: `sunrise 50.06 19.94` |
+| moon | faza Księżyca dla dnia: nazwa, wiek, oświetlenie, najbliższy nów i pełnia, rysunek tarczy, liczone bez internetu: `moon 2024-01-25` |
 | countdown | dni do Twoich dat z /home/user/countdown.txt; dodawanie i usuwanie |
 | cipher | szyfrowanie i odszyfrowywanie: przesunięcie Cezara i klucz Vigenère |
 | rss | nagłówki kanałów RSS i Atom z listy w /home/user/rss.txt |
