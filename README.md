@@ -122,7 +122,7 @@ brew install htop nano snake
 | functionplot | rysuje y = f(x) dla dowolnego wyrażenia z x: sin(x), x*x - 2, exp(-x*x) |
 | tanks | pojedynek czołgów: gra z botem (łatwy, normalny, trudny) albo dla dwóch graczy; jazda, celowanie z linią lotu, wiatr, kratery |
 | wifimap | sieci WiFi według kanałów: najmocniejszy sygnał i liczba sieci, najmniej zatłoczony kanał (firmware v0.1.0.18) |
-| quiz | 110 pytań w 7 kategoriach (odpowiedzi A–D), rundy po 10, najlepsze wyniki; własne pytania w /home/user/quiz.csv |
+| quiz | 104 pytania w 7 kategoriach (odpowiedzi A–D), rundy po 10, najlepsze wyniki; własne pytania w /home/user/quiz.csv |
 | json | sterownik: czytanie JSON dla innych aplikacji (driver.load("json")) |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
