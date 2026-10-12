@@ -192,7 +192,7 @@ end
 
 local W, H = 240, 135
 local CELL = 8
-local OX, OY = 4, 8
+local OX, OY = 10, 10
 local board, turn, cur, mode, level, history, over, winLine
 local score = { [BLACK] = 0, [WHITE] = 0 }
 
@@ -200,23 +200,65 @@ local function newGame()
   board, turn, cur, history, over, winLine = newBoard(), BLACK, { r = 8, c = 8 }, {}, nil, nil
 end
 
+-- the grain of the wooden board, made once: a line every row with its own shade
+local GRAIN = {}
+for i = 0, 140 do
+  local wave = math.sin(i * 0.37) * 0.5 + math.sin(i * 1.7) * 0.3 + math.sin(i * 0.11) * 0.6
+  GRAIN[i] = wave
+end
+local function wood(i)
+  local v = GRAIN[i % 141] or 0
+  local r = math.floor(206 + v * 14)
+  local g = math.floor(160 + v * 12)
+  local b = math.floor(92 + v * 10)
+  return (r << 16) | (g << 8) | b
+end
+
+-- a stone: a shadow on the board, a body shaded from the edge to the middle, and a gloss up on the left
 local function stoneAt(r, c, who, last)
   local x, y = OX + (c - 1) * CELL, OY + (r - 1) * CELL
-  gfx.disc(x, y, 3, who == BLACK and 0x000000 or 0xb8b8b0)
-  gfx.disc(x, y, 3, who == BLACK and 0x14161c or 0xf4f4ee)
-  gfx.disc(x - 1, y - 1, 1, who == BLACK and 0x50586a or 0xffffff)
-  if last then gfx.rect(x - 4, y - 4, 8, 8, 0xe84030) end
+  gfx.disc(x + 1, y + 1, 4, 0x7a5a30)  -- the shadow
+  if who == BLACK then
+    gfx.disc(x, y, 4, 0x08090c)
+    gfx.disc(x - 1, y - 1, 3, 0x1c2026)
+    gfx.disc(x - 1, y - 1, 2, 0x2a3038)
+    gfx.pixel(x - 2, y - 2, 0x8a94a8)
+    gfx.pixel(x - 1, y - 2, 0x56606e)
+  else
+    gfx.disc(x, y, 4, 0xa8a49a)
+    gfx.disc(x, y, 3, 0xdcd8cc)
+    gfx.disc(x - 1, y - 1, 2, 0xf4f2ea)
+    gfx.pixel(x - 2, y - 2, 0xffffff)
+    gfx.pixel(x - 1, y - 2, 0xffffff)
+  end
+  if last then gfx.disc(x, y, 1, 0xe84030) end
 end
 
 local function draw()
   gfx.clear(0x0c1018)
   local size = (N - 1) * CELL
-  gfx.fill(OX - 6, OY - 6, size + 12, size + 12, 0xc8a050)
-  for i = 0, N - 1 do
-    gfx.hline(OX, OX + size, OY + i * CELL, 0x6a4a20)
-    gfx.vline(OX + i * CELL, OY, OY + size, 0x6a4a20)
+  -- the board: a darker frame with a bevel, then wood with its grain
+  local bx, by, bw, bh = OX - 7, OY - 7, size + 14, size + 14
+  gfx.fill(bx - 2, by - 2, bw + 4, bh + 4, 0x4a2c12)
+  for y = by, by + bh - 1 do gfx.hline(bx, bx + bw - 1, y, wood(y * 3 + (y // 7))) end
+  for i = 0, 12 do  -- darker knots of the grain running across
+    local gy = by + 4 + i * 9 + math.floor(GRAIN[i * 11 % 141] * 3)
+    gfx.hline(bx + 2, bx + bw - 3, gy, 0xc49a60)
   end
-  for _, p in ipairs({ { 4, 4 }, { 4, 12 }, { 8, 8 }, { 12, 4 }, { 12, 12 } }) do gfx.disc(OX + (p[2] - 1) * CELL, OY + (p[1] - 1) * CELL, 1, 0x3a2810) end
+  gfx.hline(bx, bx + bw - 1, by, 0xe8c48a)
+  gfx.vline(bx, by, by + bh - 1, 0xe8c48a)
+  gfx.hline(bx, bx + bw - 1, by + bh - 1, 0x8a5e2a)
+  gfx.vline(bx + bw - 1, by, by + bh - 1, 0x8a5e2a)
+  for i = 0, N - 1 do
+    gfx.hline(OX, OX + size, OY + i * CELL, 0x4a3016)
+    gfx.vline(OX + i * CELL, OY, OY + size, 0x4a3016)
+  end
+  for _, p in ipairs({ { 4, 4 }, { 4, 12 }, { 8, 8 }, { 12, 4 }, { 12, 12 } }) do gfx.disc(OX + (p[2] - 1) * CELL, OY + (p[1] - 1) * CELL, 1, 0x2a1808) end
+  -- where the cursor is, a faint stone of the side to play
+  if not over and board[cur.r][cur.c] == EMPTY and not (mode == 1 and turn == WHITE) then
+    local x, y = OX + (cur.c - 1) * CELL, OY + (cur.r - 1) * CELL
+    gfx.circle(x, y, 3, turn == BLACK and 0x2a2018 or 0xf8f0e0)
+  end
   local lastIdx = history[#history]
   for r = 1, N do
     for c = 1, N do
@@ -227,8 +269,12 @@ local function draw()
   if winLine then
     for _, p in ipairs(winLine) do gfx.circle(OX + (p[2] - 1) * CELL, OY + (p[1] - 1) * CELL, 5, 0x40ff80) end
   end
-  if not over then
-    gfx.rect(OX + (cur.c - 1) * CELL - 4, OY + (cur.r - 1) * CELL - 4, 9, 9, 0x40a0ff)
+  if not over then  -- the cursor: four corners, so the stone under it stays visible
+    local x, y = OX + (cur.c - 1) * CELL, OY + (cur.r - 1) * CELL
+    for _, d in ipairs({ { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } }) do
+      gfx.hline(x + d[1] * 5, x + d[1] * 3, y + d[2] * 5, 0x2080ff)
+      gfx.vline(x + d[1] * 5, y + d[2] * 5, y + d[2] * 3, 0x2080ff)
+    end
   end
   local px = OX + size + 14
   ui.label(px, 4, "GOMOKU", 0xe8ecf4, 2)

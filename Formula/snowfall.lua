@@ -51,78 +51,144 @@ if not gfx.open() then
   return
 end
 
--- the pine trees, made once: x, height
+local function mix(a, b, t)
+  if t <= 0 then return a elseif t >= 1 then return b end
+  local function ch(sh) return math.floor(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * t + 0.5) end
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0)
+end
+
+local function noise(n)
+  local x = math.sin(n * 12.9898 + 78.233) * 43758.5453
+  return x - math.floor(x)
+end
+
+-- made once: the pines (x, height, near or far), the stars, the hills and the sparkles in the snow
 local trees = {}
-for i = 1, 11 do trees[i] = { x = i * 22 - 10 + math.random(-6, 6), h = 26 + math.random(0, 22) } end
+for i = 1, 12 do
+  local x = i * 20 - 12 + math.floor(noise(i) * 10)
+  if x < 86 or x > 146 then trees[#trees + 1] = { x = x, h = 16 + math.floor(noise(i + 5) * 22) } end  -- none in front of the cabin
+end
+table.sort(trees, function(a, b) return a.h < b.h end)
+local stars = {}
+for i = 1, 55 do stars[i] = { x = math.floor(noise(i * 1.3) * W), y = math.floor(noise(i * 2.1) * 60), p = noise(i) * 6.28 } end
+local hills = {}
+for x = 0, W - 1 do
+  hills[x] = { math.floor(GROUND - 22 - 8 * math.sin(x * 0.02 + 0.5) - 4 * math.sin(x * 0.07)), math.floor(GROUND - 10 - 5 * math.sin(x * 0.035 + 2)) }
+end
+local sparkles = {}
+for i = 1, 30 do sparkles[i] = { x = math.floor(noise(i * 3.3) * W), y = GROUND + 2 + math.floor(noise(i * 4.7) * (H - GROUND - 3)), p = noise(i) * 6.28 } end
 local pile = {}
 for x = 0, W - 1 do pile[x] = 0 end
 
-local function pine(x, h)
-  for layer = 0, 3 do
-    local top = GROUND - h + layer * (h // 4)
-    local half = 5 + layer * 4
-    gfx.triangle(x, top - 8, x - half, top + h // 4 + 2, x + half, top + h // 4 + 2, 0x0c2018)
-    gfx.triangle(x, top - 8, x - half // 2, top - 2 + layer, x + half // 2, top - 2 + layer, 0xc8d4e4)
+-- a pine with snow on each of its layers; depth (0 .. 1) is how much snow has fallen on it
+local function pine(x, h, depth)
+  local layers = 4
+  for layer = 0, layers - 1 do
+    local top = GROUND - h + layer * (h // 5)
+    local half = 4 + layer * 4 + h // 12
+    local bottom = top + h // 4 + 3
+    gfx.triangle(x, top - 6, x - half, bottom, x + half, bottom, layer % 2 == 0 and 0x0c2a1c or 0x0f3222)
+    -- the snow on the branches: a white cap and a line along the lower edge
+    local cap = math.floor(2 + depth * 4)
+    gfx.triangle(x, top - 6, x - cap, top - 6 + cap + 1, x + cap, top - 6 + cap + 1, 0xe4ecf8)
+    if depth > 0.15 then gfx.hline(x - half + 2, x + half - 2, bottom - 1, mix(0x0c2a1c, 0xdce6f4, depth)) end
   end
-  gfx.fill(x - 1, GROUND - 5, 3, 6, 0x2a1c14)
+  gfx.fill(x - 1, GROUND - 4, 3, 5, 0x2a1c14)
 end
 
 local ok, problem = pcall(function()
   local flakes = {}
-  for i = 1, 160 do flakes[i] = newFlake(i % 3 + 1) end
-  local count, wind, shown, t = 80, 0.15, sys.millis(), 0
+  for i = 1, 180 do flakes[i] = newFlake(i % 3 + 1) end
+  local count, wind, baseWind, shown, t = 100, 0.15, 0.15, sys.millis(), 0
+  local smoke = {}
+  local depth = 0
   while true do
     local k = key.poll()
     while k do
       if k == "q" or k == "ctrl-q" then return end
-      if k == "a" or k == "left" then wind = math.max(-1.2, wind - 0.2)
-      elseif k == "d" or k == "right" then wind = math.min(1.2, wind + 0.2)
-      elseif k == "w" or k == "up" then count = math.min(160, count + 20)
+      if k == "a" or k == "left" then baseWind = math.max(-1.2, baseWind - 0.2)
+      elseif k == "d" or k == "right" then baseWind = math.min(1.2, baseWind + 0.2)
+      elseif k == "w" or k == "up" then count = math.min(180, count + 20)
       elseif k == "s" or k == "down" then count = math.max(10, count - 20)
-      elseif k == " " then wind = wind >= 0 and 1.2 or -1.2 end
+      elseif k == " " then wind = baseWind >= 0 and 1.6 or -1.6 end
       k = key.poll()
     end
     t = t + 1
-    wind = wind * 0.997
-    -- the sky, the moon and the stars
-    for y = 0, GROUND, 8 do
-      local f = y / GROUND
-      gfx.fill(0, y, W, 8, ((math.floor(8 + 22 * f) << 16) | (math.floor(12 + 30 * f) << 8) | math.floor(32 + 40 * f)))
+    -- the wind blows in gusts around the wind you set
+    local gust = math.sin(t * 0.013) * 0.25 + math.sin(t * 0.031) * 0.15
+    wind = wind + ((baseWind + gust) - wind) * 0.02
+    depth = math.min(1, depth + 0.0004)
+    -- the sky, cold and deep blue, a little lighter low down
+    for y = 0, GROUND, 4 do gfx.fill(0, y, W, 4, mix(0x050a1c, 0x24345a, (y / GROUND) ^ 1.3)) end
+    for _, s in ipairs(stars) do gfx.pixel(s.x, s.y, mix(0x1a2240, 0xe8ecff, 0.4 + 0.6 * math.abs(math.sin(t * 0.03 + s.p)))) end
+    -- the moon with its halo
+    for r = 30, 18, -4 do gfx.disc(196, 28, r, mix(mix(0x0a1228, 0x1c2a4a, 0.5), 0x6a7a9a, (30 - r) / 40)) end
+    gfx.disc(196, 28, 15, 0xeef0dc)
+    gfx.disc(190, 24, 3, 0xd4d8c0)
+    gfx.disc(201, 33, 2, 0xd4d8c0)
+    gfx.disc(198, 21, 1, 0xd4d8c0)
+    -- the hills far away, white in the moonlight
+    for x = 0, W - 1 do
+      gfx.vline(x, hills[x][1], GROUND, 0x8a98b8)
+      gfx.vline(x, hills[x][2], GROUND, 0xb0bcd4)
     end
-    for i = 1, 40 do gfx.pixel((i * 53) % W, (i * 29) % 70, 0x8090b8) end
-    gfx.disc(196, 28, 17, 0x2a3350)
-    gfx.disc(196, 28, 15, 0xe8ecc8)
-    gfx.disc(190, 24, 3, 0xcfd4b0)
-    gfx.disc(201, 33, 2, 0xcfd4b0)
-    -- the ground with its pile of snow
-    gfx.fill(0, GROUND, W, H - GROUND, 0xdfe6f2)
-    for x = 0, W - 1, 1 do
-      if pile[x] > 0 then gfx.vline(x, GROUND - math.floor(pile[x]), GROUND, 0xdfe6f2) end
+    -- the ground: snow in the blue of the night, with sparkles and the pile that grows
+    gfx.fill(0, GROUND, W, H - GROUND, 0xc8d4e8)
+    gfx.fill(0, GROUND + 10, W, H - GROUND - 10, 0xb8c6de)
+    for x = 0, W - 1 do
+      if pile[x] > 0.5 then gfx.vline(x, GROUND - math.floor(pile[x]), GROUND, 0xd8e2f2) end
     end
-    for _, tr in ipairs(trees) do pine(tr.x, tr.h) end
-    -- the cabin with a warm window and a plume of smoke
-    gfx.fill(98, GROUND - 22, 36, 22, 0x3a2418)
-    gfx.triangle(94, GROUND - 22, 138, GROUND - 22, 116, GROUND - 38, 0x1a1218)
-    gfx.triangle(94, GROUND - 22, 138, GROUND - 22, 116, GROUND - 38, 0xe8eef8)
-    gfx.fill(98, GROUND - 22, 36, 3, 0x2a1810)
-    gfx.fill(106, GROUND - 17, 9, 9, 0xffc060)
-    gfx.rect(106, GROUND - 17, 9, 9, 0x6a4020)
-    gfx.fill(122, GROUND - 14, 7, 14, 0x24140c)
-    for i = 0, 5 do gfx.disc(126 + math.floor(math.sin(t * 0.05 + i) * 2) + i * wind * 2, GROUND - 44 - i * 5, 2 + i // 2, 0x9098a8) end
-    -- the flakes
+    for _, s in ipairs(sparkles) do
+      if math.sin(t * 0.08 + s.p) > 0.85 then gfx.pixel(s.x, s.y, 0xffffff) end
+    end
+    for _, tr in ipairs(trees) do pine(tr.x, tr.h, depth) end
+    -- the cabin of logs, the snow on its roof, the warm window and its light on the snow
+    local cx, cy = 98, GROUND - 22
+    local spill = mix(0xc8d4e8, 0xffd890, 0.3)  -- the light of the window on the snow
+    gfx.triangle(106, GROUND + 1, 116, GROUND + 1, 122, GROUND + 14, spill)
+    gfx.triangle(106, GROUND + 1, 122, GROUND + 14, 100, GROUND + 14, spill)
+    gfx.fill(cx, cy, 36, 22, 0x4a2c18)
+    for ly = cy + 3, GROUND - 1, 4 do gfx.hline(cx, cx + 35, ly, 0x3a2010) end
+    gfx.fill(106, GROUND - 17, 10, 9, 0xffc868)
+    gfx.vline(110, GROUND - 17, GROUND - 9, 0x6a4020)
+    gfx.hline(106, 115, GROUND - 13, 0x6a4020)
+    gfx.fill(122, GROUND - 15, 8, 15, 0x2a160a)
+    gfx.fill(126, cy - 18, 5, 12, 0x5a3a2a)  -- the chimney
+    gfx.triangle(cx - 5, cy + 1, cx + 41, cy + 1, cx + 18, cy - 15, 0x2a1810)
+    local snowRoof = math.floor(2 + depth * 4)
+    gfx.triangle(cx - 6, cy + 1, cx + 42, cy + 1, cx + 18, cy - 15 - snowRoof // 2, 0xe8eef8)
+    gfx.triangle(cx - 1, cy + 1, cx + 37, cy + 1, cx + 18, cy - 13 + snowRoof, 0x2a1810)
+    gfx.fill(125, cy - 19, 7, 2 + snowRoof // 2, 0xe8eef8)
+    -- the smoke from the chimney: puffs that rise, grow, drift with the wind and fade
+    if t % 6 == 0 then smoke[#smoke + 1] = { x = 128, y = cy - 20, r = 2, life = 1 } end
+    local alive = {}
+    for _, p in ipairs(smoke) do
+      p.y, p.x, p.r, p.life = p.y - 0.5, p.x + wind * 0.6 + math.sin(t * 0.05 + p.y * 0.1) * 0.2, p.r + 0.06, p.life - 0.012
+      if p.life > 0 then
+        gfx.disc(math.floor(p.x), math.floor(p.y), math.floor(p.r), mix(0x2a3450, 0xa8b0c4, p.life * 0.8))
+        alive[#alive + 1] = p
+      end
+    end
+    smoke = alive
+    -- the flakes: far ones small and grey, near ones big and bright like stars
     for i = 1, count do
       local f = flakes[i]
       if drift(f, wind, t) then
         local x = math.max(0, math.min(W - 1, math.floor(f.x)))
-        pile[x] = math.min(7, pile[x] + 0.12)
-        if x > 0 and pile[x - 1] < pile[x] - 1 then pile[x - 1] = pile[x - 1] + 0.1 end
-        if x < W - 1 and pile[x + 1] < pile[x] - 1 then pile[x + 1] = pile[x + 1] + 0.1 end
+        pile[x] = math.min(8, pile[x] + 0.1)
+        if x > 0 and pile[x - 1] < pile[x] - 1 then pile[x - 1] = pile[x - 1] + 0.08 end
+        if x < W - 1 and pile[x + 1] < pile[x] - 1 then pile[x + 1] = pile[x + 1] + 0.08 end
         flakes[i] = newFlake(f.layer)
         flakes[i].y = -3
       else
-        local s = SIZE[f.layer]
         if f.x < -3 then f.x = W + 3 elseif f.x > W + 3 then f.x = -3 end
-        gfx.fill(math.floor(f.x), math.floor(f.y), s, s, SHADE[f.layer])
+        local x, y = math.floor(f.x), math.floor(f.y)
+        if f.layer == 3 then
+          gfx.fill(x - 1, y, 3, 1, 0xffffff)
+          gfx.fill(x, y - 1, 1, 3, 0xffffff)
+        else
+          gfx.fill(x, y, SIZE[f.layer], SIZE[f.layer], SHADE[f.layer])
+        end
       end
     end
     if sys.millis() - shown < 1800 then gfx.text(4, 4, "a d w s space q", 0xffffff, 1) end

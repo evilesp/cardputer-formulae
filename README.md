@@ -89,7 +89,7 @@ brew install htop nano snake
 | sleep | tryb oszczędny: godzina, data, kroki i bateria na najniższej jasności, 80 MHz, WiFi oszczędza prąd; dowolny klawisz budzi |
 | deepSleep | głęboki sen: ekran wyłączony, procesor zatrzymany; klawisz albo BOOT budzi |
 | off | wyłączenie: odcina baterię, jeśli płytka na to pozwala; inaczej głęboki sen do BOOT |
-| tiltracer | wyścig po drodze w 3D: przechylasz, aby skręcać (czujnik ruchu) |
+| tiltracer | wyścig z pięcioma botami po torze 3D z zakrętami i wzniesieniami: 3 lub 5 okrążeń, pozycje, czasy okrążeń; skręt a d albo przechyłem |
 | tiltmaze | labirynt z kulką: przechyl Cardputer, żeby kulka dotarła do wyjścia |
 | spectrum | widmo dźwięku z mikrofonu jako 16 słupków z nutą i szczytami (firmware v0.1.0.18) |
 | sequencer | automat perkusyjny: 8 ścieżek po 16 kroków, tempo, zapis i odczyt rytmu na karcie SD |
@@ -128,18 +128,18 @@ brew install htop nano snake
 | plasma | animacja: klasyczna plazma, pięć palet (spacja zmienia, w s prędkość) |
 | fire | animacja: ogień jak w Doomie w czterech kolorach, wiatr (a d) i temperatura (w s) |
 | warp | animacja: lot przez pole gwiazd z prędkością warp, sterowanie a d, tęczowy tunel |
-| aurora | animacja: zorza polarna nad górami i migoczące gwiazdy, cztery kolory |
-| rain | animacja: deszcz na nocnej ulicy z kręgami na kałużach, latarnią i burzą (spacja) |
-| fireworks | animacja: fajerwerki — kule, pierścienie i serca, iskrzące ślady i odbicie w wodzie |
+| aurora | animacja: zorza polarna z ruchomych promieni nad zamarzniętym jeziorem, które ją odbija; sosny i spadające gwiazdy |
+| rain | animacja: deszczowa noc w mieście — trzy warstwy deszczu, rozpryski, odbicia w mokrej ulicy, przejeżdżający samochód, pioruny i grzmot |
+| fireworks | animacja: dziesięć rodzajów wybuchów (wierzba, palma, rozdzielające się, iskrzące, pierścienie, serca...), błyski, dym i dźwięk (m wyłącza) |
 | lavalamp | animacja: lampa lava z łączącymi się bańkami wosku, cztery kolory |
 | spirograph | animacja: spirograf rysuje kolorowe krzywe jedna po drugiej (spacja: następna) |
-| snowfall | animacja: śnieg w zimową noc: księżyc, sosny, chatka i rosnąca zaspa |
-| waves | animacja: zachód słońca nad oceanem z falami, ścieżką światła, mewami i gwiazdami |
-| memory | memory: znajdź pary, trzy rozmiary stołu, próby i czas, najlepsze wyniki |
+| snowfall | animacja: zimowa noc — chatka z bali z dymem z komina, śnieg na dachu i sosnach, światło księżyca, podmuchy wiatru |
+| waves | animacja: zachód słońca nad morzem — migocząca ścieżka światła, fale z pianą, chmury, żaglówka, księżyc i gwiazdy |
+| memory | memory: znajdź pary sam, z uczciwym botem (łatwy, normalny, trudny — zapomina) albo we dwoje; trzy rozmiary stołu |
 | fifteen | układanka z przesuwanymi płytkami 3x3, 4x4, 5x5 (zawsze do rozwiązania) |
 | battleship | statki: zatop flotę wroga na planszy 10x10; bot szuka i dobija trafiony statek |
 | checkers | warcaby angielskie z botem (3 poziomy) albo we dwoje: bicie obowiązkowe, damki, cofanie |
-| gomoku | pięć w rzędzie na planszy 15x15 z botem (3 poziomy) albo we dwoje |
+| gomoku | pięć w rzędzie na drewnianej planszy 15x15 z cieniowanymi kamieniami, z botem (3 poziomy) albo we dwoje |
 | components | odczyt elementów: rezystor z paskami (3–6 pasków, w obie strony), kody SMD rezystorów, kondensatorów i dławików, dławik z paskami |
 | ohm | prawo Ohma i moc: podaj dwie z wielkości V, I, R, P — pozostałe się policzą |
 | divider | dzielnik napięcia: Vout, R2 dla Vout, najlepsza para wartości z E12/E24/E96 |

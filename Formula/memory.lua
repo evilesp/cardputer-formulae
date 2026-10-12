@@ -1,7 +1,9 @@
 #!lua
 -- memory: find the pairs. Cards lie face down; turn two over with space, and if the pictures are the same they stay, if not they
--- turn back. Move with w a s d. Choose a small, medium or big table; the fewer tries and the less time, the better, and the best
--- result of each size is kept. n deals again, ctrl-q quits. Needs the graphics and the ui package.
+-- turn back. Move with w a s d. Choose a small, medium or big table and who plays: you alone (the fewest tries are kept), you
+-- against the bot, or two people taking turns. Whoever finds a pair goes again; the most pairs wins. The bot plays fair: it
+-- notices only some of the cards it sees and forgets them after a while (easy forgets fast, hard remembers more), it does
+-- not look under the cards. n deals again, ctrl-q quits. Needs the graphics and the ui package.
 -- Run it with --selftest to check the deal and the rules.
 
 local W, H = 240, 135
@@ -74,6 +76,57 @@ local function hide(state)
   end
 end
 
+-- ---- the bot ----
+-- notice: the chance that the bot takes in a card it sees; keep: for how many turns it remembers it
+local BOT = { { name = "easy", notice = 0.35, keep = 3 }, { name = "normal", notice = 0.55, keep = 6 }, { name = "hard", notice = 0.75, keep = 10 } }
+
+-- the bot sees a card turned up (by anyone)
+local function botNotice(mem, level, i, pic, turn)
+  if math.random() < BOT[level].notice then mem[i] = { pic = pic, turn = turn } end
+end
+
+-- the bot forgets what it saw too long ago, and cards that are done
+local function botForget(mem, level, turn, cards)
+  for i, m in pairs(mem) do
+    if turn - m.turn > BOT[level].keep or cards[i].done then mem[i] = nil end
+  end
+end
+
+local function faceDown(cards, except, unknownTo)
+  local out = {}
+  for i, c in ipairs(cards) do
+    if not c.done and not c.up and i ~= except and not (unknownTo and unknownTo[i]) then out[#out + 1] = i end
+  end
+  return out
+end
+
+-- the bot's first card: one of a pair it remembers (it returns both), else a card it does not know, else any card
+local function botFirst(mem, cards)
+  local byPic = {}
+  for i = 1, #cards do
+    local m = mem[i]
+    if m and not cards[i].done and not cards[i].up then
+      if byPic[m.pic] then return byPic[m.pic], i end
+      byPic[m.pic] = i
+    end
+  end
+  local pool = faceDown(cards, nil, mem)
+  if #pool == 0 then pool = faceDown(cards) end
+  return pool[math.random(#pool)]
+end
+
+-- the bot's second card: the twin of the first if it remembers where it is, else a card it does not know
+local function botSecond(mem, cards, first)
+  local pic = cards[first].pic
+  for i = 1, #cards do
+    local m = mem[i]
+    if m and i ~= first and m.pic == pic and not cards[i].done and not cards[i].up then return i end
+  end
+  local pool = faceDown(cards, first, mem)
+  if #pool == 0 then pool = faceDown(cards, first) end
+  return pool[math.random(#pool)]
+end
+
 if arg[1] == "--selftest" then
   local failed = 0
   local function check(cond, what)
@@ -96,6 +149,43 @@ if arg[1] == "--selftest" then
   check(not st.cards[1].up and not st.cards[2].up and st.tries == 1, "a miss turns the cards back and counts a try")
   check(flip(st, 1) == "first" and flip(st, 3) == "match" and st.left == 2, "a pair stays")
   check(flip(st, 1) == nil, "a pair that is done cannot be turned")
+  -- the bot
+  local cards2 = { { pic = 1 }, { pic = 2 }, { pic = 1 }, { pic = 3 }, { pic = 2 }, { pic = 3 } }
+  local mem = { [1] = { pic = 1, turn = 1 }, [3] = { pic = 1, turn = 1 } }
+  local a, b = botFirst(mem, cards2)
+  check((a == 1 and b == 3) or (a == 3 and b == 1), "the bot turns a pair it remembers")
+  mem = { [5] = { pic = 2, turn = 1 } }
+  check(botSecond(mem, cards2, 2) == 5, "the bot finds the twin it remembers")
+  local first = botFirst(mem, cards2)
+  check(first ~= 5, "the bot opens a card it does not know first")
+  botForget(mem, 2, 1 + BOT[2].keep + 1, cards2)
+  check(next(mem) == nil, "the bot forgets after a while")
+  -- whole games of the bot alone: easy needs more tries than hard, and every game ends
+  local function play(level)
+    local stx = { cards = deal(8), tries = 0, left = 16 }
+    local m2, turn = {}, 0
+    while stx.left > 0 and turn < 400 do
+      turn = turn + 1
+      botForget(m2, level, turn, stx.cards)
+      local f, pairWith = botFirst(m2, stx.cards)
+      flip(stx, f)
+      botNotice(m2, level, f, stx.cards[f].pic, turn)
+      local sec = pairWith or botSecond(m2, stx.cards, f)
+      local r = flip(stx, sec)
+      botNotice(m2, level, sec, stx.cards[sec].pic, turn)
+      if r == "miss" then hide(stx) end
+    end
+    return stx.left == 0, stx.tries
+  end
+  local sumEasy, sumHard, allEnd = 0, 0, true
+  for _ = 1, 40 do
+    local e1, t1 = play(1)
+    local e3, t3 = play(3)
+    allEnd = allEnd and e1 and e3
+    sumEasy, sumHard = sumEasy + t1, sumHard + t3
+  end
+  check(allEnd, "the bot always finishes a table")
+  check(sumEasy > sumHard and sumHard / 40 > 9, "easy needs more tries than hard, and hard is not perfect (" .. sumEasy / 40 .. " / " .. sumHard / 40 .. ")")
   if failed == 0 then print("selftest ok") end
   return
 end
@@ -122,10 +212,17 @@ local function saveBest()
 end
 
 local size, state, cursor, startT, hideAt, finished
+local mode, level = 1, 2      -- mode 1 alone, 2 against the bot, 3 two players
+local scores, turn, turnNo = { 0, 0 }, 1, 0
+local mem, botStep, botAt, botFirstCard, botPair = {}, nil, 0, nil, nil
+local NAMES = { "YOU", "BOT" }
+
 local function newGame()
   local sz = SIZES[size]
   state = { cards = deal(sz.cols * sz.rows // 2), tries = 0, left = sz.cols * sz.rows }
   cursor, startT, hideAt, finished = 1, sys.millis(), nil, nil
+  scores, turn, turnNo, mem, botStep = { 0, 0 }, 1, 1, {}, nil
+  NAMES = mode == 3 and { "P1", "P2" } or { "YOU", "BOT" }
 end
 
 local function draw()
@@ -141,7 +238,7 @@ local function draw()
     local x, y = ox + col * (cw + gap), oy + row * (ch + gap)
     if c.done then
       gfx.fill(x, y, cw, ch, 0x1c2233)
-      gfx.rect(x, y, cw, ch, 0x2c8a50)
+      gfx.rect(x, y, cw, ch, c.by == 2 and 0xd06030 or 0x2c8a50)
       PICTURES[c.pic][3](x + (cw - ps) // 2, y + (ch - ps) // 2, ps)
     elseif c.up then
       gfx.fill(x, y, cw, ch, 0x1c2233)
@@ -152,18 +249,81 @@ local function draw()
       gfx.rect(x + 2, y + 2, cw - 4, ch - 4, 0x5a78c8)
       ui.center(y + ch // 2 - 3, "?", 0x9ab4f0, 1, x, x + cw)
     end
-    if i == cursor and not finished then gfx.rect(x - 2, y - 2, cw + 4, ch + 4, 0xffe060) end
+    if i == cursor and not finished and not (mode == 2 and turn == 2) then gfx.rect(x - 2, y - 2, cw + 4, ch + 4, 0xffe060) end
   end
   local secs = ((finished or sys.millis()) - startT) // 1000
-  ui.label(4, 3, string.format("MEMORY  %s", sz.name), 0xe8ecf4)
-  ui.label(W - 90, 3, string.format("tries %d  %d:%02d", state.tries, secs // 60, secs % 60), 0x8a94aa)
+  if mode == 1 then
+    ui.label(4, 3, string.format("MEMORY  %s", sz.name), 0xe8ecf4)
+    ui.label(W - 90, 3, string.format("tries %d  %d:%02d", state.tries, secs // 60, secs % 60), 0x8a94aa)
+  else
+    local c1 = turn == 1 and not finished and 0x60e090 or 0x8a94aa
+    local c2 = turn == 2 and not finished and 0xff9050 or 0x8a94aa
+    ui.label(4, 3, NAMES[1] .. " " .. scores[1], c1)
+    ui.label(56, 3, ":", 0x8a94aa)
+    ui.label(66, 3, scores[2] .. " " .. NAMES[2], c2)
+    local who = mode == 2 and turn == 2 and ("bot " .. BOT[level].name .. " plays") or (NAMES[turn] .. " to play")
+    if not finished then ui.label(W - 6 * #who - 4, 3, who, turn == 1 and 0x60e090 or 0xff9050) end
+  end
   if finished then
-    ui.center(H - 14, "done! n deal again", 0x60ff90, 1)
+    local text = "done! n deal again"
+    if mode ~= 1 then
+      if scores[1] == scores[2] then text = "a draw! n deal again"
+      else text = NAMES[scores[1] > scores[2] and 1 or 2] .. " wins! n deal again" end
+    end
+    ui.center(H - 14, text, 0x60ff90, 1)
   else
     ui.label(4, H - 10, "w a s d move  space turn  n new", 0x8a94aa)
-    if best[size] then ui.label(W - 78, H - 10, "best " .. best[size] .. " tries", 0x8a94aa) end
+    if mode == 1 and best[size] then ui.label(W - 78, H - 10, "best " .. best[size] .. " tries", 0x8a94aa) end
   end
   gfx.flush()
+end
+
+-- a card is turned by the player whose turn it is
+local function turnCard(i)
+  local r = flip(state, i)
+  if not r then return nil end
+  if mode == 2 then botNotice(mem, level, i, state.cards[i].pic, turnNo) end
+  if r == "match" then
+    state.cards[i].by = turn
+    for j, c in ipairs(state.cards) do
+      if c.done and not c.by then c.by = turn end
+    end
+    scores[turn] = scores[turn] + 1
+    if state.left == 0 then
+      finished = sys.millis()
+      if mode == 1 and (not best[size] or state.tries < best[size]) then
+        best[size] = state.tries
+        saveBest()
+      end
+    end
+  elseif r == "miss" then
+    hideAt = sys.millis() + (mode == 2 and turn == 2 and 1300 or 900)
+  end
+  return r
+end
+
+-- after a miss the cards turn back and the other player goes on
+local function endTurn()
+  hide(state)
+  hideAt = nil
+  turnNo = turnNo + 1
+  if mode ~= 1 then turn = 3 - turn end
+  if mode == 2 then botForget(mem, level, turnNo, state.cards) end
+  if turn == 2 and mode == 2 then botStep, botAt = 1, sys.millis() + 600 end
+end
+
+-- one step of the bot's turn: the first card, then the second, a little apart so you can follow
+local function botPlay()
+  if finished or hideAt or sys.millis() < botAt then return end
+  if botStep == 1 then
+    botFirstCard, botPair = botFirst(mem, state.cards)
+    turnCard(botFirstCard)
+    botStep, botAt = 2, sys.millis() + 700
+  elseif botStep == 2 then
+    local second = botPair or botSecond(mem, state.cards, botFirstCard)
+    local r = turnCard(second)
+    if r == "match" and not finished then botStep, botAt = 1, sys.millis() + 800 else botStep = nil end
+  end
 end
 
 local w, h = ui.open()
@@ -174,13 +334,14 @@ end
 local ok, problem = pcall(function()
   size = ui.choose("Memory: table", { SIZES[1].name, SIZES[2].name, SIZES[3].name })
   if not size then return end
+  local who = ui.choose("Memory: players", { "Alone", "Against the bot: easy", "Against the bot: normal", "Against the bot: hard", "Two players" })
+  if not who then return end
+  if who == 1 then mode = 1 elseif who == 5 then mode = 3 else mode, level = 2, who - 1 end
   newGame()
   while true do
     draw()
-    if hideAt and sys.millis() >= hideAt then
-      hide(state)
-      hideAt = nil
-    end
+    if hideAt and sys.millis() >= hideAt then endTurn() end
+    if mode == 2 and turn == 2 and botStep then botPlay() end
     local k = key.poll()
     while k do
       if k == "ctrl-q" then return end
@@ -191,16 +352,8 @@ local ok, problem = pcall(function()
       elseif k == "w" or k == "up" then if cursor > cols then cursor = cursor - cols end
       elseif k == "s" or k == "down" then if cursor + cols <= n then cursor = cursor + cols end
       elseif k == "n" then newGame()
-      elseif (k == " " or k == "enter") and not finished then
-        local r = flip(state, cursor)
-        if r == "miss" then hideAt = sys.millis() + 900
-        elseif r == "match" and state.left == 0 then
-          finished = sys.millis()
-          if not best[size] or state.tries < best[size] then
-            best[size] = state.tries
-            saveBest()
-          end
-        end
+      elseif (k == " " or k == "enter") and not finished and not hideAt and not (mode == 2 and turn == 2) then
+        turnCard(cursor)
       end
       k = key.poll()
     end

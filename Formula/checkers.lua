@@ -92,7 +92,7 @@ local function legalMoves(b, side)
         if #jumps == 0 then
           for _, d in ipairs(dirsOf(p)) do
             local nr, nc = r + d[1], c + d[2]
-            if inside(nr, nc) and b[nr][nc] == 0 then steps[#steps + 1] = { from = { r, c }, path = { { nr, nc } }, taken = {} } end
+            if inside(nr, nc) and b[nr][nc] == 0 then steps[#steps + 1] = ((r - 1) * N + c) * 100 + (nr - 1) * N + nc end
           end
         end
       end
@@ -102,25 +102,54 @@ local function legalMoves(b, side)
   return steps, false
 end
 
--- makes a move and returns what is needed to take it back
+-- A step (no jump) is one number, from * 100 + to, with the squares numbered (r - 1) * 8 + c: a deep search keeps a list of
+-- moves at every level, and tables there filled the memory of the Cardputer. A jump stays a table { from, path, taken }.
+local function square(i) return (i - 1) // N + 1, (i - 1) % N + 1 end
+local function fromOf(m)
+  if type(m) == "number" then local r, c = square(m // 100) return { r, c } end
+  return m.from
+end
+local function lastOf(m)
+  if type(m) == "number" then local r, c = square(m % 100) return { r, c } end
+  return m.path[#m.path]
+end
+local function takenOf(m) return type(m) == "number" and 0 or #m.taken end
+
+-- makes a move and returns the piece that moved (what undo needs to take it back)
 local function apply(b, m)
-  local fr, fc = m.from[1], m.from[2]
+  local fr, fc, lr, lc
+  if type(m) == "number" then
+    fr, fc = square(m // 100)
+    lr, lc = square(m % 100)
+  else
+    fr, fc = m.from[1], m.from[2]
+    local last = m.path[#m.path]
+    lr, lc = last[1], last[2]
+    for _, t in ipairs(m.taken) do b[t[1]][t[2]] = 0 end
+  end
   local piece = b[fr][fc]
-  local last = m.path[#m.path]
   b[fr][fc] = 0
-  for _, t in ipairs(m.taken) do b[t[1]][t[2]] = 0 end
   local landed = piece
-  if piece == 1 and last[1] == 1 then landed = 3 elseif piece == 2 and last[1] == N then landed = 4 end
-  b[last[1]][last[2]] = landed
-  return { m = m, piece = piece }
+  if piece == 1 and lr == 1 then landed = 3 elseif piece == 2 and lr == N then landed = 4 end
+  b[lr][lc] = landed
+  return piece
 end
 
-local function undo(b, u)
-  local m = u.m
-  local last = m.path[#m.path]
-  b[last[1]][last[2]] = 0
-  for _, t in ipairs(m.taken) do b[t[1]][t[2]] = t[3] end
-  b[m.from[1]][m.from[2]] = u.piece
+local function undo(b, m, piece)
+  local fr, fc, lr, lc
+  if type(m) == "number" then
+    fr, fc = square(m // 100)
+    lr, lc = square(m % 100)
+  else
+    fr, fc = m.from[1], m.from[2]
+    local last = m.path[#m.path]
+    lr, lc = last[1], last[2]
+  end
+  b[lr][lc] = 0
+  if type(m) ~= "number" then
+    for _, t in ipairs(m.taken) do b[t[1]][t[2]] = t[3] end
+  end
+  b[fr][fc] = piece
 end
 
 -- the worth of the board for `me`: men 100 and kings 160, a man gains by getting forward, the middle is good, the back row is a guard
@@ -144,15 +173,28 @@ local function evaluate(b, me)
   return s
 end
 
+-- The search stops when its time is up (the hard bot thinks for at most THINK_MS) and gives the garbage of the move lists
+-- back to the memory as it goes: the move lists of the nodes left a lot of it, and the Cardputer ran out of memory.
+local THINK_MS = 2500
+local TIMEOUT = {}
+local deadline, nodes = nil, 0
+
 local function search(b, me, depth, alpha, beta)
+  if depth == 0 then return evaluate(b, me) end  -- no move list at the leaves: most nodes are leaves
+  nodes = nodes + 1
+  if nodes % 64 == 0 then
+    collectgarbage("step", 0)
+    if deadline and sys.millis() > deadline then error(TIMEOUT) end
+  end
   local moves = legalMoves(b, me)
   if #moves == 0 then return -100000 - depth end
-  if depth == 0 then return evaluate(b, me) end
   local best = -math.huge
   for _, m in ipairs(moves) do
-    local u = apply(b, m)
-    local v = -search(b, 3 - me, depth - 1, -beta, -alpha)
-    undo(b, u)
+    local piece = apply(b, m)
+    local ok, v = pcall(search, b, 3 - me, depth - 1, -beta, -alpha)
+    undo(b, m, piece)
+    if not ok then error(v, 0) end  -- the board is put back before the timeout goes up
+    v = -v
     if v > best then best = v end
     if v > alpha then alpha = v end
     if alpha >= beta then break end
@@ -160,20 +202,49 @@ local function search(b, me, depth, alpha, beta)
   return best
 end
 
-local DEPTH = { 1, 4, 7 }
+-- the values of the moves at the root for one depth, best first
+local function rootSearch(b, me, moves, depth, noise)
+  local scored = {}
+  for _, m in ipairs(moves) do
+    local piece = apply(b, m)
+    local ok, v = pcall(search, b, 3 - me, depth - 1, -math.huge, math.huge)
+    undo(b, m, piece)
+    if not ok then error(v, 0) end
+    scored[#scored + 1] = { m = m, v = -v + math.random() * noise }
+  end
+  table.sort(scored, function(x, y) return x.v > y.v end)
+  return scored
+end
+
+-- level 1 looks one move ahead with a lot of chance, level 2 four moves, level 3 deeper and deeper until its time is up
 local function botMove(b, me, level)
   local moves = legalMoves(b, me)
   if #moves == 0 then return nil end
-  local best, bestVal = {}, -math.huge
-  for _, m in ipairs(moves) do
-    local u = apply(b, m)
-    local v = -search(b, 3 - me, DEPTH[level] - 1, -math.huge, math.huge)
-    undo(b, u)
-    v = v + math.random() * (level == 1 and 60 or 1)
-    if v > bestVal then best, bestVal = { m }, v
-    elseif v == bestVal then best[#best + 1] = m end
+  if #moves == 1 then return moves[1] end
+  nodes = 0
+  local result
+  if level < 3 then
+    deadline = nil
+    result = rootSearch(b, me, moves, level == 1 and 1 or 4, level == 1 and 60 or 1)
+  else
+    deadline = sys.millis() + THINK_MS
+    for depth = 2, 10 do
+      local ok, scored = pcall(rootSearch, b, me, moves, depth, 1)
+      if not ok then
+        if scored ~= TIMEOUT then error(scored, 0) end
+        break
+      end
+      result = scored
+      -- the best move of this depth is searched first at the next one: alpha-beta cuts more
+      local ordered = {}
+      for i, s in ipairs(scored) do ordered[i] = s.m end
+      moves = ordered
+    end
+    deadline = nil
   end
-  return best[math.random(#best)]
+  collectgarbage("collect")
+  if not result then return moves[1] end
+  return result[1].m
 end
 
 if arg[1] == "--selftest" then
@@ -208,13 +279,13 @@ if arg[1] == "--selftest" then
   check(#moves == 1 and #moves[1].path == 2 and #moves[1].taken == 2, "a double jump is one move")
   local u = apply(b, moves[1])
   check(b[3][6] == 1 and b[6][3] == 0 and b[4][5] == 0 and b[7][2] == 0, "both pieces are taken")
-  undo(b, u)
+  undo(b, moves[1], u)
   check(b[7][2] == 1 and b[6][3] == 2 and b[4][5] == 2 and b[3][6] == 0, "undo puts it back")
   -- a man cannot move or jump backwards, a king can
   b = empty()
   b[4][3], b[5][4] = 1, 2
   moves = legalMoves(b, 1)
-  check(#moves == 2 and #moves[1].taken == 0 and #moves[2].taken == 0, "a man does not jump backwards: it has two steps")
+  check(#moves == 2 and takenOf(moves[1]) == 0 and takenOf(moves[2]) == 0, "a man does not jump backwards: it has two steps")
   b = empty()
   b[4][3], b[5][4] = 3, 2
   moves = legalMoves(b, 1)
@@ -243,7 +314,7 @@ if arg[1] == "--selftest" then
   b = empty()
   b[5][4], b[4][5], b[8][1] = 1, 2, 2
   local bm = botMove(b, 1, 3)
-  check(bm and #bm.taken == 1, "the bot takes the piece")
+  check(bm and takenOf(bm) == 1, "the bot takes the piece")
   b = newBoard()
   local side, plies, good = 1, 0, true
   while plies < 200 do
@@ -302,13 +373,13 @@ local function draw()
     end
   end
   if lastMove then
-    for _, p in ipairs({ lastMove.from, lastMove.path[#lastMove.path] }) do
+    for _, p in ipairs({ fromOf(lastMove), lastOf(lastMove) }) do
       gfx.rect(OX + (p[2] - 1) * CELL, OY + (p[1] - 1) * CELL, CELL, CELL, 0xd0a030)
     end
   end
   if targets then
     for _, m in ipairs(targets) do
-      local p = m.path[#m.path]
+      local p = lastOf(m)
       gfx.disc(OX + (p[2] - 1) * CELL + CELL // 2, OY + (p[1] - 1) * CELL + CELL // 2, 3, 0x60e080)
     end
   end
@@ -342,10 +413,11 @@ end
 
 -- plays a move, then looks at the result: the next side, a win (no move left) or a draw (40 moves without progress)
 local function play(m)
-  local piece = board[m.from[1]][m.from[2]]
-  history[#history + 1] = { m = apply(board, m), board = nil }
+  local from = fromOf(m)
+  local piece = board[from[1]][from[2]]
+  history[#history + 1] = { m = m, piece = apply(board, m) }
   lastMove = m
-  quiet = (#m.taken > 0 or not isKing(piece)) and 0 or quiet + 1
+  quiet = (takenOf(m) > 0 or not isKing(piece)) and 0 or quiet + 1
   picked, targets = nil, nil
   turn = 3 - turn
   local moves = legalMoves(board, turn)
@@ -384,14 +456,14 @@ local ok, problem = pcall(function()
       elseif k == "d" or k == "right" then cur.c = math.min(N, cur.c + 1)
       elseif k == "n" then newGame()
       elseif k == "u" and mode == 1 and not over and #history >= 2 then
-        for _ = 1, 2 do undo(board, table.remove(history).m) end
+        for _ = 1, 2 do local h = table.remove(history) undo(board, h.m, h.piece) end
         turn, picked, targets, lastMove = 1, nil, nil, nil
       elseif (k == " " or k == "enter") and not over and not (mode == 1 and turn == 2) then
         local p = board[cur.r][cur.c]
         if picked then
           local chosen
           for _, m in ipairs(targets) do
-            local last = m.path[#m.path]
+            local last = lastOf(m)
             if last[1] == cur.r and last[2] == cur.c then chosen = m break end
           end
           if chosen then play(chosen)
@@ -402,7 +474,8 @@ local ok, problem = pcall(function()
           local all = legalMoves(board, turn)
           local mine = {}
           for _, m in ipairs(all) do
-            if m.from[1] == cur.r and m.from[2] == cur.c then mine[#mine + 1] = m end
+            local f = fromOf(m)
+            if f[1] == cur.r and f[2] == cur.c then mine[#mine + 1] = m end
           end
           if #mine > 0 then picked, targets = { r = cur.r, c = cur.c }, mine end
         end
