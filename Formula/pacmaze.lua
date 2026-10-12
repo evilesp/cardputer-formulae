@@ -121,9 +121,10 @@ local function draw()
   for i, g in ipairs(ghosts) do
     gfx.fill(OX + (g.c - 1) * CELL + 2, OY + (g.r - 1) * CELL + 2, 8, 8, i == 1 and 0xff4040 or 0x40e0ff)
   end
-  ui.label(OX + 11 * CELL, 10, "score " .. score, 0xe8ecf4)
-  ui.label(OX + 11 * CELL, 26, "lives " .. lives, 0xe8ecf4)
-  ui.label(OX + 11 * CELL, 50, "w a s d", 0x8a94aa)
+  -- the numbers under the maze, so that they do not cover it
+  ui.label(OX, OY + ROWS * CELL + 6, "score " .. score, 0xe8ecf4)
+  ui.label(OX + 90, OY + ROWS * CELL + 6, "lives " .. lives, 0xe8ecf4)
+  ui.label(OX + 150, OY + ROWS * CELL + 6, "w a s d", 0x8a94aa)
   gfx.flush()
 end
 

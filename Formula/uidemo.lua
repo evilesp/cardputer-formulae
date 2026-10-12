@@ -33,7 +33,7 @@ local function draw()
     ui.button(x, 110, w, 14, name, i == focus and "focus" or "normal")
     x = x + w + 6
   end
-  ui.label(150, 112, "a/d  enter", t.dim)
+  ui.label(150, 98, "a/d  enter", t.dim)
 end
 
 local function run()

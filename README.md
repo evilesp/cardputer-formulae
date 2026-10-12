@@ -95,7 +95,7 @@ brew install htop nano snake
 | sequencer | automat perkusyjny: 8 ścieżek po 16 kroków, tempo, zapis i odczyt rytmu na karcie SD |
 | morse | alfabet Morse'a z dźwiękiem: nadawanie tekstu albo nauka rozpoznawania liter i cyfr |
 | minesweeper | saper: flagi, liczby i odkrywanie pustych pól |
-| sokoban | popychanie skrzyń na miejsca: trzy poziomy, własne z /home/user/sokoban.txt |
+| sokoban | popychanie skrzyń na miejsca: 27 poziomów, cofanie ruchu (u), licznik ruchów i najlepsze wyniki; własne poziomy z /home/user/sokoban.txt |
 | lightsout | zgaś wszystkie światła: naciśnięcie zmienia pole i jego sąsiadów |
 | mastermind | odgadnij czteroelementowy kod kolorów w dziesięciu próbach |
 | pacmaze | zjadaj kropki i unikaj dwóch duchów w labiryncie: trzy życia |
@@ -124,6 +124,32 @@ brew install htop nano snake
 | wifimap | sieci WiFi według kanałów: najmocniejszy sygnał i liczba sieci, najmniej zatłoczony kanał (firmware v0.1.0.18) |
 | quiz | 104 pytania w 7 kategoriach (odpowiedzi A–D), rundy po 10, najlepsze wyniki; własne pytania w /home/user/quiz.csv |
 | json | sterownik: czytanie JSON dla innych aplikacji (driver.load("json")) |
+| eng | sterownik: liczby inżynierskie dla aplikacji elektronicznych (4k7, 100nF), szeregi E (driver.load("eng")) |
+| plasma | animacja: klasyczna plazma, pięć palet (spacja zmienia, w s prędkość) |
+| fire | animacja: ogień jak w Doomie w czterech kolorach, wiatr (a d) i temperatura (w s) |
+| warp | animacja: lot przez pole gwiazd z prędkością warp, sterowanie a d, tęczowy tunel |
+| aurora | animacja: zorza polarna nad górami i migoczące gwiazdy, cztery kolory |
+| rain | animacja: deszcz na nocnej ulicy z kręgami na kałużach, latarnią i burzą (spacja) |
+| fireworks | animacja: fajerwerki — kule, pierścienie i serca, iskrzące ślady i odbicie w wodzie |
+| lavalamp | animacja: lampa lava z łączącymi się bańkami wosku, cztery kolory |
+| spirograph | animacja: spirograf rysuje kolorowe krzywe jedna po drugiej (spacja: następna) |
+| snowfall | animacja: śnieg w zimową noc: księżyc, sosny, chatka i rosnąca zaspa |
+| waves | animacja: zachód słońca nad oceanem z falami, ścieżką światła, mewami i gwiazdami |
+| memory | memory: znajdź pary, trzy rozmiary stołu, próby i czas, najlepsze wyniki |
+| fifteen | układanka z przesuwanymi płytkami 3x3, 4x4, 5x5 (zawsze do rozwiązania) |
+| battleship | statki: zatop flotę wroga na planszy 10x10; bot szuka i dobija trafiony statek |
+| checkers | warcaby angielskie z botem (3 poziomy) albo we dwoje: bicie obowiązkowe, damki, cofanie |
+| gomoku | pięć w rzędzie na planszy 15x15 z botem (3 poziomy) albo we dwoje |
+| components | odczyt elementów: rezystor z paskami (3–6 pasków, w obie strony), kody SMD rezystorów, kondensatorów i dławików, dławik z paskami |
+| ohm | prawo Ohma i moc: podaj dwie z wielkości V, I, R, P — pozostałe się policzą |
+| divider | dzielnik napięcia: Vout, R2 dla Vout, najlepsza para wartości z E12/E24/E96 |
+| ledcalc | rezystor do diody LED (także kilku w szeregu), najbliższe wartości E12/E24, prąd i moc |
+| rcfilter | częstotliwość graniczna RC, rezonans LC, NE555 astabilny i monostabilny, czas ładowania |
+| eseries | szeregi E: najbliższa wartość standardowa, dwa elementy szeregowo lub równolegle, listy szeregów |
+| baseconv | liczby w systemie dziesiętnym, szesnastkowym, binarnym, ósemkowym i jako znak; 32 bity do przełączania |
+| stopwatch | stoper z międzyczasami, najlepsze i najgorsze okrążenie |
+| colors | próbnik kolorów: suwaki RGB lub HSV, #RRGGBB, 0xRRGGBB dla gfx i RGB565 dla wyświetlacza |
+| dice | rzut kośćmi: d4 do d100, kilka kości, premia, przewaga, własne rzuty typu 3d6+2 |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 

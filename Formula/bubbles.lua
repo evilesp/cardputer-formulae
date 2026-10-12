@@ -6,7 +6,7 @@
 
 local COLS, ROWS = 12, 6
 local CELL_W, CELL_H = 20, 16
-local TOP_Y = 2
+local TOP_Y = 14  -- below the line with the score
 local SHOOT_X, SHOOT_Y = 120, 122
 local COLOURS = { 0xe04040, 0x40c040, 0x4080ff, 0xf0d040 }
 
