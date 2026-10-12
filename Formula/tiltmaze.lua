@@ -198,7 +198,8 @@ local ok, problem = pcall(function()
     local ax, ay = 0, 0
     if sys.imu then
       local x, y = sys.imu()
-      if x then ax, ay = math.max(-1, math.min(1, x)), math.max(-1, math.min(1, y)) end
+      -- the sensor reads a tilt to the right as negative: the ball rolls the way the Cardputer is tilted
+      if x then ax, ay = math.max(-1, math.min(1, -x)), math.max(-1, math.min(1, y)) end
     end
     local held = key.down and key.down() or {}
     for _, k in ipairs(held) do

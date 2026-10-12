@@ -44,6 +44,11 @@ local function steerOf(ax)
   return v
 end
 
+-- the sensor reads a tilt to the right as a negative value, so the car steers the way the Cardputer is tilted
+local function steerFromSensor(ax)
+  return -steerOf(ax)
+end
+
 if arg[1] == "--selftest" then
   local failed = 0
   local function check(cond, what)
@@ -58,6 +63,8 @@ if arg[1] == "--selftest" then
   check(steerOf(nil) == 0 and steerOf(0.03) == 0 and steerOf(-0.04) == 0, "a small tilt is no steering")
   check(steerOf(0.3) > 0.4 and steerOf(0.3) < 0.6 and steerOf(-0.3) < -0.4, "a tilt steers in its direction")
   check(steerOf(5) == 1 and steerOf(-5) == -1, "steering is limited")
+  check(steerFromSensor(-0.3) > 0.4 and steerFromSensor(0.3) < -0.4, "tilting right (negative reading) steers right")
+  check(steerFromSensor(nil) == 0, "no sensor, no steering from the sensor")
   local d, q = coneAt(3)
   check(d > 0 and q >= -0.8 and q <= 0.8, "the cones are on the road")
   if failed == 0 then print("selftest ok") end
@@ -161,7 +168,7 @@ local ok, problem = pcall(function()
     end
     local ax = nil
     if sys.imu then ax = sys.imu() end
-    local steer = steerOf(ax)
+    local steer = steerFromSensor(ax)
     if steer == 0 then steer = keySteer end
     update(dt, steer, accel, brake)
     gfx.clear(0x000000)

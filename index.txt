@@ -88,8 +88,8 @@ steps|1.0|the step counter: today's steps against a goal, the last seven days, r
 sleep|1.0|low power screen: time, date, steps and battery at the lowest brightness, 80 MHz, WiFi power saving; any key wakes it (firmware v0.1.0.18; 'sleep' alone, 'sleep N' still waits)|needs:ui|Formula/sleep.lua
 deepSleep|1.0.0.1|deep sleep: screen off and processor stopped, a key or BOOT wakes the Cardputer (firmware v0.1.0.18)|Formula/deepSleep.lua
 off|1.0|switch off: the battery is cut where the board allows it, otherwise deep sleep until BOOT (firmware v0.1.0.18)|Formula/off.lua
-tiltracer|1.0|road racer in pseudo 3D: tilt to steer, w speeds up, s brakes, dodge the cones (motion sensor; firmware v0.1.0.18 for the crash sound)|needs:ui|Formula/tiltracer.lua
-tiltmaze|1.0|ball maze: tilt the Cardputer to roll the ball to the exit (motion sensor)|needs:ui|Formula/tiltmaze.lua
+tiltracer|1.0.0.1|road racer in pseudo 3D: tilt to steer, w speeds up, s brakes, dodge the cones (motion sensor; firmware v0.1.0.18 for the crash sound)|needs:ui|Formula/tiltracer.lua
+tiltmaze|1.0.0.1|ball maze: tilt the Cardputer to roll the ball to the exit (motion sensor)|needs:ui|Formula/tiltmaze.lua
 spectrum|1.0|sound from the microphone as 16 bars with note and peaks (firmware v0.1.0.18, audio.listen)|needs:ui|Formula/spectrum.lua
 sequencer|1.0|drum machine: 8 tracks of 16 steps, tempo, save and load the beat on the SD card (firmware v0.1.0.18 for the sound)|needs:ui|Formula/sequencer.lua
 morse|1.0|Morse code with sound: send a text, or learn to hear letters and digits (firmware v0.1.0.18 for the tones)|needs:ui|Formula/morse.lua
