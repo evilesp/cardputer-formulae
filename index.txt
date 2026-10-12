@@ -112,7 +112,7 @@ tuner|1.0|instrument tuner: the note nearest to the microphone sound and the cen
 scope|1.0|oscilloscope for an analogue pin (GPIO1 to GPIO10): voltage over time (firmware v0.1.0.18, gpio.scope)|needs:ui|Formula/scope.lua
 siggen|1.0|square wave generator on a pin for a buzzer, LED or test (firmware v0.1.0.18, gpio.tone)|needs:ui|Formula/siggen.lua
 functionplot|1.0|draw y = f(x) for any expression with x: sin(x), x*x - 2, exp(-x*x)|needs:ui|Formula/functionplot.lua
-tanks|1.0|two players on one keyboard: artillery duel over destructible ground, with wind|needs:ui|Formula/tanks.lua
+tanks|1.0.0.1|artillery duel over destructible ground: play against the bot (easy, normal, hard) or two players, drive, aim with a dotted flight line, wind, craters, 3D-style tanks|needs:ui|Formula/tanks.lua
 wifimap|1.0|Wi-Fi networks by channel: the strongest signal and the number per channel, the least crowded channel (firmware v0.1.0.18)|needs:ui|Formula/wifimap.lua
 quiz|1.0|quiz from /home/user/quiz.csv (question;answer) or built-in questions, with a score|needs:ui|Formula/quiz.lua
 json|1.0|a small JSON reader for the apps: driver.load("json") gives json.decode(text) (a driver)|Driver/json.lua

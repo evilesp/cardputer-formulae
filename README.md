@@ -112,7 +112,7 @@ brew install htop nano snake
 | scope | oscyloskop na pinie analogowym (GPIO1-10): napięcie w czasie (firmware v0.1.0.18) |
 | siggen | generator fali prostokątnej na pinie: buzzer, dioda, test (firmware v0.1.0.18) |
 | functionplot | rysuje y = f(x) dla dowolnego wyrażenia z x: sin(x), x*x - 2, exp(-x*x) |
-| tanks | czołgi dla dwóch graczy na jednej klawiaturze: pojedynek artyleryjski z wiatrem |
+| tanks | pojedynek czołgów: gra z botem (łatwy, normalny, trudny) albo dla dwóch graczy; jazda, celowanie z linią lotu, wiatr, kratery |
 | wifimap | sieci WiFi według kanałów: najmocniejszy sygnał i liczba sieci, najmniej zatłoczony kanał (firmware v0.1.0.18) |
 | quiz | quiz z /home/user/quiz.csv (pytanie;odpowiedź) albo wbudowane pytania, z wynikiem |
 | json | sterownik: czytanie JSON dla innych aplikacji (driver.load("json")) |
