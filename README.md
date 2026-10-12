@@ -33,7 +33,8 @@ brew install htop nano snake
 | httping | czas odpowiedzi HTTP |
 | pinmon | stan pinów GPIO na żywo |
 | figlet | duże litery z `#` |
-| sl | parowóz przez ekran |
+| sl | parowóz D51 jak w linuksowym `sl`, z węglarką i dymem; `-a` wypadek (Help!), `-F` lot, `-c` lokomotywa C51, `-l` mała |
+| parrotDancing | papuga z parrot.live: cieniowana literami, kręci głową, co takt nowy kolor; `-s 1..5` szybkość |
 | lolcat | tekst w tęczowych kolorach |
 | less | czytanie pliku po ekranie |
 | clock | duży zegar cyfrowy |
@@ -121,7 +122,7 @@ brew install htop nano snake
 | functionplot | rysuje y = f(x) dla dowolnego wyrażenia z x: sin(x), x*x - 2, exp(-x*x) |
 | tanks | pojedynek czołgów: gra z botem (łatwy, normalny, trudny) albo dla dwóch graczy; jazda, celowanie z linią lotu, wiatr, kratery |
 | wifimap | sieci WiFi według kanałów: najmocniejszy sygnał i liczba sieci, najmniej zatłoczony kanał (firmware v0.1.0.18) |
-| quiz | quiz z /home/user/quiz.csv (pytanie;odpowiedź) albo wbudowane pytania, z wynikiem |
+| quiz | 110 pytań w 7 kategoriach (odpowiedzi A–D), rundy po 10, najlepsze wyniki; własne pytania w /home/user/quiz.csv |
 | json | sterownik: czytanie JSON dla innych aplikacji (driver.load("json")) |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
