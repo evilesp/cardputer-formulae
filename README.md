@@ -167,6 +167,7 @@ brew install htop nano snake
 | nim | gra w stosy: trzy kupki patyczków (3, 5 i 7); wybierz kupkę klawiszami w s a d, potem weź od 1 do 7 patyczków cyframi 1 do 7; kto weźmie ostatni patyczek, wygrywa; bot gra idealnie (nim-sum); `n` to nowa gra, `ctrl-q` wychodzi |
 | sand | animacja: piasek sypie się i tworzy kopce, woda spływa z nich i wypełnia dołki, kamień zostaje tam, gdzie go postawisz (cyfry 1 piasek, 2 woda, 3 kamień, 0 gumka; w s a d kursor; spacja sypie, `p` sypie ciągle, `c` czyści, `q` wychodzi) |
 | kaleidoscope | animacja: punkt wędruje po torze, a jego lustrzane kopie tworzą symetryczny kwiat z kolorowym śladem (`a` `d` zmieniają liczbę lustrzanych boków od 4 do 12, `w` `s` prędkość, spacja nowy wzór, `c` czyści ślad, `p` pauza, `q` wychodzi) |
+| lander | lądowanie modułu księżycowego na płaskim lądowisku: `w` silnik główny, `a` `d` boczne dysze; paliwo się kończy, lądowanie za szybkie lub poza lądowiskiem to rozbicie, `n` następny poziom, `r` od nowa, `q` wychodzi |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
