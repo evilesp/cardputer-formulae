@@ -160,6 +160,7 @@ brew install htop nano snake
 | wordle | zgadnij ukryte pięcioliterowe słowo w sześciu próbach; zielony = dobra litera na dobrym miejscu, żółty = litera jest w słowie, szary = jej nie ma; wpisujesz litery, enter wysyła, backspace kasuje; po grze n to nowe słowo |
 | tictactoe | kółko i krzyżyk z botem, który nigdy nie przegrywa (perfekcyjna gra): ty jesteś X i zaczynasz; w a s d przesuwają kursor, enter stawia znak, n to nowa gra, ctrl-q wychodzi; wynik gier liczy się w czasie działania |
 | primes | liczby pierwsze do 1000 i rozkład liczby na czynniki pierwsze: `primes 50`, `primes factor 360` |
+| bmi | wskaźnik masy ciała (BMI) z kategorią WHO i zakresem wagi dla wzrostu: `bmi 70 175` (kg i cm, albo metry, np. `bmi 70 1.75`) |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
