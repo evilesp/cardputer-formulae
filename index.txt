@@ -175,3 +175,4 @@ mancala|1.0|the Kalah game: sow seeds round six pits, a d move, enter sows, the 
 whackamole|1.0|moles pop out of nine holes: whack them with the digits 1 to 9 or w a s d and enter, 30 seconds, q quits (needs firmware v0.1.0.13)|needs:ui|Formula/whackamole.lua
 fractaltree|1.0|animation: a fractal tree grows branch by branch and sways in the wind; a d spread, w s wind, space plants a new tree (q quits)|Formula/fractaltree.lua
 flood|1.0|a six-colour board: the corner takes the colour you press (1 to 6) and grows; make the whole board one colour in few moves (needs firmware v0.1.0.13)|needs:ui|Formula/flood.lua
+bagels|1.0|guess a secret number of three different digits from the clues FERMI (right place), PICO (wrong place) and BAGELS (none right): ten guesses (needs firmware v0.1.0.13)|needs:ui|Formula/bagels.lua
