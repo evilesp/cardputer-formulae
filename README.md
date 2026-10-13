@@ -155,6 +155,7 @@ brew install htop nano snake
 | GamePerformance | więcej pamięci dla gier: na czas gry wyłącza WiFi (zwalnia 40–50 KB), po grze WiFi wraca i łączy się w tle; `GamePerformance on`, `off` albo `auto` (samo przy każdej grze i animacji); wymaga firmware v0.1.0.23 |
 | roman | zamiana liczb na cyfry rzymskie i z powrotem: `roman 1994`, `roman MMXXVI` (od 1 do 3999) |
 | reaction | test refleksu: czekasz, aż ekran zrobi się zielony, i naciskasz spację; przedwczesne naciśnięcie się liczy, zapisane są najlepszy czas i średnia |
+| blackjack | gra w 21 z krupierem: stawiasz żetony (w s), spacja rozdaje, h dobiera, s pasuje, d podwaja; bank 100 żetonów |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
