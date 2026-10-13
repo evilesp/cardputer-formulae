@@ -151,6 +151,7 @@ brew install htop nano snake
 | baseconv | liczby w systemie dziesiętnym, szesnastkowym, binarnym, ósemkowym i jako znak; 32 bity do przełączania |
 | stopwatch | stoper z międzyczasami, najlepsze i najgorsze okrążenie |
 | tipcalc | napiwek i podział rachunku: `tipcalc 85.50 15 3` (procent i liczba osób są opcjonalne) |
+| loan | kredyt: miesięczna rata i koszt całkowity z odsetkami, bez klucza: `loan 20000 7.5 5` (kwota, roczne oprocentowanie w procentach, lata; `0` to kredyt bez odsetek) |
 | colors | próbnik kolorów: suwaki RGB lub HSV, #RRGGBB, 0xRRGGBB dla gfx i RGB565 dla wyświetlacza |
 | dice | rzut kośćmi: d4 do d100, kilka kości, premia, przewaga, własne rzuty typu 3d6+2 |
 | GamePerformance | więcej pamięci dla gier: na czas gry wyłącza WiFi (zwalnia 40–50 KB), po grze WiFi wraca i łączy się w tle; `GamePerformance on`, `off` albo `auto` (samo przy każdej grze i animacji); wymaga firmware v0.1.0.23 |
