@@ -158,6 +158,7 @@ brew install htop nano snake
 | blackjack | gra w 21 z krupierem: stawiasz żetony (w s), spacja rozdaje, h dobiera, s pasuje, d podwaja; bank 100 żetonów |
 | hanoi | Wieża Hanoi: przenieś krążki na prawy słupek, klawisze a s d (słupki), cyfry 3 do 6 to liczba krążków; z pokazuje rozwiązanie komputera w najmniejszej liczbie ruchów |
 | wordle | zgadnij ukryte pięcioliterowe słowo w sześciu próbach; zielony = dobra litera na dobrym miejscu, żółty = litera jest w słowie, szary = jej nie ma; wpisujesz litery, enter wysyła, backspace kasuje; po grze n to nowe słowo |
+| tictactoe | kółko i krzyżyk z botem, który nigdy nie przegrywa (perfekcyjna gra): ty jesteś X i zaczynasz; w a s d przesuwają kursor, enter stawia znak, n to nowa gra, ctrl-q wychodzi; wynik gier liczy się w czasie działania |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
