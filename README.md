@@ -173,6 +173,7 @@ brew install htop nano snake
 | bouncelogo | animacja w stylu wygaszacza DVD: pudełko z napisem CARDPUTER odbija się od krawędzi i zmienia kolor, licznik trafień w rogi; spacja nowy kolor, `w` `s` prędkość, `c` czyści licznik, `p` pauza, `q` wychodzi |
 | lissajous | animacja: krzywe Lissajous, punkt rysuje figurę dwóch falujących sygnałów z ogonem; `a` `d` częstotliwość w poziomie, `w` `s` częstotliwość w pionie, spacja faza, `p` pauza, `q` wychodzi |
 | langton | animacja: mrówka Langtona, prosta reguła buduje na siatce wzór z autostradą; `w` `s` prędkość, `p` pauza, `c` zaczyna od nowa, `q` wychodzi |
+| whackamole | krecik wychodzi z dziewięciu dziur: uderzaj je cyframi 1–9 albo przesuwaj kursor `w` `a` `s` `d` i naciśnij enter; 30 sekund, szybkie trafienie daje więcej punktów, pudło w pustą dziurę kosztuje 5 punktów; `spacja` zaczyna grę, `q` wychodzi |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 

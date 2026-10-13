@@ -172,3 +172,4 @@ lissajous|1.0|Lissajous figures: a dot draws the curve of two swinging waves wit
 loan|1.0|monthly payment and total interest of a loan: loan AMOUNT RATE YEARS, e.g. loan 20000 7.5 5 (no key)|Formula/loan.lua
 langton|1.0|animation: Langton's ant, a simple rule that grows a highway on a grid of cells (w s speed, p pauses, c starts again, q quits)|Formula/langton.lua
 mancala|1.0|the Kalah game: sow seeds round six pits, a d move, enter sows, the bot looks two moves ahead (needs firmware v0.1.0.13)|needs:ui|Formula/mancala.lua
+whackamole|1.0|moles pop out of nine holes: whack them with the digits 1 to 9 or w a s d and enter, 30 seconds, q quits (needs firmware v0.1.0.13)|needs:ui|Formula/whackamole.lua
