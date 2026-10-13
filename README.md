@@ -161,6 +161,7 @@ brew install htop nano snake
 | hanoi | Wieża Hanoi: przenieś krążki na prawy słupek, klawisze a s d (słupki), cyfry 3 do 6 to liczba krążków; z pokazuje rozwiązanie komputera w najmniejszej liczbie ruchów |
 | wordle | zgadnij ukryte pięcioliterowe słowo w sześciu próbach; zielony = dobra litera na dobrym miejscu, żółty = litera jest w słowie, szary = jej nie ma; wpisujesz litery, enter wysyła, backspace kasuje; po grze n to nowe słowo |
 | tictactoe | kółko i krzyżyk z botem, który nigdy nie przegrywa (perfekcyjna gra): ty jesteś X i zaczynasz; w a s d przesuwają kursor, enter stawia znak, n to nowa gra, ctrl-q wychodzi; wynik gier liczy się w czasie działania |
+| mancala | gra Kalah: sześć dołków po każdej stronie, w każdym po cztery ziarna; a d przesuwają kursor, enter sieje ziarna z wybranego dołka, ziarna idą w prawo do twojego magazynu; ostatnie ziarno w pustym dołku zabiera ziarna z dołka naprzeciw; bot patrzy dwa ruchy w przód; n to nowa gra, ctrl-q wychodzi |
 | primes | liczby pierwsze do 1000 i rozkład liczby na czynniki pierwsze: `primes 50`, `primes factor 360` |
 | bmi | wskaźnik masy ciała (BMI) z kategorią WHO i zakresem wagi dla wzrostu: `bmi 70 175` (kg i cm, albo metry, np. `bmi 70 1.75`) |
 | wc | liczy wiersze, słowa i bajty tekstu albo pliku na karcie: `wc to jest tekst`, `wc -f plik.txt` |

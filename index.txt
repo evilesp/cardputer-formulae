@@ -171,3 +171,4 @@ bouncelogo|1.0|the DVD screensaver: a CARDPUTER box bounces off the edges and ch
 lissajous|1.0|Lissajous figures: a dot draws the curve of two swinging waves with a comet trail; a d x frequency, w s y frequency, space phase (q quits)|Formula/lissajous.lua
 loan|1.0|monthly payment and total interest of a loan: loan AMOUNT RATE YEARS, e.g. loan 20000 7.5 5 (no key)|Formula/loan.lua
 langton|1.0|animation: Langton's ant, a simple rule that grows a highway on a grid of cells (w s speed, p pauses, c starts again, q quits)|Formula/langton.lua
+mancala|1.0|the Kalah game: sow seeds round six pits, a d move, enter sows, the bot looks two moves ahead (needs firmware v0.1.0.13)|needs:ui|Formula/mancala.lua
