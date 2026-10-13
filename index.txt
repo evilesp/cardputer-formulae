@@ -156,3 +156,4 @@ roman|1.0|Roman numerals both ways: roman 1994 or roman MMXXVI (1 to 3999)|Formu
 reaction|1.0|reaction-time test: wait for green and press space, false starts count, best and average kept|needs:ui|Formula/reaction.lua
 blackjack|1.0|card game against the dealer, bank of 100 chips: w s bet, space deals, h hits, s stands, d doubles (ctrl-q quits)|needs:ui|Formula/blackjack.lua
 hanoi|1.0|the Tower of Hanoi: move the disks to the right peg with a s d, 3 to 6 disks; z lets the computer solve it (needs firmware v0.1.0.13)|needs:ui|Formula/hanoi.lua
+wordle|1.0|guess the hidden five-letter word in six tries, with green, yellow and grey marks (type letters, enter)|needs:ui|Formula/wordle.lua

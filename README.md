@@ -157,6 +157,7 @@ brew install htop nano snake
 | reaction | test refleksu: czekasz, aż ekran zrobi się zielony, i naciskasz spację; przedwczesne naciśnięcie się liczy, zapisane są najlepszy czas i średnia |
 | blackjack | gra w 21 z krupierem: stawiasz żetony (w s), spacja rozdaje, h dobiera, s pasuje, d podwaja; bank 100 żetonów |
 | hanoi | Wieża Hanoi: przenieś krążki na prawy słupek, klawisze a s d (słupki), cyfry 3 do 6 to liczba krążków; z pokazuje rozwiązanie komputera w najmniejszej liczbie ruchów |
+| wordle | zgadnij ukryte pięcioliterowe słowo w sześciu próbach; zielony = dobra litera na dobrym miejscu, żółty = litera jest w słowie, szary = jej nie ma; wpisujesz litery, enter wysyła, backspace kasuje; po grze n to nowe słowo |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
