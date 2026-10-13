@@ -153,3 +153,4 @@ GamePerformance|1.0|more memory for games: the WiFi off while you play (on, off,
 tipcalc|1.0|the tip and the split of a bill: tipcalc 85.50 15 3 (tip percent and people are optional)|Formula/tipcalc.lua
 moon|1.0|the phase of the Moon for a date: name, age, lit part, next new and full moon, and a drawing (moon [YYYY-MM-DD])|Formula/moon.lua
 roman|1.0|Roman numerals both ways: roman 1994 or roman MMXXVI (1 to 3999)|Formula/roman.lua
+reaction|1.0|reaction-time test: wait for green and press space, false starts count, best and average kept|needs:ui|Formula/reaction.lua
