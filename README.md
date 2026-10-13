@@ -135,6 +135,7 @@ brew install htop nano snake
 | lavalamp | animacja: lampa lava z łączącymi się bańkami wosku, cztery kolory |
 | spirograph | animacja: spirograf rysuje kolorowe krzywe jedna po drugiej (spacja: następna) |
 | snowfall | animacja: zimowa noc — chatka z bali z dymem z komina, śnieg na dachu i sosnach, światło księżyca, podmuchy wiatru |
+| pipes | animacja: klasyczne rury z wygaszacza ekranu — kolorowe rury rosną i skręcają po ekranie, aż się zapełni (spacja: czyść, w s: prędkość) |
 | waves | animacja: zachód słońca nad morzem — migocząca ścieżka światła, fale z pianą, chmury, żaglówka, księżyc i gwiazdy |
 | memory | memory: znajdź pary sam, z uczciwym botem (łatwy, normalny, trudny — zapomina) albo we dwoje; trzy rozmiary stołu |
 | fifteen | układanka z przesuwanymi płytkami 3x3, 4x4, 5x5 (zawsze do rozwiązania) |
