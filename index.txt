@@ -164,3 +164,4 @@ wc|1.0|counts lines, words and bytes of a text or an SD card file: wc TEXT... or
 epoch|1.0|Unix time to a UTC date and back: epoch 1700000000, epoch 2026-10-13 12:00, epoch now|Formula/epoch.lua
 pipes|1.0|the classic pipes screensaver: coloured pipes grow and turn across the screen (space clears, w s speed, q quits)|Formula/pipes.lua
 nim|1.0|nim: take sticks from three piles, the last stick wins; a bot plays the perfect strategy: pick a pile with w s a d, take 1 to 7 with the digits (n new game, ctrl-q quits)|needs:ui|Formula/nim.lua
+sand|1.0|falling sand: sand piles up, water runs off it and fills the low places, stone stays put (1 sand, 2 water, 3 stone, 0 eraser, w a s d cursor, space pours, p keeps pouring, c clears)|Formula/sand.lua
