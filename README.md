@@ -162,6 +162,7 @@ brew install htop nano snake
 | primes | liczby pierwsze do 1000 i rozkład liczby na czynniki pierwsze: `primes 50`, `primes factor 360` |
 | bmi | wskaźnik masy ciała (BMI) z kategorią WHO i zakresem wagi dla wzrostu: `bmi 70 175` (kg i cm, albo metry, np. `bmi 70 1.75`) |
 | wc | liczy wiersze, słowa i bajty tekstu albo pliku na karcie: `wc to jest tekst`, `wc -f plik.txt` |
+| epoch | zamiana czasu Unix (sekundy od 1970 r.) na datę UTC i z powrotem: `epoch 1700000000`, `epoch 2026-10-13 12:00`, `epoch now` |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
