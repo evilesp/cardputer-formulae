@@ -100,6 +100,7 @@ brew install htop nano snake
 | flood | układanka z sześcioma kolorami: lewy górny róg przyjmuje kolor wciśnięty cyfrą 1–6 i pochłania sąsiednie pola tego koloru; zamaluj całą planszę jak najmniejszą liczbą ruchów, `n` nowa plansza, `q` wychodzi |
 | mastermind | odgadnij czteroelementowy kod kolorów w dziesięciu próbach |
 | bagels | odgadnij trzycyfrową liczbę z różnych cyfr w dziesięciu próbach; FERMI = dobra cyfra na dobrym miejscu, PICO = dobra cyfra na złym miejscu, BAGELS = żadna cyfra nie pasuje; wpisujesz trzy cyfry, enter wysyła, backspace kasuje, n to nowa liczba |
+| asciitable | tabela znaków ASCII z kodami dziesiętnymi i szesnastkowymi; `asciitable A` podaje kod, `asciitable 65` znak |
 | pacmaze | zjadaj kropki i unikaj dwóch duchów w labiryncie: trzy życia |
 | asteroids | asteroidy: skręcasz, lecisz i strzelasz, skały pękają na mniejsze |
 | frogger | przejdź żabą przez ulicę i ruch, trzy życia |
