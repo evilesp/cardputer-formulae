@@ -158,3 +158,4 @@ blackjack|1.0|card game against the dealer, bank of 100 chips: w s bet, space de
 hanoi|1.0|the Tower of Hanoi: move the disks to the right peg with a s d, 3 to 6 disks; z lets the computer solve it (needs firmware v0.1.0.13)|needs:ui|Formula/hanoi.lua
 wordle|1.0|guess the hidden five-letter word in six tries, with green, yellow and grey marks (type letters, enter)|needs:ui|Formula/wordle.lua
 tictactoe|1.0|noughts and crosses against a bot that never loses: you are X and start; w a s d move, enter places, n new game|needs:ui|Formula/tictactoe.lua
+primes|1.0|prime numbers up to 1000 and the prime factors of a number: primes 50, primes factor 360|Formula/primes.lua
