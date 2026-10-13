@@ -164,6 +164,7 @@ brew install htop nano snake
 | bmi | wskaźnik masy ciała (BMI) z kategorią WHO i zakresem wagi dla wzrostu: `bmi 70 175` (kg i cm, albo metry, np. `bmi 70 1.75`) |
 | wc | liczy wiersze, słowa i bajty tekstu albo pliku na karcie: `wc to jest tekst`, `wc -f plik.txt` |
 | epoch | zamiana czasu Unix (sekundy od 1970 r.) na datę UTC i z powrotem: `epoch 1700000000`, `epoch 2026-10-13 12:00`, `epoch now` |
+| nim | gra w stosy: trzy kupki patyczków (3, 5 i 7); wybierz kupkę klawiszami w s a d, potem weź od 1 do 7 patyczków cyframi 1 do 7; kto weźmie ostatni patyczek, wygrywa; bot gra idealnie (nim-sum); `n` to nowa gra, `ctrl-q` wychodzi |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
