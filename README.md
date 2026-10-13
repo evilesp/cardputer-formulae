@@ -171,6 +171,7 @@ brew install htop nano snake
 | lander | lądowanie modułu księżycowego na płaskim lądowisku: `w` silnik główny, `a` `d` boczne dysze; paliwo się kończy, lądowanie za szybkie lub poza lądowiskiem to rozbicie, `n` następny poziom, `r` od nowa, `q` wychodzi |
 | bouncelogo | animacja w stylu wygaszacza DVD: pudełko z napisem CARDPUTER odbija się od krawędzi i zmienia kolor, licznik trafień w rogi; spacja nowy kolor, `w` `s` prędkość, `c` czyści licznik, `p` pauza, `q` wychodzi |
 | lissajous | animacja: krzywe Lissajous, punkt rysuje figurę dwóch falujących sygnałów z ogonem; `a` `d` częstotliwość w poziomie, `w` `s` częstotliwość w pionie, spacja faza, `p` pauza, `q` wychodzi |
+| langton | animacja: mrówka Langtona, prosta reguła buduje na siatce wzór z autostradą; `w` `s` prędkość, `p` pauza, `c` zaczyna od nowa, `q` wychodzi |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
