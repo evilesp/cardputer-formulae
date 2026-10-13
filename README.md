@@ -97,6 +97,7 @@ brew install htop nano snake
 | minesweeper | saper: flagi, liczby i odkrywanie pustych pól |
 | sokoban | popychanie skrzyń na miejsca: 27 poziomów, cofanie ruchu (u), licznik ruchów i najlepsze wyniki; własne poziomy z /home/user/sokoban.txt |
 | lightsout | zgaś wszystkie światła: naciśnięcie zmienia pole i jego sąsiadów |
+| flood | układanka z sześcioma kolorami: lewy górny róg przyjmuje kolor wciśnięty cyfrą 1–6 i pochłania sąsiednie pola tego koloru; zamaluj całą planszę jak najmniejszą liczbą ruchów, `n` nowa plansza, `q` wychodzi |
 | mastermind | odgadnij czteroelementowy kod kolorów w dziesięciu próbach |
 | pacmaze | zjadaj kropki i unikaj dwóch duchów w labiryncie: trzy życia |
 | asteroids | asteroidy: skręcasz, lecisz i strzelasz, skały pękają na mniejsze |
