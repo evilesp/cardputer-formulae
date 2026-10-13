@@ -156,6 +156,7 @@ brew install htop nano snake
 | roman | zamiana liczb na cyfry rzymskie i z powrotem: `roman 1994`, `roman MMXXVI` (od 1 do 3999) |
 | reaction | test refleksu: czekasz, aż ekran zrobi się zielony, i naciskasz spację; przedwczesne naciśnięcie się liczy, zapisane są najlepszy czas i średnia |
 | blackjack | gra w 21 z krupierem: stawiasz żetony (w s), spacja rozdaje, h dobiera, s pasuje, d podwaja; bank 100 żetonów |
+| hanoi | Wieża Hanoi: przenieś krążki na prawy słupek, klawisze a s d (słupki), cyfry 3 do 6 to liczba krążków; z pokazuje rozwiązanie komputera w najmniejszej liczbie ruchów |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
