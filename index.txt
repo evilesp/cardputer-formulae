@@ -178,3 +178,4 @@ flood|1.0|a six-colour board: the corner takes the colour you press (1 to 6) and
 bagels|1.0|guess a secret number of three different digits from the clues FERMI (right place), PICO (wrong place) and BAGELS (none right): ten guesses (needs firmware v0.1.0.13)|needs:ui|Formula/bagels.lua
 asciitable|1.0|printable ASCII codes in decimal and hex: asciitable, asciitable A, asciitable 65 or 0x41|Formula/asciitable.lua
 boids|1.0|a flock of birds that gather, keep apart and fly together, bouncing off the edges (w s speed, space scatters, q quits)|Formula/boids.lua
+hilbert|1.0|animation: the Hilbert curve, a line that fills a grid of cells without crossing itself (a d grid size, w s speed, p pauses, c starts again, q quits)|Formula/hilbert.lua
