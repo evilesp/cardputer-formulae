@@ -186,6 +186,7 @@ brew install htop nano snake
 | pwcheck | ocena hasła bez sieci: długość, użyte zestawy znaków, częste hasła i wzorce oraz czas odgadnięcia; `pwcheck HASŁO` (kilka słów są łączone, więc działa też fraza); hasło nie jest zapisywane |
 | helix | animacja: podwójna helisa DNA kręci się na ekranie, przednia nić jest jaśniejsza, szczeble łączą nici; `w` `s` prędkość, `a` `d` długość skrętu, spacja zmienia kolory, `p` pauza, `q` wychodzi |
 | sortviz | animacja i nauka: sortowanie bąbelkowe, przez wstawianie lub przez wybór na 40 słupkach, porównywane słupki są pomarańczowe, posortowane zieleni się; `1` `2` `3` wybiera algorytm, `n` nowe tasowanie, `w` `s` prędkość, `p` pauza, `q` wychodzi |
+| cube | animacja: obracający się sześcian 3D z perspektywą, bliższe krawędzie są jaśniejsze; `a` `d` rozmiar, `w` `s` prędkość, spacja zmienia kolory, `p` pauza, `q` wychodzi |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 

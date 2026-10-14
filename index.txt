@@ -185,3 +185,4 @@ rps|1.0|rock paper scissors against the computer: r rock, p paper, s scissors, f
 pwcheck|1.0|password strength offline: length, character sets, common words and the time to guess it; words after the command are joined: pwcheck PASSWORD|Formula/pwcheck.lua
 helix|1.0|a double helix (DNA) turning on the screen: w s speed, a d coil length, space colours (q quits)|Formula/helix.lua
 sortviz|1.0|sorting algorithms drawn as bars: bubble, insertion or selection sort with 1 2 3, n new shuffle (needs firmware v0.1.0.13)|Formula/sortviz.lua
+cube|1.0|a spinning 3D wireframe cube drawn with perspective: a d size, w s speed, space colours, p pauses (q quits)|Formula/cube.lua
