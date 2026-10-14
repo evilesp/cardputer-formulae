@@ -181,7 +181,7 @@ boids|1.0|a flock of birds that gather, keep apart and fly together, bouncing of
 hilbert|1.0|animation: the Hilbert curve, a line that fills a grid of cells without crossing itself (a d grid size, w s speed, p pauses, c starts again, q quits)|Formula/hilbert.lua
 chaos|1.0|the chaos game: random jumps towards polygon corners draw fractals such as the Sierpinski triangle (a d corners 3 to 6, r jump, w s speed, c new, q quits)|Formula/chaos.lua
 grep|1.0|shows the lines of a text or SD card file that contain a word: grep [-i] [-c] WORD FILE|Formula/grep.lua
-rps|1.0|rock paper scissors against the computer: r rock, p paper, s scissors, first to three round wins (needs firmware v0.1.0.13)|needs:ui|Formula/rps.lua
+rps|1.0.0.1|rock paper scissors against the computer: r rock, p paper, s scissors, first to three round wins (needs firmware v0.1.0.13)|needs:ui|Formula/rps.lua
 pwcheck|1.0|password strength offline: length, character sets, common words and the time to guess it; words after the command are joined: pwcheck PASSWORD|Formula/pwcheck.lua
 helix|1.0|a double helix (DNA) turning on the screen: w s speed, a d coil length, space colours (q quits)|Formula/helix.lua
 sortviz|1.0|sorting algorithms drawn as bars: bubble, insertion or selection sort with 1 2 3, n new shuffle (needs firmware v0.1.0.13)|Formula/sortviz.lua

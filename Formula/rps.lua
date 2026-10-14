@@ -1,7 +1,8 @@
 #!lua
 -- rps: rock, paper, scissors against the computer. Press r (rock), p (paper) or s (scissors).
 -- Rock beats scissors, scissors beats paper, paper beats rock. The computer picks at random,
--- so no pattern can be learnt. The first to three round wins takes the match; n or enter starts
+-- so no pattern can be learnt. While the bot draws, its picture cycles through the choices and
+-- slows down before it stops. The first to three round wins takes the match; n or enter starts
 -- a new match, q or ctrl-q quits. Needs the graphics and the ui package.
 -- Run it with --selftest to check the rules and the computer's choices.
 
@@ -65,14 +66,20 @@ if not ui then
   return
 end
 
+local SPIN_FRAMES = 24
+
 local playerChoice, botPick, status
 local playerWins, botWins, draws
 local matchOver, lastResult
+-- while the bot draws: frames left, and the choice it has already made (shown only at the end)
+local spin, botFinal
+local settle
 
 local function newMatch()
   playerWins, botWins, draws = 0, 0, 0
   playerChoice, botPick = nil, nil
   matchOver = false
+  spin, botFinal = nil, nil
   status = "pick rock, paper or scissors"
 end
 
@@ -115,11 +122,32 @@ local function draw()
   gfx.flush()
 end
 
--- plays one round with the player's choice and then decides the match when someone has enough wins
+-- the bot draws: its picture cycles through the three choices, slowing down, and stops on its real choice
+local function drawStep()
+  if not spin then return end
+  spin = spin - 1
+  if spin == 0 then
+    botPick, spin = botFinal, nil
+    settle()
+  else
+    local period = spin > 14 and 2 or (spin > 6 and 4 or 6)
+    if spin % period == 0 then botPick = botPick % 3 + 1 end
+  end
+end
+
+-- the player starts a round: the bot starts drawing and the result comes when it stops
 local function play(choice)
+  if spin or matchOver then return end
   playerChoice = choice
-  botPick = botChoice()
-  lastResult = outcome(choice, botPick)
+  botFinal = botChoice()
+  botPick, spin = 1, SPIN_FRAMES
+  lastResult = nil
+  status = "the bot draws..."
+end
+
+-- decides the round after the bot has drawn, and the match when someone has enough wins
+settle = function()
+  lastResult = outcome(playerChoice, botPick)
   if lastResult == 1 then
     playerWins = playerWins + 1
     status = "you win the round"
@@ -145,6 +173,7 @@ end
 local ok, problem = pcall(function()
   newMatch()
   while true do
+    drawStep()
     draw()
     local k = key.poll()
     while k do
@@ -152,7 +181,7 @@ local ok, problem = pcall(function()
       if k == "n" or (k == "enter" and matchOver) then
         newMatch()
         lastResult, playerChoice, botPick = nil, nil, nil
-      elseif not matchOver then
+      elseif not matchOver and not spin then
         if k == "r" then play(ROCK)
         elseif k == "p" then play(PAPER)
         elseif k == "s" then play(SCISSORS)
