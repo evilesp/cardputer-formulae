@@ -178,6 +178,7 @@ brew install htop nano snake
 | langton | animacja: mrówka Langtona, prosta reguła buduje na siatce wzór z autostradą; `w` `s` prędkość, `p` pauza, `c` zaczyna od nowa, `q` wychodzi |
 | fractaltree | animacja: drzewo fraktalne rośnie gałąź po gałęzi i kołysze się na wietrze, a czubki zieleniają się; `a` `d` rozstaw odgałęzień (10–70 stopni), `w` `s` wiatr, spacja nowe drzewo, `q` wychodzi |
 | whackamole | krecik wychodzi z dziewięciu dziur: uderzaj je cyframi 1–9 albo przesuwaj kursor `w` `a` `s` `d` i naciśnij enter; 30 sekund, szybkie trafienie daje więcej punktów, pudło w pustą dziurę kosztuje 5 punktów; `spacja` zaczyna grę, `q` wychodzi |
+| boids | animacja: stado ptaków, które się zbiera, trzyma odstęp i leci w tę samą stronę co sąsiedzi (jak boidy Reynoldsa), a ptaki odbijają się od krawędzi; `w` `s` prędkość, spacja rozprasza stado, `p` pauza, `q` wychodzi |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
