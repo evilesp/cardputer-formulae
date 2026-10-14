@@ -180,6 +180,7 @@ brew install htop nano snake
 | whackamole | krecik wychodzi z dziewięciu dziur: uderzaj je cyframi 1–9 albo przesuwaj kursor `w` `a` `s` `d` i naciśnij enter; 30 sekund, szybkie trafienie daje więcej punktów, pudło w pustą dziurę kosztuje 5 punktów; `spacja` zaczyna grę, `q` wychodzi |
 | boids | animacja: stado ptaków, które się zbiera, trzyma odstęp i leci w tę samą stronę co sąsiedzi (jak boidy Reynoldsa), a ptaki odbijają się od krawędzi; `w` `s` prędkość, spacja rozprasza stado, `p` pauza, `q` wychodzi |
 | hilbert | animacja: krzywa Hilberta, jedna linia wypełnia siatkę komórek bez przecinania się; `a` `d` wielkość siatki, `w` `s` prędkość, `p` pauza, `c` zaczyna od nowa, `q` wychodzi |
+| chaos | animacja: gra w chaos, kropki skaczą w stronę losowych rogów wielokąta i tworzą fraktale, np. trójkąt Sierpińskiego; `a` `d` liczba rogów 3–6, `r` długość skoku (1/2 lub 2/3), `w` `s` prędkość, `c` zaczyna od nowa, `p` pauza, `q` wychodzi |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
