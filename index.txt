@@ -180,3 +180,4 @@ asciitable|1.0|printable ASCII codes in decimal and hex: asciitable, asciitable 
 boids|1.0|a flock of birds that gather, keep apart and fly together, bouncing off the edges (w s speed, space scatters, q quits)|Formula/boids.lua
 hilbert|1.0|animation: the Hilbert curve, a line that fills a grid of cells without crossing itself (a d grid size, w s speed, p pauses, c starts again, q quits)|Formula/hilbert.lua
 chaos|1.0|the chaos game: random jumps towards polygon corners draw fractals such as the Sierpinski triangle (a d corners 3 to 6, r jump, w s speed, c new, q quits)|Formula/chaos.lua
+grep|1.0|shows the lines of a text or SD card file that contain a word: grep [-i] [-c] WORD FILE|Formula/grep.lua
