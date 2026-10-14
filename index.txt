@@ -181,3 +181,4 @@ boids|1.0|a flock of birds that gather, keep apart and fly together, bouncing of
 hilbert|1.0|animation: the Hilbert curve, a line that fills a grid of cells without crossing itself (a d grid size, w s speed, p pauses, c starts again, q quits)|Formula/hilbert.lua
 chaos|1.0|the chaos game: random jumps towards polygon corners draw fractals such as the Sierpinski triangle (a d corners 3 to 6, r jump, w s speed, c new, q quits)|Formula/chaos.lua
 grep|1.0|shows the lines of a text or SD card file that contain a word: grep [-i] [-c] WORD FILE|Formula/grep.lua
+rps|1.0|rock paper scissors against the computer: r rock, p paper, s scissors, first to three round wins (needs firmware v0.1.0.13)|needs:ui|Formula/rps.lua

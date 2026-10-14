@@ -182,6 +182,7 @@ brew install htop nano snake
 | boids | animacja: stado ptaków, które się zbiera, trzyma odstęp i leci w tę samą stronę co sąsiedzi (jak boidy Reynoldsa), a ptaki odbijają się od krawędzi; `w` `s` prędkość, spacja rozprasza stado, `p` pauza, `q` wychodzi |
 | hilbert | animacja: krzywa Hilberta, jedna linia wypełnia siatkę komórek bez przecinania się; `a` `d` wielkość siatki, `w` `s` prędkość, `p` pauza, `c` zaczyna od nowa, `q` wychodzi |
 | chaos | animacja: gra w chaos, kropki skaczą w stronę losowych rogów wielokąta i tworzą fraktale, np. trójkąt Sierpińskiego; `a` `d` liczba rogów 3–6, `r` długość skoku (1/2 lub 2/3), `w` `s` prędkość, `c` zaczyna od nowa, `p` pauza, `q` wychodzi |
+| rps | kamień, papier, nożyce z botem: `r` kamień, `p` papier, `s` nożyce; wygrywa, kto pierwszy zdobędzie trzy rundy; bot wybiera losowo, więc nie da się go przewidzieć; `n` to nowy mecz, `q` wychodzi |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
