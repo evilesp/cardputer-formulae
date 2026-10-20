@@ -450,13 +450,14 @@ end
 -- ---- drawing ----
 
 -- the points of a polygon in screen coordinates, from a list of tank coordinates
+local polyBuf = {}  -- one list reused by every polygon: a new table for each of ~6 polygons per tank per frame was the garbage
 local function tankPoly(tk, list)
-  local out = {}
-  for i = 1, #list, 2 do
-    local x, y = toWorld(tk, list[i], list[i + 1])
-    out[#out + 1] = x
-    out[#out + 1] = y
+  local out = polyBuf
+  local n = #list
+  for i = 1, n, 2 do
+    out[i], out[i + 1] = toWorld(tk, list[i], list[i + 1])
   end
+  for i = #out, n + 1, -1 do out[i] = nil end
   return out
 end
 
@@ -721,6 +722,7 @@ end
 
 -- one battle until the player goes back to the menu (returns "menu") or quits (returns "quit")
 local function battle(mode, skill)
+  local frameNo = 0
   local g = newBattle(mode, skill)
   local last = sys.millis()
   while true do
@@ -742,6 +744,8 @@ local function battle(mode, skill)
     heldControls(g, dt, held)
     update(g, dt)
     draw(g)
+    frameNo = frameNo + 1
+    if frameNo % 12 == 0 then collectgarbage("step", 40) end  -- keep the garbage small: the canvas leaves little memory
     sys.sleep(25)
   end
 end
