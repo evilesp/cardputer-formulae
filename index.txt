@@ -4,7 +4,7 @@ fastfetch|1.0|system summary with a Cardputer logo|Formula/fastfetch.lua
 asciiquarium|1.0|a fish tank animation (press q)|Formula/asciiquarium.lua
 speedtest-cli|1.0|ping, download and upload speed test|Formula/speedtest-cli.lua
 htop|1.0|memory, battery and CPU use per task (press q)|Formula/htop.lua
-nano|1.0|small text editor for SD card files: nano FILE|Formula/nano.lua
+nano|1.0.0.1|small text editor for SD card files: nano FILE|Formula/nano.lua
 snake|1.0|the snake game (arrows or w a s d)|Formula/snake.lua
 pong|1.0|pong against the computer (w/s or arrows)|Formula/pong.lua
 tetris|1.0|falling blocks game (space drops a piece)|Formula/tetris.lua

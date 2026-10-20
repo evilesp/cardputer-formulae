@@ -94,7 +94,39 @@ local function delete()
   modified = true
 end
 
-local function draw()
+-- The picture is drawn with the gfx module when the firmware has it: a real block cursor (the character under it is
+-- drawn inverse), which the text terminal cannot show. Without gfx the screen is text only, with a plain cursor letter.
+local CELL_W, CELL_H = 6, 8
+local C_TEXT, C_DIM, C_TITLE, C_BG = 0xd7d7d7, 0x828282, 0xffffff, 0x000000
+local useGfx = false
+if gfx then
+  local w = gfx.open()
+  useGfx = w ~= nil
+end
+
+local function drawGfx()
+  gfx.clear(C_BG)
+  local title = " " .. path .. (modified and " (modified)" or "")
+  gfx.fill(0, 0, COLS * CELL_W, CELL_H, 0x202838)
+  gfx.text(0, 0, title:sub(1, COLS), C_TITLE, 1)
+  for row = 0, TEXT_ROWS - 1 do
+    local n = top + row
+    if lines[n] then
+      gfx.text(0, (row + 1) * CELL_H, lines[n]:sub(left + 1, left + COLS), C_TEXT, 1)
+    end
+  end
+  local help = message ~= "" and message or "^S save  ^X exit  ^A/^E line"
+  gfx.text(0, (ROWS - 1) * CELL_H, help:sub(1, COLS), C_DIM, 1)
+  local sx, sy = cx - left, cy - top + 1
+  if sy >= 1 and sy <= TEXT_ROWS and sx >= 0 and sx < COLS then
+    local ch = lines[cy]:sub(cx + 1, cx + 1)
+    gfx.fill(sx * CELL_W, sy * CELL_H, CELL_W, CELL_H, C_TEXT)
+    gfx.text(sx * CELL_W, sy * CELL_H, ch ~= "" and ch or " ", C_BG, 1)
+  end
+  gfx.flush()
+end
+
+local function drawText()
   term.clear()
   local title = " " .. path .. (modified and " (modified)" or "")
   term.text(0, 0, string.rep(" ", COLS), "text")
@@ -107,7 +139,6 @@ local function draw()
   end
   term.text(0, ROWS - 1, string.rep(" ", COLS), "text")
   term.text(0, ROWS - 1, (message ~= "" and message or "^S save  ^X exit  ^A/^E line"):sub(1, COLS), "dim")
-  -- cursor as an inverse cell
   local sx, sy = cx - left, cy - top + 1
   if sy >= 1 and sy <= TEXT_ROWS then
     local ch = lines[cy]:sub(cx + 1, cx + 1)
@@ -116,7 +147,11 @@ local function draw()
   term.flush()
 end
 
-term.fullscreen(true)
+local function draw()
+  if useGfx then drawGfx() else drawText() end
+end
+
+if not useGfx then term.fullscreen(true) end
 clampCursor()
 local quit = false
 while not quit do
@@ -166,4 +201,4 @@ while not quit do
   draw()
   sys.sleep(40)
 end
-term.fullscreen(false)
+if useGfx then gfx.close() else term.fullscreen(false) end
