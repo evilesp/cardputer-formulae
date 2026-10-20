@@ -186,3 +186,12 @@ pwcheck|1.0|password strength offline: length, character sets, common words and 
 helix|1.0|a double helix (DNA) turning on the screen: w s speed, a d coil length, space colours (q quits)|Formula/helix.lua
 sortviz|1.0|sorting algorithms drawn as bars: bubble, insertion or selection sort with 1 2 3, n new shuffle (needs firmware v0.1.0.13)|Formula/sortviz.lua
 cube|1.0|a spinning 3D wireframe cube drawn with perspective: a d size, w s speed, space colours, p pauses (q quits)|Formula/cube.lua
+extended-display|1.0|second screen on the free pins: copies the terminal and the graphics to an SPI panel; extended-display set, start, stop, restart, bright, status, test, enable, config in /etc/extended-display.json (needs firmware v0.1.0.25)|needs:json|Formula/extended-display.lua
+xd-ili9341|1.0|extended-display driver: ILI9341 240x320 SPI panel (2.4 and 2.8 inch) (a driver)|Driver/xd-ili9341.lua
+xd-ili9342|1.0|extended-display driver: ILI9342C 320x240 SPI panel (the M5Stack Core screen) (a driver)|Driver/xd-ili9342.lua
+xd-ili9488|1.0|extended-display driver: ILI9488 320x480 SPI panel with 18 bit colour (3.5 inch) (a driver)|Driver/xd-ili9488.lua
+xd-st7789|1.0|extended-display driver: ST7789 240x320 IPS SPI panel (a driver)|Driver/xd-st7789.lua
+xd-st7789-240|1.0|extended-display driver: ST7789 240x240 square IPS SPI panel (a driver)|Driver/xd-st7789-240.lua
+xd-st7789-135|1.0|extended-display driver: ST7789 135x240 small IPS SPI panel (TTGO T-Display glass) (a driver)|Driver/xd-st7789-135.lua
+xd-st7735|1.0|extended-display driver: ST7735R 128x160 SPI panel (1.8 inch) (a driver)|Driver/xd-st7735.lua
+xd-st7796|1.0|extended-display driver: ST7796S 320x480 SPI panel with 16 bit colour (3.5 and 4 inch) (a driver)|Driver/xd-st7796.lua

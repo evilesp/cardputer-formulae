@@ -194,3 +194,12 @@ Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `ca
 
 - `index.txt`: `nazwa|wersja|opis|ścieżka`, jedna formuła na linię. W opisie nie używaj znaku `|`.
 - `Formula/NAZWA.lua`: pierwsza linia `#!lua`, API opisane w głównym README projektu.
+| extended-display | drugi ekran na wolnych pinach: kopia terminala i grafiki na panelu SPI; `extended-display set`, `start`, `stop`, `restart`, `bright 50`, `status`, `test`, `enable`; konfiguracja w `/etc/extended-display.json` (wymaga firmware v0.1.0.25); instalacja: `sudo apt install extended-display ili9341` |
+| xd-ili9341 | sterownik extended-display: panel ILI9341 240x320 SPI panel (2.4 and 2.8 inch) |
+| xd-ili9342 | sterownik extended-display: panel ILI9342C 320x240 SPI panel (the M5Stack Core screen) |
+| xd-ili9488 | sterownik extended-display: panel ILI9488 320x480 SPI panel with 18 bit colour (3.5 inch) |
+| xd-st7789 | sterownik extended-display: panel ST7789 240x320 IPS SPI panel |
+| xd-st7789-240 | sterownik extended-display: panel ST7789 240x240 square IPS SPI panel |
+| xd-st7789-135 | sterownik extended-display: panel ST7789 135x240 small IPS SPI panel (TTGO T-Display glass) |
+| xd-st7735 | sterownik extended-display: panel ST7735R 128x160 SPI panel (1.8 inch) |
+| xd-st7796 | sterownik extended-display: panel ST7796S 320x480 SPI panel with 16 bit colour (3.5 and 4 inch) |
