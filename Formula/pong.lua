@@ -1,14 +1,16 @@
 #!lua
 -- pong: you (left paddle) against the computer. Up/down or w/s move the paddle, q quits.
 
-local X0, X1, Y0, Y1 = 1, 38, 2, 14
-local PADDLE = 3
-local LEFT_X, RIGHT_X = 2, 37
+local COLS, ROWS = term.size()
+local X0, X1, Y0, Y1 = 1, COLS - 2, 2, ROWS - 2
+local PADDLE = math.max(3, ROWS // 5)
+local LEFT_X, RIGHT_X = 2, COLS - 3
+local MID = (Y0 + Y1) / 2
 local FRAME_MS = 45
 
 local function newBall(towardsYou)
   return {
-    x = 19.5, y = 8.0,
+    x = COLS / 2 - 0.5, y = MID,
     vx = towardsYou and -0.6 or 0.6,
     vy = (math.random(0, 1) == 0 and -0.35 or 0.35),
   }
@@ -16,7 +18,7 @@ end
 
 local g = {
   ball = newBall(math.random(0, 1) == 0),
-  you = 8.0, cpu = 8.0,
+  you = MID, cpu = MID,
   youScore = 0, cpuScore = 0,
   pause = 0,
 }
@@ -75,15 +77,15 @@ end
 local function draw()
   term.clear()
   term.text(0, 0, string.format("PONG   you %d : %d cpu", g.youScore, g.cpuScore), "white")
-  term.text(0, 1, string.rep("-", 40), "dim")
-  term.text(0, 15, string.rep("-", 40), "dim")
+  term.text(0, 1, string.rep("-", COLS), "dim")
+  term.text(0, ROWS - 1, string.rep("-", COLS), "dim")
   for y = Y0, Y1 do
     if math.abs(y - g.you) <= PADDLE / 2 then term.put(LEFT_X, y, "|", "cyan") end
     if math.abs(y - g.cpu) <= PADDLE / 2 then term.put(RIGHT_X, y, "|", "magenta") end
-    term.put(19, y, ":", "dim")
+    term.put(COLS // 2 - 1, y, ":", "dim")
   end
   term.put(math.floor(g.ball.x + 0.5), math.floor(g.ball.y + 0.5), "O", "yellow")
-  term.text(12, 15, "w/s or up/down   q quit", "dim")
+  term.text((COLS - 23) // 2, ROWS - 1, "w/s or up/down   q quit", "dim")
   term.flush()
 end
 

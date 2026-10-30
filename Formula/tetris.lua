@@ -2,8 +2,10 @@
 -- tetris: stack falling blocks, complete rows to clear them.
 -- left/right (or a/d) move, up (or w) rotates, down (or s) drops faster, space drops at once, q quits.
 
-local BW, BH = 10, 14          -- board size in cells (each cell is two characters wide)
-local BX, BY = 1, 1            -- top-left corner of the board on screen
+local COLS, ROWS = term.size()
+local BW, BH = 10, ROWS - 2    -- board size in cells (each cell is two characters wide); it is as high as the screen allows
+local BX, BY = math.max(1, (COLS - (2 * BW + 2 + 18)) // 2 + 1), 1   -- top-left corner of the board; the side panel is 18 wide
+local PX = BX + 2 * BW + 4     -- the column of the side panel
 
 local SHAPES = {
   { color = "cyan",    cells = { {0,1},{1,1},{2,1},{3,1} } },        -- I
@@ -130,19 +132,19 @@ local function draw()
     end
   end
   -- side panel
-  term.text(24, 1, "TETRIS", "white")
-  term.text(24, 3, "score " .. score, "text")
-  term.text(24, 4, "lines " .. lines, "text")
-  term.text(24, 5, "level " .. level, "text")
-  term.text(24, 7, "next", "dim")
+  term.text(PX, 1, "TETRIS", "white")
+  term.text(PX, 3, "score " .. score, "text")
+  term.text(PX, 4, "lines " .. lines, "text")
+  term.text(PX, 5, "level " .. level, "text")
+  term.text(PX, 7, "next", "dim")
   for _, c in ipairs(SHAPES[nextKind].cells) do
-    term.text(24 + 2 * c[1], 8 + c[2], "[]", SHAPES[nextKind].color)
+    term.text(PX + 2 * c[1], 8 + c[2], "[]", SHAPES[nextKind].color)
   end
   if over then
-    term.text(24, 12, "GAME OVER", "red")
-    term.text(24, 13, "q quit", "dim")
+    term.text(PX, 12, "GAME OVER", "red")
+    term.text(PX, 13, "q quit", "dim")
   else
-    term.text(24, 13, "q quit", "dim")
+    term.text(PX, 13, "q quit", "dim")
   end
   term.flush()
 end

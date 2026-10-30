@@ -48,7 +48,8 @@ local function draw(status)
   end
   term.text(16, 5, "wrong: " .. table.concat(letters, " "), "red")
   term.text(16, 7, status or "type a letter", "cyan")
-  term.text(0, 15, "enter new word   q quit", "dim")
+  local _, ROWS = term.size()
+  term.text(0, ROWS - 1, "enter new word   q quit", "dim")
   term.flush()
 end
 

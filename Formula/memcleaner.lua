@@ -132,7 +132,8 @@ if arg[1] and not DRY then
   return
 end
 
-local COLS = 40
+local COLS, ROWS = term.size()
+COLS = math.min(COLS, 60)
 local now = sys.time()
 
 -- ---- drawing ----
@@ -196,7 +197,7 @@ local function scanScreen(label)
   put(1, 8, string.format("files %-6d folders %-5d", counts.files, counts.dirs), "text")
   put(1, 9, string.format("found %d", #findings.path), "green")
   put(1, 11, ("|/-\\"):sub(spin, spin) .. " looking...", "cyan")
-  put(1, 15, "q quit", "dim")
+  put(1, ROWS - 1, "q quit", "dim")
   term.flush()
   spin = spin % 4 + 1
 end

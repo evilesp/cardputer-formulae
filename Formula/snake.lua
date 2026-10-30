@@ -2,7 +2,8 @@
 -- snake: eat the food and grow without hitting the walls or yourself.
 -- Arrows or w a s d steer, Enter starts a new game after game over, q quits.
 
-local X0, X1, Y0, Y1 = 1, 38, 2, 14  -- playing field (inside the border)
+local COLS, ROWS = term.size()
+local X0, X1, Y0, Y1 = 1, COLS - 2, 2, ROWS - 2  -- playing field (inside the border)
 local STEP_FRAMES = 3                 -- one move every 3 frames
 local FRAME_MS = 40
 
@@ -19,7 +20,8 @@ local function randomFree(body)
 end
 
 local function newGame()
-  local body = { { x = 20, y = 8 }, { x = 19, y = 8 }, { x = 18, y = 8 } }
+  local cx, cy = COLS // 2, ROWS // 2
+  local body = { { x = cx, y = cy }, { x = cx - 1, y = cy }, { x = cx - 2, y = cy } }
   return {
     body = body, dx = 1, dy = 0, nextDx = 1, nextDy = 0,
     food = randomFree(body), score = 0, over = false, tick = 0,
@@ -64,11 +66,11 @@ end
 local function draw(g)
   term.clear()
   term.text(0, 0, string.format(" SNAKE  score %d", g.score), "white")
-  term.text(0, 1, string.rep("#", 40), "dim")
-  term.text(0, 15, string.rep("#", 40), "dim")
-  for y = 2, 14 do
+  term.text(0, 1, string.rep("#", COLS), "dim")
+  term.text(0, ROWS - 1, string.rep("#", COLS), "dim")
+  for y = 2, ROWS - 2 do
     term.put(0, y, "#", "dim")
-    term.put(39, y, "#", "dim")
+    term.put(COLS - 1, y, "#", "dim")
   end
   term.put(g.food.x, g.food.y, "*", "yellow")
   for i, s in ipairs(g.body) do
@@ -79,8 +81,8 @@ local function draw(g)
     end
   end
   if g.over then
-    term.text(12, 7, "GAME OVER", "red")
-    term.text(6, 9, "enter: play again   q: quit", "dim")
+    term.text((COLS - 9) // 2, ROWS // 2 - 1, "GAME OVER", "red")
+    term.text((COLS - 27) // 2, ROWS // 2 + 1, "enter: play again   q: quit", "dim")
   end
   term.flush()
 end

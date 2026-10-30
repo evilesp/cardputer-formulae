@@ -12,8 +12,8 @@ local draw = { level = level }
 local SW, SH = 240, 135            -- the screen
 local HUD_H = 17                   -- the bar at the bottom
 local VIEW_H = SH - HUD_H          -- the picture is the rest
-local COLW = 2                     -- a ray is 2 pixels wide
-local RAYS = SW // COLW
+local COLW = 0.6                   -- a ray is 0.6 of a logical pixel wide: 2 pixels of the real screen (gfx has fractional coordinates)
+local RAYS = math.floor(SW / COLW)
 local FOV = 0.66                   -- the camera plane: about 66 degrees
 local HALF = VIEW_H / 2
 
@@ -62,13 +62,13 @@ local function drawWorld(horizon)
   -- the ceiling and the floor in bands, darker far away
   local bands = 6
   for i = 0, bands - 1 do
-    local y0, y1 = math.floor(horizon * i / bands), math.floor(horizon * (i + 1) / bands)
-    gfx.fill(0, y0, SW, y1 - y0 + 1, shade(0x2c3452, 90 + i * 28))
+    local y0, y1 = horizon * i / bands, horizon * (i + 1) / bands
+    gfx.fill(0, y0, SW, y1 - y0 + 0.4, shade(0x2c3452, 90 + i * 28))
   end
   for i = 0, bands - 1 do
-    local y0 = horizon + math.floor((VIEW_H - horizon) * i / bands)
-    local y1 = horizon + math.floor((VIEW_H - horizon) * (i + 1) / bands)
-    gfx.fill(0, y0, SW, y1 - y0 + 1, shade(0x5a4a3a, 80 + i * 26))
+    local y0 = horizon + (VIEW_H - horizon) * i / bands
+    local y1 = horizon + (VIEW_H - horizon) * (i + 1) / bands
+    gfx.fill(0, y0, SW, y1 - y0 + 0.4, shade(0x5a4a3a, 80 + i * 26))
   end
   local dirX, dirY = math.cos(P.angle), math.sin(P.angle)
   local planeX, planeY = -dirY * FOV, dirX * FOV
@@ -78,29 +78,29 @@ local function drawWorld(horizon)
     if dist < 0.05 then dist = 0.05 end
     zbuf[i + 1] = dist
     local lineH = VIEW_H / dist
-    local top = math.floor(horizon - lineH / 2)
-    local bottom = math.floor(horizon + lineH / 2)
-    local ya, yb = top < 0 and 0 or top, bottom >= VIEW_H and VIEW_H - 1 or bottom
+    local top = horizon - lineH / 2
+    local bottom = horizon + lineH / 2
+    local ya, yb = top < 0 and 0 or top, bottom > VIEW_H and VIEW_H or bottom
     local f = fog(dist)
     if side == 1 then f = f * 3 // 4 end
     local base = WALL[kind] or 0x808080
     local px = i * COLW
-    gfx.fill(px, ya, COLW, yb - ya + 1, shade(base, f))
+    gfx.fill(px, ya, COLW, yb - ya, shade(base, f))
     if lineH >= 14 then
       local dark = shade(base, f * 2 // 3)
       if kind == 1 then  -- brick: seams across, and now and then one up
         for k = 1, 3 do
-          local y = math.floor(top + lineH * k / 4)
-          if y >= 0 and y < VIEW_H then gfx.fill(px, y, COLW, 1, dark) end
+          local y = top + lineH * k / 4
+          if y >= 0 and y < VIEW_H then gfx.fill(px, y, COLW, 0.5, dark) end
         end
-        if (wx * 5) % 1 < 0.08 then gfx.fill(px, ya, COLW, yb - ya + 1, dark) end
+        if (wx * 5) % 1 < 0.08 then gfx.fill(px, ya, COLW, yb - ya, dark) end
       elseif kind == 2 then  -- stone: panels
-        if (wx * 2) % 1 < 0.06 then gfx.fill(px, ya, COLW, yb - ya + 1, dark) end
+        if (wx * 2) % 1 < 0.06 then gfx.fill(px, ya, COLW, yb - ya, dark) end
       elseif kind == 3 then  -- tech: a light strip
-        local y = math.floor(top + lineH * 0.42)
-        if y >= 0 and y < VIEW_H then gfx.fill(px, y, COLW, math.max(1, lineH // 14), shade(0x80d0ff, f)) end
+        local y = top + lineH * 0.42
+        if y >= 0 and y < VIEW_H then gfx.fill(px, y, COLW, math.max(0.5, lineH / 14), shade(0x80d0ff, f)) end
       else  -- moss: dark patches at the top
-        if math.floor(wx * 8) % 3 == 0 then gfx.fill(px, ya, COLW, math.max(1, lineH * 0.3 // 1), dark) end
+        if math.floor(wx * 8) % 3 == 0 then gfx.fill(px, ya, COLW, math.max(0.5, lineH * 0.3), dark) end
       end
     end
   end
@@ -140,15 +140,15 @@ local function drawThings(horizon)
     local floorY = horizon + lineH / 2 - s.lift * lineH
     local topY = floorY - h
     local f = fog(s.ty)
-    local stride = wRays > 40 and 2 or 1
+    local stride = wRays > 120 and 2 or 1
     local i = left < 0 and 0 or left
     while i <= right and i < RAYS do
       if s.ty < zbuf[i + 1] then
         local u = (i - left + 0.5) / (right - left + 1)
         for _, part in ipairs(s.look) do
           if u >= part[1] and u < part[2] then
-            local ya = math.floor(topY + part[3] * h)
-            local yb = math.floor(topY + part[4] * h)
+            local ya = topY + part[3] * h
+            local yb = topY + part[4] * h
             if ya < 0 then ya = 0 end
             if yb > VIEW_H then yb = VIEW_H end
             if yb > ya then
@@ -239,11 +239,13 @@ local function drawHud()
   label(160, y + 5, "KILLS " .. P.kills .. "/" .. #S.enemies, T.text)
 end
 
+local frames, fpsT, fps = 0, 0, 0
+
 -- one picture of the game. The message line shows for two seconds after an event (G.msg, G.msgT).
 function draw.render(state)
   S, P = state, state.P
   local G = state.G
-  local horizon = math.floor(HALF + math.sin(P.bob * 2) * 2.5 * P.moving)
+  local horizon = HALF + math.sin(P.bob * 2) * 2.5 * P.moving
   drawWorld(horizon)
   drawThings(horizon)
   drawWeapon()
@@ -254,6 +256,13 @@ function draw.render(state)
     for k = 0, 2 do gfx.rect(k, k, SW - 2 * k, VIEW_H - 2 * k, shade(0xff2020, math.floor(256 * math.min(1.0, P.hurt * 2.5)))) end
   end
   drawHud()
+  frames = frames + 1
+  local now = sys.millis()
+  if now - fpsT >= 1000 then
+    fps = frames * 1000 // (now - fpsT)
+    frames, fpsT = 0, now
+  end
+  label(212, VIEW_H + 5, fps .. " fps", T.dim)
 end
 
 -- ---- menus (they draw and wait for keys themselves) ----
