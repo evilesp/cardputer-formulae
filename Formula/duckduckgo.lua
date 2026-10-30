@@ -26,9 +26,11 @@ local function withSize(url, w, h)
   return base .. (base:find("%?") and "&" or "?") .. string.format("w=%d&h=%d&c=7", w, h)
 end
 
+local PREFETCH_QUIET = 1500  -- ms without a key before the next pictures are fetched in the background
 local INFO_DELAY = 1200  -- ms a picture is shown full screen before its title and address appear at the bottom
 local shownAt = 0        -- when the picture on the screen was drawn (sys.millis)
 local infoShown = false  -- the title line of the picture is on the screen now
+local lastKeyAt = 0      -- when the last key came (sys.millis): fetching in the background waits until the keys are quiet
 local paintedKey = nil -- the grid of pictures now on the screen (query and page), so it is not decoded again for a move in the grid
 
 -- a message on an otherwise empty screen, shown before a slow download starts
@@ -173,14 +175,20 @@ end
 local function paintPictures(first, last)
   for i = first, last do
     local item = view.items[i]
-    if not item.failed then
+    if not item.failed and not item.thumbReady then
+      term.text(0, ROWS - 1, string.format("loading pictures %d/%d", i - first + 1, last - first + 1), "cyan")
+      term.flush()
       local slot = i - first
       local col, row = slot % 4, slot // 4
-      if not term.image(item.thumb, col * 196 + 4, row == 0 and 32 or 224, 1.0) then
+      if term.image(item.thumb, col * 196 + 4, row == 0 and 32 or 224, 1.0) then
+        item.thumbReady = true
+      else
         item.failed = true
       end
     end
   end
+  term.text(0, ROWS - 1, "arrows move  enter open  / new  b back", "dim")
+  term.flush()
 end
 
 local function drawImages(paint)
@@ -213,6 +221,10 @@ local function drawPicture()
   local v = view
   local item = v.items[v.index]
   term.clear()
+  if not item.bigReady then
+    term.text(0, 0, "loading picture...", "cyan")
+    term.flush()
+  end
   term.flush()
   local ok, err = term.image(item.big, 0, 0, 1.0)
   if not ok then
@@ -220,6 +232,7 @@ local function drawPicture()
     term.text(0, 7, tostring(err):sub(1, COLS), "dim")
     term.flush()
   end
+  if ok then item.bigReady = true end
   shownAt = sys.millis()
   infoShown = false
 end
@@ -257,6 +270,7 @@ local function prefetchStep()
     if not t.item[ready] and not t.item[t.size .. "Failed"] then
       local ok = term.image(t.item[t.size], 2000, 0, 0.5)
       if ok then t.item[ready] = true else t.item[t.size .. "Failed"] = true end
+      if t.size == "big" then t.item.bigReady = ok or nil end
       return true
     end
   end
@@ -481,6 +495,7 @@ while not quit do
   local k = key.poll()
   while k do
     dirty = true
+    lastKeyAt = sys.millis()
     local action = handleKey(k)
     if action == "quit" then quit = true break end
     k = key.poll()
@@ -491,7 +506,7 @@ while not quit do
     dirty = false
   elseif view.kind == "picture" and not infoShown and sys.millis() - shownAt >= INFO_DELAY then
     drawPictureInfo()
-  elseif not prefetchStep() then
+  elseif sys.millis() - lastKeyAt < PREFETCH_QUIET or not prefetchStep() then
     term.flush()  -- nothing changed: the flush only keeps the input and the screen alive
     sys.sleep(50)
   end
