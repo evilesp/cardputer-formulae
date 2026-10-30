@@ -9,6 +9,8 @@
 local COLS, ROWS = term.size()
 local TEXT_ROWS = ROWS - 2
 local PER_PAGE = 8  -- pictures on one screen: 4 columns, 2 rows
+local THUMB_W, THUMB_H = 180, 150  -- a picture in the grid, in screen pixels (the 4 columns fill the 800 pixels)
+local PICTURE_TOP = 24              -- the picture of one screen starts under the header line and ends above the footer
 
 ---------------------------------------------------------------- helpers
 
@@ -22,8 +24,11 @@ local function withSize(url, w, h)
   return base .. (base:find("%?") and "&" or "?") .. string.format("w=%d&h=%d&c=7", w, h)
 end
 
+local paintedKey = nil -- the grid of pictures now on the screen (query and page), so it is not decoded again for a move in the grid
+
 -- a message on an otherwise empty screen, shown before a slow download starts
 local function showMessage(text, color)
+  paintedKey = nil
   term.clear()
   term.text(0, 7, text, color or "cyan")
   term.flush()
@@ -135,8 +140,8 @@ local function openImages(query)
   for _, p in ipairs(found) do
     items[#items + 1] = {
       title = p.title,
-      thumb = withSize(p.thumb, 112, 84),
-      big = withSize(p.thumb, 140, 105),
+      thumb = withSize(p.thumb, THUMB_W, THUMB_H),
+      big = withSize(p.thumb, 800, 408),  -- the whole screen between the header (24 px) and the footer (the last row, at 432)
       source = p.source,
     }
   end
@@ -145,7 +150,27 @@ local function openImages(query)
   status = #items == 0 and "no pictures found" or nil
 end
 
-local function drawImages()
+local function gridKey(v)
+  return v.query .. "#" .. ((v.sel - 1) // PER_PAGE)
+end
+
+-- the text of the grid is always drawn; the pictures only when the page changes (paintPictures)
+-- the pictures of one page, each at its place in the grid. Each one comes from the card (downloaded the first time).
+-- A picture that failed is not tried again on every screen.
+local function paintPictures(first, last)
+  for i = first, last do
+    local item = view.items[i]
+    if not item.failed then
+      local slot = i - first
+      local col, row = slot % 4, slot // 4
+      if not term.image(item.thumb, col * 196 + 4, row == 0 and 32 or 224, 1.0) then
+        item.failed = true
+      end
+    end
+  end
+end
+
+local function drawImages(paint)
   local v = view
   local n = #v.items
   local pages = math.max(1, (n + PER_PAGE - 1) // PER_PAGE)
@@ -158,8 +183,8 @@ local function drawImages()
   for i = first, last do
     local slot = i - first
     local col, row = slot % 4, slot // 4
-    local caption = (i == v.sel and ">" or " ") .. v.items[i].title:sub(1, 8)
-    term.text(col * 10, row == 0 and 7 or 14, caption, i == v.sel and "white" or "dim")
+    local caption = (i == v.sel and ">" or " ") .. v.items[i].title:sub(1, 12)
+    term.text(col * 14, row == 0 and 8 or 16, caption, i == v.sel and "white" or "dim")
   end
   if status then
     term.text(0, ROWS - 1, status:sub(1, COLS), "warn")
@@ -167,18 +192,7 @@ local function drawImages()
     term.text(0, ROWS - 1, "arrows move  enter open  / new  b back", "dim")
   end
   term.flush()
-  -- pictures go on top of the text, cell by cell. Each one comes from the card (downloaded the first time).
-  -- A picture that failed is not tried again on every screen.
-  for i = first, last do
-    local item = v.items[i]
-    if not item.failed then
-      local slot = i - first
-      local col, row = slot % 4, slot // 4
-      if not term.image(item.thumb, col * 60 + 2, row == 0 and 8 or 64, 0.5) then
-        item.failed = true
-      end
-    end
-  end
+  if paint then paintPictures(first, last) end
 end
 
 local function drawPicture()
@@ -188,7 +202,7 @@ local function drawPicture()
   term.text(0, 0, item.title:sub(1, COLS), "white")
   term.text(0, ROWS - 1, (domainOf(item.source) .. "  left/right  b back  q quit"):sub(1, COLS), "dim")
   term.flush()
-  local ok, err = term.image(item.big, 50, 8, 1.0)
+  local ok, err = term.image(item.big, 0, PICTURE_TOP, 1.0)
   if not ok then
     term.text(0, 6, "picture not available:", "warn")
     term.text(0, 7, tostring(err):sub(1, COLS), "dim")
@@ -247,10 +261,14 @@ local function drawPage()
 end
 
 local function draw()
-  term.clear()
+  local same = view.kind == "images" and gridKey(view) == paintedKey
+  if not same then term.clear() end
+  if view.kind ~= "images" then paintedKey = nil end
   if view.kind == "search" then drawSearch()
   elseif view.kind == "results" then drawResults()
-  elseif view.kind == "images" then drawImages()
+  elseif view.kind == "images" then
+    drawImages(not same)
+    paintedKey = gridKey(view)
   elseif view.kind == "picture" then drawPicture()
   else drawPage() end
   term.flush()
