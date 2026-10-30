@@ -3,6 +3,8 @@
 -- Type a search (or run: duckduckgo WORDS...), pick a result with up/down and Enter, read the page.
 -- l then a number and Enter follows a link. b goes back, / starts a new search, q quits.
 -- Pictures: duckduckgo img WORDS (or type "img WORDS" in the search box) shows a grid of pictures.
+-- duckduckgo "img<2>" WORDS lists only 2 of them (the shell reads < as a redirection, so the quotes are needed).
+-- Picking one shows it on the whole screen; left and right turn the pictures, the next ones are fetched while you look.
 -- Pages and pictures are kept on the SD card, because the ADV's RAM is small: only the lines and the pictures that
 -- are on the screen are read back. Pages need firmware v0.1.0.8(beta) or newer.
 
@@ -24,6 +26,9 @@ local function withSize(url, w, h)
   return base .. (base:find("%?") and "&" or "?") .. string.format("w=%d&h=%d&c=7", w, h)
 end
 
+local INFO_DELAY = 1200  -- ms a picture is shown full screen before its title and address appear at the bottom
+local shownAt = 0        -- when the picture on the screen was drawn (sys.millis)
+local infoShown = false  -- the title line of the picture is on the screen now
 local paintedKey = nil -- the grid of pictures now on the screen (query and page), so it is not decoded again for a move in the grid
 
 -- a message on an otherwise empty screen, shown before a slow download starts
@@ -129,7 +134,14 @@ end
 
 ---------------------------------------------------------------- pictures
 
-local function openImages(query)
+-- "img<N> words": the count N is how many pictures are listed; without it all that DuckDuckGo gives
+local function parseImages(text)
+  local n, words = text:match("^img<(%d+)>%s*(.*)$")
+  if not n then words = text:match("^img%s+(.+)$") end
+  return tonumber(n), words
+end
+
+local function openImages(query, count)
   showMessage("searching pictures...")
   local found, err = search.pictures(query)
   if not found then
@@ -138,10 +150,11 @@ local function openImages(query)
   end
   local items = {}
   for _, p in ipairs(found) do
+    if count and #items >= count then break end
     items[#items + 1] = {
       title = p.title,
       thumb = withSize(p.thumb, THUMB_W, THUMB_H),
-      big = withSize(p.thumb, 800, 408),  -- the whole screen between the header (24 px) and the footer (the last row, at 432)
+      big = withSize(p.thumb, 800, 480),  -- the whole screen: a picture on its own covers all of it
       source = p.source,
     }
   end
@@ -195,19 +208,59 @@ local function drawImages(paint)
   if paint then paintPictures(first, last) end
 end
 
+-- the picture alone on the whole screen; the title line is drawn at the bottom only when the picture has been still for a while
 local function drawPicture()
   local v = view
   local item = v.items[v.index]
   term.clear()
-  term.text(0, 0, item.title:sub(1, COLS), "white")
-  term.text(0, ROWS - 1, (domainOf(item.source) .. "  left/right  b back  q quit"):sub(1, COLS), "dim")
   term.flush()
-  local ok, err = term.image(item.big, 0, PICTURE_TOP, 1.0)
+  local ok, err = term.image(item.big, 0, 0, 1.0)
   if not ok then
     term.text(0, 6, "picture not available:", "warn")
     term.text(0, 7, tostring(err):sub(1, COLS), "dim")
     term.flush()
   end
+  shownAt = sys.millis()
+  infoShown = false
+end
+
+local function drawPictureInfo()
+  local v = view
+  local item = v.items[v.index]
+  term.text(0, ROWS - 1, (item.title .. "  " .. domainOf(item.source) .. "  " .. v.index .. "/" .. #v.items .. "  left/right b q"):sub(1, COLS), "dim")
+  term.flush()
+  infoShown = true
+end
+
+-- Pictures that are next in line are downloaded while the program waits for a key: a download does not stop the screen,
+-- and the next picture or page is on the card when it is turned to. The download is drawn outside the screen (x 2000), so
+-- nothing shows; one picture at a time, so a key is answered after at most one download.
+local function prefetchTargets()
+  local v = view
+  local list = {}
+  if v.kind == "picture" then
+    for _, i in ipairs({ v.index + 1, v.index - 1, v.index + 2 }) do
+      if i >= 1 and i <= #v.items then list[#list + 1] = { item = v.items[i], size = "big" } end
+    end
+  elseif v.kind == "images" then
+    local first = ((v.sel - 1) // PER_PAGE + 1) * PER_PAGE + 1
+    for i = first, math.min(#v.items, first + PER_PAGE - 1) do
+      list[#list + 1] = { item = v.items[i], size = "thumb" }
+    end
+  end
+  return list
+end
+
+local function prefetchStep()
+  for _, t in ipairs(prefetchTargets()) do
+    local ready = t.size .. "Ready"
+    if not t.item[ready] and not t.item[t.size .. "Failed"] then
+      local ok = term.image(t.item[t.size], 2000, 0, 0.5)
+      if ok then t.item[ready] = true else t.item[t.size .. "Failed"] = true end
+      return true
+    end
+  end
+  return false
 end
 
 ---------------------------------------------------------------- drawing
@@ -269,7 +322,7 @@ local function draw()
   elseif view.kind == "images" then
     drawImages(not same)
     paintedKey = gridKey(view)
-  elseif view.kind == "picture" then drawPicture()
+  elseif view.kind == "picture" then drawPicture(); return
   else drawPage() end
   term.flush()
 end
@@ -282,8 +335,9 @@ local function handleKey(k)
     if k == "enter" then
       if view.input ~= "" then
         local q = view.input
-        local picQuery = q:match("^img%s+(.+)$") or (view.images and q)
-        if picQuery then openImages(picQuery) else doSearch(q) end
+        local count, picQuery = parseImages(q)
+        if not picQuery and view.images then count, picQuery = nil, q end
+        if picQuery then openImages(picQuery, count) else doSearch(q) end
       elseif #stack > 0 then
         view = pop()
       end
@@ -411,9 +465,11 @@ end
 
 term.fullscreen(true)
 local initial = table.concat(arg, " ")
-if arg[1] == "img" then
-  local words = table.concat(arg, " ", 2)
-  if words ~= "" then openImages(words) else view = { kind = "search", input = "", images = true } end
+local firstCount, firstWords = parseImages(initial)
+if arg[1] == "img" or firstCount then
+  local count, words = firstCount, firstWords or ""
+  if arg[1] == "img" then count, words = nil, table.concat(arg, " ", 2) end
+  if words ~= "" then openImages(words, count) else view = { kind = "search", input = "", images = true } end
 elseif initial ~= "" then
   doSearch(initial)
 end
@@ -433,9 +489,11 @@ while not quit do
   if dirty then
     draw()
     dirty = false
-  else
+  elseif view.kind == "picture" and not infoShown and sys.millis() - shownAt >= INFO_DELAY then
+    drawPictureInfo()
+  elseif not prefetchStep() then
     term.flush()  -- nothing changed: the flush only keeps the input and the screen alive
+    sys.sleep(50)
   end
-  sys.sleep(50)
 end
 term.fullscreen(false)
