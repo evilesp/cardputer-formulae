@@ -88,8 +88,8 @@ steps|1.0|the step counter: today's steps against a goal, the last seven days, r
 sleep|1.0|low power screen: time, date, steps and battery at the lowest brightness, 80 MHz, WiFi power saving; any key wakes it (firmware v0.1.0.18; 'sleep' alone, 'sleep N' still waits)|needs:ui|Formula/sleep.lua
 deepSleep|1.0.0.1|deep sleep: screen off and processor stopped, a key or BOOT wakes the Cardputer (firmware v0.1.0.18)|Formula/deepSleep.lua
 off|1.0|switch off: the battery is cut where the board allows it, otherwise deep sleep until BOOT (firmware v0.1.0.18)|Formula/off.lua
-tiltracer|1.0.0.3|a race against five bots on a 3D track with bends and hills: 3 or 5 laps, positions, lap times; steer with a d or by tilting|Formula/tiltracer.lua
-tiltmaze|1.0.0.1|ball maze: tilt the Cardputer to roll the ball to the exit (motion sensor)|needs:ui|Formula/tiltmaze.lua
+tiltracer|1.0.0.4|a race against five bots on a 3D track with bends and hills: 3 or 5 laps, positions, lap times; w or up = gas, s or down = brake, a d or arrows (or tilt) steer|Formula/tiltracer.lua
+tiltmaze|1.0.0.2|ball maze: tilt the Cardputer or use a d w s and the arrows to roll the ball to the exit|needs:ui|Formula/tiltmaze.lua
 spectrum|1.0|sound from the microphone as 16 bars with note and peaks (firmware v0.1.0.18, audio.listen)|needs:ui|Formula/spectrum.lua
 sequencer|1.0|drum machine: 8 tracks of 16 steps, tempo, save and load the beat on the SD card (firmware v0.1.0.18 for the sound)|needs:ui|Formula/sequencer.lua
 morse|1.0|Morse code with sound: send a text, or learn to hear letters and digits (firmware v0.1.0.18 for the tones)|needs:ui|Formula/morse.lua
@@ -133,7 +133,7 @@ fireworks|1.0.0.2|animation: ten kinds of shells (willow, palm, crossette, glitt
 lavalamp|1.0.0.1|animation: a lava lamp with merging blobs of wax, four colour themes|Formula/lavalamp.lua
 spirograph|1.0|animation: a spirograph draws coloured curves one after another (space for a new one)|Formula/spirograph.lua
 snowfall|1.0.0.2|animation: a winter night: a log cabin with smoke, snow piling on the roof and the pines, moonlight and gusts|Formula/snowfall.lua
-waves|1.0.0.2|animation: a sunset over the sea with a glittering path of light, swells with foam, clouds, a sailboat, moon and stars|Formula/waves.lua
+waves|1.0.0.3|animation: a sunset over the sea with a glittering path of light, swells rolling toward you with foam, clouds, a sailboat, moon and stars|Formula/waves.lua
 memory|1.0.0.1|find the pairs alone, against a fair bot (easy, normal, hard: it forgets) or with a friend; three table sizes|needs:ui|Formula/memory.lua
 fifteen|1.0|the sliding puzzle in 3x3, 4x4 and 5x5, always solvable, best results kept|needs:ui|Formula/fifteen.lua
 battleship|1.0|sink the enemy fleet on a 10x10 sea against a bot that hunts and follows a hit|needs:ui|Formula/battleship.lua

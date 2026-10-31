@@ -129,9 +129,21 @@ local ok, problem = pcall(function()
       gfx.fill(cx + 4, cy + 2, math.floor(c.len) - 8, 1, under)
     end
     -- the sea: lighter far away (the sky in it), darker near, each row its own shade
+    -- swells roll toward you: the phase follows the real distance of each row, so the bands bunch up near the horizon and
+    -- widen close by. Four slices of a row have a slightly different phase, so the crests are not straight lines.
+    local lightTone = mix(low, 0xffffff, 0.3)
     for _, r in ipairs(rows) do
-      local f = r.f
-      gfx.hline(0, W - 1, r.y, mix(seaFar, seaNear, f ^ 0.6))
+      local f, d = r.f, r.d
+      local base = mix(seaFar, seaNear, f ^ 0.6)
+      for part = 0, 3 do
+        local x0 = part * 60
+        local ph = d * 2.4 - t * 1.15 + part * 0.22
+        local sw = math.sin(ph) + 0.5 * math.sin(d * 5.3 - t * 1.7 + part * 0.35 + 1.3)
+        local c
+        if sw > 0 then c = mix(base, lightTone, sw * 0.11 * (1 - f * 0.35) * (0.4 + 0.6 * light))
+        else c = mix(base, 0x000000, -sw * 0.14 * (0.5 + 0.5 * f)) end
+        gfx.hline(x0, x0 + 59, r.y, c)
+      end
     end
     gfx.hline(0, W - 1, HORIZON, mix(low, 0xffffff, 0.25 * light))
     -- a headland far away on the left, and a sailboat crossing the horizon
@@ -148,10 +160,10 @@ local ok, problem = pcall(function()
       local r = rows[i]
       local len = math.floor(2 + r.f * 14)
       local gap = math.floor(18 + r.f * 40)
-      local shift = math.floor((t * (6 + r.f * 20) + i * 7) % gap)
+      local shift = math.floor((t * (4 + r.f * 22) + i * 7) % gap)
       local c = mix(mix(seaFar, seaNear, r.f ^ 0.6), mix(low, 0xc8e0f0, 0.4), 0.35 * (1 - r.f * 0.5))
       for x = -gap + shift, W, gap do
-        local wob = math.floor((noise(i * 31 + x // gap) - 0.5) * gap * 0.5)
+        local wob = math.floor((noise(i * 31 + x // gap) - 0.5) * gap * 0.5 + math.sin(r.d * 2.4 - t * 1.15) * (1 + r.f * 3))
         gfx.hline(x + wob, x + wob + len, r.y, c)
       end
     end
@@ -162,9 +174,12 @@ local ok, problem = pcall(function()
         local spread = 3 + r.f * 46
         local n = r.f < 0.3 and 2 or 3
         for g = 1, n do
-          local seed = noise(i * 13.7 + g * 5.3 + math.floor(t * 3 + g + i * 0.5))
-          if seed > 0.25 then
-            local gx = sunX + (noise(i * 7.1 + g + math.floor(t * 2.5)) - 0.5) * 2 * spread
+          -- a glint shows where a wave's slope faces the sun: it travels with the swell instead of flickering at random
+          local seed = noise(i * 13.7 + g * 5.3 + math.floor(t * 1.5 + g + i * 0.5))
+          local face = math.sin(r.d * 2.4 - t * 1.15 + g * 0.9 + 1.5)
+          if seed > 0.25 and face > -0.2 then
+            seed = seed * (0.6 + 0.4 * face)
+            local gx = sunX + (noise(i * 7.1 + g + math.floor(t * 1.2)) - 0.5) * 2 * spread + math.sin(t * 0.8 + i * 0.3 + g) * (1 + r.f * 3)
             local glen = math.floor(1 + r.f * 9 * seed)
             gfx.hline(math.floor(gx - glen / 2), math.floor(gx + glen / 2), r.y, mix(sunCol, 0xffffff, 0.3 * seed) )
           end

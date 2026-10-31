@@ -89,8 +89,8 @@ brew install htop nano snake
 | sleep | tryb oszczędny: godzina, data, kroki i bateria na najniższej jasności, 80 MHz, WiFi oszczędza prąd; dowolny klawisz budzi |
 | deepSleep | głęboki sen: ekran wyłączony, procesor zatrzymany; klawisz albo BOOT budzi |
 | off | wyłączenie: odcina baterię, jeśli płytka na to pozwala; inaczej głęboki sen do BOOT |
-| tiltracer | wyścig z pięcioma botami po torze 3D z zakrętami i wzniesieniami: 3 lub 5 okrążeń, pozycje, czasy okrążeń; skręt a d albo przechyłem |
-| tiltmaze | labirynt z kulką: przechyl Cardputer, żeby kulka dotarła do wyjścia |
+| tiltracer | wyścig z pięcioma botami po torze 3D z zakrętami i wzniesieniami: 3 lub 5 okrążeń, pozycje, czasy okrążeń; gaz w lub ↑, hamulec s lub ↓, skręt a d, strzałki albo przechył |
+| tiltmaze | labirynt z kulką: przechyl Cardputer albo użyj a d w s i strzałek, żeby kulka dotarła do wyjścia |
 | spectrum | widmo dźwięku z mikrofonu jako 16 słupków z nutą i szczytami (firmware v0.1.0.18) |
 | sequencer | automat perkusyjny: 8 ścieżek po 16 kroków, tempo, zapis i odczyt rytmu na karcie SD |
 | morse | alfabet Morse'a z dźwiękiem: nadawanie tekstu albo nauka rozpoznawania liter i cyfr |
