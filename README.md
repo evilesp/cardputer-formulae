@@ -187,7 +187,6 @@ brew install htop nano snake
 | helix | animacja: podwójna helisa DNA kręci się na ekranie, przednia nić jest jaśniejsza, szczeble łączą nici; `w` `s` prędkość, `a` `d` długość skrętu, spacja zmienia kolory, `p` pauza, `q` wychodzi |
 | sortviz | animacja i nauka: sortowanie bąbelkowe, przez wstawianie lub przez wybór na 40 słupkach, porównywane słupki są pomarańczowe, posortowane zieleni się; `1` `2` `3` wybiera algorytm, `n` nowe tasowanie, `w` `s` prędkość, `p` pauza, `q` wychodzi |
 | cube | animacja: obracający się sześcian 3D z perspektywą, bliższe krawędzie są jaśniejsze; `a` `d` rozmiar, `w` `s` prędkość, spacja zmienia kolory, `p` pauza, `q` wychodzi |
-| desktop | środowisko graficzne z dotykiem (beta): ikony wszystkich aplikacji, okna przesuwane za pasek tytułu, pasek zadań, menu startowe, panel szybki (przeciągnij z góry), gesty; `desktop enable` / `desktop disable` włącza i wyłącza start po uruchomieniu, `desktop install NAZWA` dodaje pakiety (aplikacje, motywy, tapety) z folderu `Desktop/`, zwykłe pliki tekstowe, które każdy może napisać; bez ekranu dotykowego strzałki sterują wskaźnikiem |
 
 Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
