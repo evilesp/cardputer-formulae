@@ -1,7 +1,6 @@
 #!lua
--- tiltracer: a race against five bots on a track with bends and hills, in pseudo 3D. w or the up arrow is the gas, s or the
--- down arrow the brake (let go of the gas and the car rolls slowly out), a and d or the left and right arrows steer (or tilt
--- the Cardputer to steer, t switches the tilt on and off). Bump into a car and you lose speed; off the
+-- tiltracer: a race against five bots on a track with bends and hills, in pseudo 3D. The car speeds up by itself; s brakes,
+-- a and d steer (or tilt the Cardputer to steer, t switches the tilt on and off). Bump into a car and you lose speed; off the
 -- road you are slow. Three laps (or five); you start last and must get to the front. Choose easy, normal or hard bots.
 -- r starts the race again, ctrl-q quits. Needs the graphics; the motion sensor is used when it is there.
 -- Run it with --selftest to check the track, the steering and the race order.
@@ -360,14 +359,13 @@ local function updateBots(dt)
   end
 end
 
-local function updatePlayer(dt, steer, brake, gas)
+local function updatePlayer(dt, steer, brake)
   local seg = math.floor((player.z + PLAYER_Z) / SEG)
   local pct = player.speed / MAX_SPEED
   player.steer = steer
   player.x = player.x + steer * dt * 2 * pct - curveAt(seg) * pct * pct * dt * CENTRIFUGAL * 2
   if brake then player.speed = player.speed - MAX_SPEED * dt
-  elseif state == "done" or (state == "race" and gas) then player.speed = player.speed + MAX_SPEED / 5 * dt
-  else player.speed = player.speed - MAX_SPEED / 14 * dt end  -- no gas: the car slows down by itself
+  elseif state == "race" or state == "done" then player.speed = player.speed + MAX_SPEED / 5 * dt end
   if math.abs(player.x) > 1.05 and player.speed > MAX_SPEED / 4 then player.speed = player.speed - MAX_SPEED / 1.5 * dt end
   player.x = math.max(-2.2, math.min(2.2, player.x))
   -- a bump into a car ahead: you slow to its speed and bounce a little to the side
@@ -419,7 +417,6 @@ local function hud()
     ui.center(24, "lap " .. lapTime(lastLap), 0xffffff, 1)
   end
   if useTilt then ui.label(3, H - 10, "tilt", 0x8a94aa) end
-  if state == "count" then ui.center(H - 10, "w gas  s brake  a d steer", 0x8a94aa) end
 end
 
 local w, h = gfx.open()
@@ -437,32 +434,27 @@ local ok, problem = pcall(function()
   useTilt = sys.imu ~= nil and sys.imu() ~= nil
   newRace()
   local last = sys.millis()
-  local gasUntil = 0
   while true do
     local now = sys.millis()
     local dt = math.min((now - last) / 1000, 0.1)
     last = now
     local held = key.down and key.down() or {}
-    local keySteer, brake, gas = 0, false, false
+    local keySteer, brake = 0, false
     for _, k in ipairs(held) do
       if k == "a" or k == "left" then keySteer = keySteer - 1 end
       if k == "d" or k == "right" then keySteer = keySteer + 1 end
       if k == "s" or k == "down" then brake = true end
-      if k == "w" or k == "up" then gas = true end
     end
     local k = key.poll()
     while k do
       if k == "ctrl-q" then return end
       if k == "r" then newRace() end
       if k == "t" then useTilt = not useTilt end
-      if not key.down then  -- without the list of held keys a press acts for a moment
-        if k == "a" or k == "left" then keySteer = -1 elseif k == "d" or k == "right" then keySteer = 1
-        elseif k == "s" or k == "down" then brake, gasUntil = true, 0
-        elseif k == "w" or k == "up" then gasUntil = now + 400 end
+      if not key.down then  -- without the list of held keys a press steers for a moment
+        if k == "a" then keySteer = -1 elseif k == "d" then keySteer = 1 elseif k == "s" then brake = true end
       end
       k = key.poll()
     end
-    if gasUntil > now then gas = true end
     local steer = keySteer
     if steer == 0 and useTilt and sys.imu then steer = steerFromSensor(sys.imu()) end
     if state == "count" and now - countStart >= 3000 then
@@ -471,7 +463,7 @@ local ok, problem = pcall(function()
     end
     if state ~= "count" then
       updateBots(dt)
-      updatePlayer(dt, steer, brake, gas)
+      updatePlayer(dt, steer, brake)
     end
     bumpT = math.max(0, bumpT - dt)
     render()
