@@ -11,7 +11,7 @@
 local MAX_STEPS = 6
 
 local function usage()
-  print("usage: natan [--model NAME] [--local] QUESTION...   (for example: natan how much free space has this device)")
+  print("usage: natan QUESTION...   |   natan /set local | ollama HOST:PORT | api HOST:PORT KEY   |   natan /show   (for example: natan how much free space has this device)")
 end
 
 if not llm or not driver then
@@ -45,6 +45,46 @@ if #words == 0 then
   return
 end
 local question = table.concat(words, " ")
+
+-- ---- the settings: natan /set local | ollama HOST[:PORT] | api HOST[:PORT] KEY, natan /show ----
+local CONF = "/etc/natan.conf"
+local LOCAL_MODELS = { "natan-intent:pl", "natan-cmd:pl", "natan-reply:pl" }
+local function readConf()
+  return fs.exists(CONF) and fs.read(CONF) or ""
+end
+if words[1] == "/show" or (words[1] == "/set" and #words == 1) then
+  local mode = readConf():match("mode=([^\r\n]+)") or "auto"
+  print("natan answers with: " .. (mode == "local" and "the models of this device" or mode == "auto" and "a server when one is set, else the models of this device" or mode))
+  local host = llm.host()
+  print("server: " .. ((host and host ~= "") and host or "none"))
+  local have = {}
+  for _, m in ipairs(llm.list()) do
+    if m.where == "local" then have[m.name] = true end
+  end
+  for _, n in ipairs(LOCAL_MODELS) do print(string.format("  %-16s %s", n, have[n] and "on the card" or "not pulled yet (the first question pulls it)")) end
+  return
+elseif words[1] == "/set" then
+  local what = words[2]
+  local mode
+  if what == "local" then
+    mode = "local"
+  elseif (what == "ollama" or what == "server") and words[3] then
+    local ok, e = pcall(function() llm.host(words[3]); if llm.key then llm.key("") end end)
+    if not ok then print("natan: " .. tostring(e)) return end
+    mode = "ollama"
+  elseif what == "api" and words[3] and words[4] then
+    local ok, e = pcall(function() llm.host(words[3]); llm.key(words[4]) end)
+    if not ok then print("natan: " .. tostring(e)) return end
+    mode = "api"
+  else
+    print("usage: natan /set local | ollama HOST[:PORT] | api HOST[:PORT] KEY")
+    return
+  end
+  local ok, e = fs.write(CONF, "mode=" .. mode .. "\n")
+  if not ok then print("natan: cannot write " .. CONF .. ": " .. tostring(e)) return end
+  print("natan answers with " .. (mode == "local" and "the models of this device" or mode .. " " .. llm.host()))
+  return
+end
 
 -- ---- the tools ----
 
@@ -168,9 +208,12 @@ end
 
 -- ---- the model ----
 
+-- /etc/natan.conf (written by natan /set): mode=local (the models of this device) | ollama | api | auto (a server when one is set), model=NAME
+local conf = readConf()
+local mode = conf:match("mode=([^\r\n]+)") or "auto"
+if mode == "local" then forceLocal = true end
 if not model and not forceLocal then
-  local f = fs.exists("/etc/natan.conf") and fs.read("/etc/natan.conf") or nil
-  model = f and f:match("model=([^\r\n]+)")
+  model = conf:match("model=([^\r\n]+)")
 end
 if not model and not forceLocal then
   for _, m in ipairs(llm.list()) do
@@ -185,13 +228,24 @@ if not model then
   local nl = sys.run and driver.load("natanlocal")
   if nl then
     local missing = nl.missing()
+    if #missing > 0 and llm.pull and net.connected() then
+      for _, name in ipairs(missing) do
+        print("natan: pulling " .. name .. " once")
+        local ok, perr = llm.pull(name)
+        if not ok then
+          print("natan: " .. tostring(perr))
+          return
+        end
+      end
+      missing = nl.missing()
+    end
     if #missing == 0 then
       nl.ask(question)
       return
     end
-    print("natan answers with models that run on this device; pull them once:")
+    print("natan answers with models that run on this device; they are not here and there is no WiFi to pull them (wifi connect SSID PASS), or pull them once:")
     print("  ollama pull " .. table.concat(missing, " "))
-    print("or set an Ollama server on your network: ollama host ADDRESS")
+    print("or set an Ollama server on your network: natan /set ollama HOST:PORT")
     return
   end
   print("natan needs a chat model that answers in JSON. Set an Ollama server on your network:")
