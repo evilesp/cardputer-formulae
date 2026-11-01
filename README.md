@@ -43,6 +43,7 @@ brew install htop nano snake
 | uuidgen | losowy UUID |
 | shasum | SHA-256 pliku lub tekstu |
 | duckduckgo | przeglądarka tekstowa z wyszukiwarką DuckDuckGo |
+| natan | pytaj urządzenie zwykłymi słowami: model odpowiada w JSON, natan wykonuje narzędzia (pamięć, bateria, sieć, pliki, GPIO), odpowiedź płynie na żywo; wymaga serwera Ollama (`ollama host ADRES`) |
 | remote | piloty podczerwieni: nauka przycisków, nazwy, wysyłanie po kolei (wymaga v0.1.0.11) |
 | softspi | SPI programowe na dowolnych pinach (sterownik) |
 | mcp3008 | przetwornik ADC MCP3008, 8 wejść, 10 bitów (sterownik) |
@@ -87,8 +88,6 @@ brew install htop nano snake
 | uidemo | pokaz biblioteki ui i przykład aplikacji z grafiką |
 | steps | licznik kroków: dziś kontra cel, ostatnie 7 dni, zerowanie; liczy w tle (firmware v0.1.0.18) |
 | sleep | tryb oszczędny: godzina, data, kroki i bateria na najniższej jasności, 80 MHz, WiFi oszczędza prąd; dowolny klawisz budzi |
-| deepSleep | głęboki sen: ekran wyłączony, procesor zatrzymany; klawisz albo BOOT budzi |
-| off | wyłączenie: odcina baterię, jeśli płytka na to pozwala; inaczej głęboki sen do BOOT |
 | tiltracer | wyścig z pięcioma botami po torze 3D z zakrętami i wzniesieniami: 3 lub 5 okrążeń, pozycje, czasy okrążeń; skręt a d albo przechyłem |
 | tiltmaze | labirynt z kulką: przechyl Cardputer, żeby kulka dotarła do wyjścia |
 | spectrum | widmo dźwięku z mikrofonu jako 16 słupków z nutą i szczytami (firmware v0.1.0.18) |
