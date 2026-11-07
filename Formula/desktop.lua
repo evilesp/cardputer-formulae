@@ -77,7 +77,7 @@ local function mix(a, b, t)
     | math.floor(ab + ((b & 255) - ab) * t + 0.5)
 end
 
--- a program file starts with "#!lua": load() does not skip that line (the shell does), so it becomes a comment
+-- a program file starts with "#!lua": the firmware before v0.1.7 did not skip that line in load(), so it becomes a comment here too
 local function asChunk(src, name)
   if src:sub(1, 2) == "#!" then src = "--" .. src:sub(3) end
   return load(src, "=" .. name)
@@ -338,7 +338,7 @@ if arg and arg[1] == "--selftest" then
   check(th.accent == 0x112233 and th.bg == THEMES.dark.bg, "a .theme file changes only its keys")
   check(makeTheme("nothing").bg == THEMES.ubuntu.bg, "an unknown theme falls back to the default")
   local chunk = asChunk("#!lua\nreturn 41 + 1", "t")
-  check(chunk and chunk() == 42 and load("#!lua\nreturn 1") == nil, "a program that starts with #!lua loads")
+  check(chunk and chunk() == 42 and load("#!lua\nreturn 1")() == 1, "a program that starts with #!lua loads")
   check(fit("abcdefgh", 5) == "abc..", "fit")
   check(fit("abc", 5) == "abc" and #fit("abcdefgh", 5) == 5, "fit keeps the width")
   check(mix(0, 0xffffff, 0.5) == 0x808080 and clamp(5, 0, 3) == 3, "mix and clamp")
