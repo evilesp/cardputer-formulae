@@ -9,10 +9,9 @@
 --   desktop install NAME  installs a desktop package: NAME of the repository, or a full URL of a .app/.theme/.wall file
 --   desktop remove NAME   removes one
 -- Home screen: the apps pinned to it, and a dock with the launcher (the grid of dots: every app), the terminal, files and settings.
--- Hold an app (in the launcher or on the home screen) for Open, Pin to home or Unpin, and Hide. The terminal window runs commands
--- with sys.shell (every command of the shell; one that asks questions or draws runs on the text terminal and the desktop returns on a key
--- or a touch; on an older firmware sys.run: reading and the known commands, a command that changes the device asks for y); exit closes it, logout leaves
--- the desktop. Typing needs a keyboard (the Bluetooth one or the serial port).
+-- Hold an app (in the launcher or on the home screen) for Open, Pin to home or Unpin, and Hide. The Terminal icon opens the real text terminal
+-- (sys.console: the same shell, cd, history, Tab and every program); Ctrl+D, exit or a tap on the top bar come back to the desktop. On a firmware
+-- without sys.console it is a window that runs commands with sys.shell. Typing needs a keyboard (the Bluetooth one or the serial port).
 -- Gestures (one finger): tap = click; double tap on a title bar = maximize; long press on an icon = menu; drag a title bar
 -- = move the window; drag the grip in the corner = resize; drag in a list = scroll; swipe down from the top edge = quick
 -- panel; swipe up from the bottom edge = start menu; swipe left/right on the desktop = next/previous page of icons.
@@ -536,6 +535,19 @@ local function runProgram(app)
   if not ok and not tostring(problem):find("interrupted", 1, true) then showToast(fit(tostring(problem), 36)) end
 end
 
+-- ---- the terminal: the real text terminal (same shell, cd, history, Tab, every program); Ctrl+D, exit or a tap on the top bar come back here
+local function openConsole()
+  gfx.close()
+  local ok, problem = pcall(sys.console)
+  if touch and touch.read then
+    local t1 = sys.millis()
+    while touch.read() and sys.millis() - t1 < 1500 do sys.sleep(30) end   -- until the finger is up, so the tap does not click the desktop
+  end
+  local w2, h2 = gfx.open("native")
+  if w2 then W, H = w2, h2 end
+  if not ok and not tostring(problem):find("interrupted", 1, true) then showToast(fit(tostring(problem), 36)) end
+end
+
 -- ---- windows
 local function newWindow(app)
   for _, win in ipairs(windows) do
@@ -562,7 +574,8 @@ end
 
 local function launch(app)
   menuOpen, quickOpen, popup = false, false, nil
-  if app.kind then newWindow(app) else runProgram(app) end
+  if app.kind == "terminal" and sys and sys.console then openConsole()
+  elseif app.kind then newWindow(app) else runProgram(app) end
 end
 
 local function windowRect(win)
@@ -1265,6 +1278,10 @@ local function handleEvent(ev)
 end
 
 local function main()
+  if sys and sys.embedded and sys.embedded() then
+    print("the desktop is already running: press Ctrl+D to return to it")
+    return
+  end
   local w, h = gfx.open("native")  -- the screen in its own pixels (800x480); an older firmware ignores the argument
   if not w then print("desktop: " .. tostring(h)); return end
   W, H = w, h
