@@ -9,9 +9,9 @@
 --   desktop install NAME  installs a desktop package: NAME of the repository, or a full URL of a .app/.theme/.wall file
 --   desktop remove NAME   removes one
 -- Home screen: the apps pinned to it, and a dock with the launcher (the grid of dots: every app), the terminal, files and settings.
--- Hold an app (in the launcher or on the home screen) for Open, Pin to home or Unpin, and Hide. The Terminal icon opens the real text terminal
--- (sys.console: the same shell, cd, history, Tab and every program); Ctrl+D, exit or a tap on the top bar come back to the desktop. On a firmware
--- without sys.console it is a window that runs commands with sys.shell. Typing needs a keyboard (the Bluetooth one or the serial port).
+-- Hold an app (in the launcher or on the home screen) for Open, Pin to home or Unpin, and Hide. The Terminal window is the real console
+-- (sys.termOpen: the same shell, cd, history, Tab, nano, apt, every program, all inside the window); Ctrl+D or exit closes it. On a firmware
+-- without sys.termOpen it is a window that runs commands with sys.shell. Typing needs a keyboard (the Bluetooth one or the serial port).
 -- Gestures (one finger): tap = click; double tap on a title bar = maximize; long press on an icon = menu; drag a title bar
 -- = move the window; drag the grip in the corner = resize; drag in a list = scroll; swipe down from the top edge = quick
 -- panel; swipe up from the bottom edge = start menu; swipe left/right on the desktop = next/previous page of icons.
@@ -535,18 +535,10 @@ local function runProgram(app)
   if not ok and not tostring(problem):find("interrupted", 1, true) then showToast(fit(tostring(problem), 36)) end
 end
 
--- ---- the terminal: the real text terminal (same shell, cd, history, Tab, every program); Ctrl+D, exit or a tap on the top bar come back here
-local function openConsole()
-  gfx.close()
-  local ok, problem = pcall(sys.console)
-  if touch and touch.read then
-    local t1 = sys.millis()
-    while touch.read() and sys.millis() - t1 < 1500 do sys.sleep(30) end   -- until the finger is up, so the tap does not click the desktop
-  end
-  local w2, h2 = gfx.open("native")
-  if w2 then W, H = w2, h2 end
-  if not ok and not tostring(problem):find("interrupted", 1, true) then showToast(fit(tostring(problem), 36)) end
-end
+-- ---- the terminal window shows the text grid of the real console (sys.termOpen): the same shell, cd, history, Tab and every program run in it
+local renderRef = nil   -- set after render() is defined: the firmware calls it while a command runs, so nano or apt are seen
+local termPalette = nil
+local function termAvailable() return sys and sys.termOpen and sys.termRow and sys.termTick end
 
 -- ---- windows
 local function newWindow(app)
@@ -554,13 +546,21 @@ local function newWindow(app)
     if win.app.id == app.id then focusId = win.id; win.min = false; return win end
   end
   local wantW, wantH = 200 * K, 110 * K
-  if app.kind == "terminal" then wantW, wantH = 300 * K, 150 * K
+  local console = app.kind == "terminal" and termAvailable()
+  if console then
+    local tc, tr = sys.termSize()
+    wantW, wantH = tc * 6 * K + 8 * K, tr * 9 * K + 8 * K + TB
+  elseif app.kind == "terminal" then wantW, wantH = 300 * K, 150 * K
   elseif app.kind == "settings" then wantW, wantH = 200 * K, 134 * K end
   local ww, wh = math.min(W - 8 * K, wantW), math.min(H - BAR_H - TASK_H - 8 * K, wantH)
   local off = ((#windows) % 4) * 8 * K
   local win = { id = nextId, app = app, title = app.name, x = 4 * K + off, y = BAR_H + 4 * K + off, w = ww, h = wh, scroll = 0,
                 max = false, min = false, dir = "/", sel = nil }
-  if app.kind == "terminal" then
+  if console then
+    win.console = true
+    termPalette = termPalette or sys.termPalette()
+    sys.termOpen(function() if renderRef then now = sys.millis(); renderRef() end end)
+  elseif app.kind == "terminal" then
     win.lines = { "ESP Linux terminal: type a command and press enter.", "exit closes this window, logout leaves the desktop." }
     win.input, win.history, win.hpos, win.pending = "", {}, 0, nil
   end
@@ -574,8 +574,7 @@ end
 
 local function launch(app)
   menuOpen, quickOpen, popup = false, false, nil
-  if app.kind == "terminal" and sys and sys.console then openConsole()
-  elseif app.kind then newWindow(app) else runProgram(app) end
+  if app.kind then newWindow(app) else runProgram(app) end
 end
 
 local function windowRect(win)
@@ -593,6 +592,7 @@ local function focusWindow(win)
 end
 
 local function closeWindow(win)
+  if win.console and sys.termClose then sys.termClose() end
   for i, other in ipairs(windows) do
     if other == win then table.remove(windows, i); break end
   end
@@ -801,6 +801,33 @@ local function drawWindowContent(win, x, y, w, h)
     end
     hit(x, y, w, h, "scroll", win)
     text(x + 2 * K, y + h - 9 * K, fit(win.dir, (w - 4 * K) // (6 * K)), theme.dim)
+  elseif win.app.kind == "terminal" and win.console then
+    gfx.fill(x, y, w, h, 0x0c0c0c)
+    local tc, tr = sys.termSize()
+    local lineH = 9 * K
+    local vis = math.max(1, (h - 4 * K) // lineH)
+    local first = math.max(1, tr - vis + 1)                       -- a small window shows the lowest rows (the status bar goes first)
+    local maxCols = math.max(1, (w - 4 * K) // (6 * K))
+    local cr, cc = sys.termCursor()
+    for r = first, tr do
+      local txt, cols = sys.termRow(r)
+      local ry = y + 2 * K + (r - first) * lineH
+      local i = 1
+      while i <= #txt and i <= maxCols do   -- a run of one colour is one call
+        local col = cols:byte(i)
+        local j = i
+        while j < #txt and j < maxCols and cols:byte(j + 1) == col do j = j + 1 end
+        local piece = txt:sub(i, j)
+        if piece:find("%S") then text(x + 2 * K + (i - 1) * 6 * K, ry, piece, termPalette[col] or 0xd7d7d7) end
+        i = j + 1
+      end
+      if cr == r and cc and cc <= maxCols and win.id == focusId and (now // 500) % 2 == 0 then
+        gfx.fill(x + 2 * K + (cc - 1) * 6 * K, ry, 6 * K, 8 * K, 0xd7d7d7)
+        local ch = txt:sub(cc, cc)
+        if ch ~= "" and ch ~= " " then text(x + 2 * K + (cc - 1) * 6 * K, ry, ch, 0x0c0c0c) end
+      end
+    end
+    hit(x, y, w, h, "tscroll", win)
   elseif win.app.kind == "terminal" then
     gfx.fill(x, y, w, h, 0x0c0c0c)
     local cw = math.max(10, (w - 8 * K) // (6 * K))
@@ -1112,6 +1139,7 @@ local function render()
   end
   gfx.flush()
 end
+renderRef = render
 
 -- the first hit of the list (from the top) under the point
 local function hitAt(x, y, only)
@@ -1225,8 +1253,14 @@ local function handleEvent(ev)
     elseif drag.kind == "tscroll" then
       drag.acc = drag.acc + gesture.dy
       local step = 9 * K
-      while drag.acc >= step do drag.win.tscroll = (drag.win.tscroll or 0) + 1; drag.acc = drag.acc - step end
-      while drag.acc <= -step do drag.win.tscroll = (drag.win.tscroll or 0) - 1; drag.acc = drag.acc + step end
+      while drag.acc >= step do
+        if drag.win.console then sys.termScroll(-1) else drag.win.tscroll = (drag.win.tscroll or 0) + 1 end
+        drag.acc = drag.acc - step
+      end
+      while drag.acc <= -step do
+        if drag.win.console then sys.termScroll(1) else drag.win.tscroll = (drag.win.tscroll or 0) - 1 end
+        drag.acc = drag.acc + step
+      end
     elseif drag.kind == "scroll" then
       drag.acc = drag.acc - gesture.dy
       local step = 11 * K
@@ -1303,19 +1337,26 @@ local function main()
     local fw = nil
     for _, w in ipairs(windows) do if w.id == focusId and not w.min then fw = w end end
     typing = fw ~= nil and fw.app.kind == "terminal"
-    local k = key.poll()
-    while k do
-      if k == "ctrl-q" then running = false end
-      pressed[k] = true
-      typed[#typed + 1] = k
-      k = key.poll()
-    end
-    if typing then
-      for _, tk in ipairs(typed) do
-        if tk ~= "ctrl-q" and tk ~= "tab" then
-          local result = termKey(fw, tk)
-          if result == "close" then closeWindow(fw); break
-          elseif result == "logout" then running = false; break end
+    if typing and fw.console then
+      -- the real console: it takes the typed keys itself (a command may run for a while; the firmware redraws the desktop meanwhile)
+      local okTick, problemTick = pcall(sys.termTick)
+      if not okTick and tostring(problemTick):find("interrupted", 1, true) then running = false end
+      if sys.termExit() then closeWindow(fw); typing = false end
+    else
+      local k = key.poll()
+      while k do
+        if k == "ctrl-q" then running = false end
+        pressed[k] = true
+        typed[#typed + 1] = k
+        k = key.poll()
+      end
+      if typing then
+        for _, tk in ipairs(typed) do
+          if tk ~= "ctrl-q" and tk ~= "tab" then
+            local result = termKey(fw, tk)
+            if result == "close" then closeWindow(fw); break
+            elseif result == "logout" then running = false; break end
+          end
         end
       end
     end
@@ -1336,5 +1377,6 @@ local function main()
 end
 
 local ok, problem = pcall(main)
+if sys and sys.termClose then pcall(sys.termClose) end
 gfx.close()
 if not ok and not tostring(problem):find("interrupted", 1, true) then print("desktop: " .. tostring(problem)) end
