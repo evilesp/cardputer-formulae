@@ -1,5 +1,5 @@
 #!lua
--- setting: the settings of the Cardputer in pictures. WiFi: scan the networks, connect with the password, and save one
+-- setting: the settings of the board in pictures. WiFi: scan the networks, connect with the password, and save one
 -- to connect to at boot. Brightness and volume, saved and used at every boot. Connect at boot: on or off.
 -- w s move, enter chooses, a d change a value, backspace goes back, ctrl-q goes back (at the main menu it quits).
 -- Needs the ui package and firmware v0.1.0.16(beta) (net.scan, net.connect, sys.setting). Run it with --selftest to check

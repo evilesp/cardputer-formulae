@@ -85,7 +85,7 @@ Tech|How many bits are in a byte?|8|4|16|10
 Tech|Which company makes the iPhone?|Apple|Samsung|Google|Nokia
 Tech|What does WWW stand for?|World Wide Web|Wide World Web|Web World Wide|World Web Wire
 Tech|Who started Linux?|Linus Torvalds|Bill Gates|Steve Jobs|Richard Stallman
-Tech|What is the chip in the Cardputer?|ESP32-S3|Raspberry Pi|ATmega328|Snapdragon
+Tech|What is the chip in the board?|ESP32-P4|Raspberry Pi|ATmega328|Snapdragon
 Tech|What does RAM stand for?|Random Access Memory|Read Any Memory|Rapid Action Module|Run All Memory
 Tech|Which language is this quiz written in?|Lua|Python|C|Java
 Tech|What is 1 KB in bytes (binary)?|1024|1000|512|2048
@@ -184,7 +184,7 @@ local function shuffled(list)
 end
 
 -- The built-in questions stay in the text of BANK: only where each line starts and its category are kept, and a question is
--- read from its line when it is asked (all of them as tables took about 40 KB of the Cardputer's memory).
+-- read from its line when it is asked (all of them as tables took about 40 KB of the board's memory).
 local LINE_START, LINE_CAT = {}, {}
 do
   local pos = 1

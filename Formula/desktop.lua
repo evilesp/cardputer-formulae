@@ -634,7 +634,7 @@ local function drawWindowContent(win, x, y, w, h)
     text(x + 4 * K, y + 76 * K, "Uptime " .. math.floor((sys.uptime and sys.uptime() or 0)) .. " s", theme.dim)
   else
     gfx.fill(x, y, w, h, theme.panel)
-    text(x + 4 * K, y + 4 * K, "Cardputer Linux desktop", theme.text)
+    text(x + 4 * K, y + 4 * K, "ESP Linux desktop", theme.text)
     text(x + 4 * K, y + 18 * K, "touch: " .. ((touch and touch.read) and "yes" or "no (keys)"), theme.dim)
     text(x + 4 * K, y + 30 * K, "screen " .. W .. "x" .. H, theme.dim)
     text(x + 4 * K, y + 42 * K, "apps " .. #apps, theme.dim)

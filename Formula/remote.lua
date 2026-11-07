@@ -4,7 +4,7 @@
 --   remotes:  enter opens one, n makes a new one, p sets the pins, q quits
 --   a remote: enter sends the button, a learns a new one (press the button at the receiver), r sends all
 --             of them one after another, x deletes a button, b goes back, q quits
--- Sending uses the IR LED on the TX pin (44 on the Cardputer). Learning needs an IR receiver module on the RX pin.
+-- Sending uses the IR LED on the TX pin . Learning needs an IR receiver module on the RX pin.
 -- Set both with p. Needs firmware v0.1.0.11(beta) or newer (the ir module).
 
 local CONFIG = "/home/user/.remote"
@@ -235,7 +235,7 @@ local function drawSettings()
     local sel = i == state.psel
     row(2 + i - 1, string.format("%s%-16s %s", sel and "> " or "  ", f.label, fieldText(f.key)), sel and "green" or "text")
   end
-  row(6, "TX is the IR LED: 44 on the Cardputer.", "dim")
+  row(6, "TX is the pin of the IR LED.", "dim")
   row(7, "RX is the IR receiver module (for learning).", "dim")
   row(8, "pause: the wait between buttons when sending all.", "dim")
 end

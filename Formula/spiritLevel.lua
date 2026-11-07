@@ -1,5 +1,5 @@
 #!lua
--- spiritLevel: a spirit level. Lay the Cardputer on a flat surface, or on the edge of a shelf: the bubble moves
+-- spiritLevel: a spirit level. Lay the board on a flat surface, or on the edge of a shelf: the bubble moves
 -- towards the high side. x tilt is the tilt sideways (the bubble moves left and right) and y tilt is the tilt
 -- up and down (the bubble moves up and down), both in degrees, from the accelerometer (sys.imu).
 -- z sets the current position as level, q quits.

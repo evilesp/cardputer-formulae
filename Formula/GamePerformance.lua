@@ -1,5 +1,5 @@
 #!lua
--- GamePerformance: more memory for games and animations. The WiFi driver takes 40 to 50 KB of the Cardputer's memory; with
+-- GamePerformance: more memory for games and animations. The WiFi driver takes 40 to 50 KB of the board's memory; with
 -- GamePerformance the radio is off while you play, and when the game ends the WiFi comes back and connects in the background
 -- (you can go on working). A program that needs the network brings the WiFi back by itself.
 -- usage: GamePerformance on       from now until "off" (or a restart)

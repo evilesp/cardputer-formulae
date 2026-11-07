@@ -18,7 +18,7 @@ local function canPlace(board, r, c, v)
 end
 
 -- fills the empty cells (0) in order; with random = true each cell tries the digits from a random start, round the ring
--- 1 to 9 (a new list per step filled the memory of the Cardputer). Returns true when done.
+-- 1 to 9 (a new list per step filled the memory of the board). Returns true when done.
 local function fill(board, random)
   for r = 1, 9 do
     for c = 1, 9 do

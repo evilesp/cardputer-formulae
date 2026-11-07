@@ -8,7 +8,7 @@ local CELL = 16
 local OX, OY = 8, 12
 
 -- A cell is one number: the bits of its walls (N = 1, E = 2, S = 4, W = 8, a set bit is a wall standing) and SEEN (16) while
--- the maze is made. One table per cell with four named fields filled the memory of the Cardputer; the numbers take little.
+-- the maze is made. One table per cell with four named fields filled the memory of the board; the numbers take little.
 local BIT = { n = 1, e = 2, s = 4, w = 8 }
 local SEEN = 16
 

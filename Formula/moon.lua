@@ -1,5 +1,5 @@
 #!lua
--- moon: the phase of the Moon on a date, worked out on the Cardputer (no network): the name, the age in days, how much
+-- moon: the phase of the Moon on a date, worked out on the board (no network): the name, the age in days, how much
 -- of the disc is lit, the next new and full moons, and a drawing of the disc. Today comes from the clock (WiFi). The
 -- phase is for noon UTC of the day and the dates of the next moons are in UTC.
 -- usage: moon [YYYY-MM-DD]     (today when left out)

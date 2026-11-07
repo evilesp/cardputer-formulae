@@ -1,5 +1,5 @@
 #!lua
--- i2cscan: lists the devices that answer on an I2C bus. Give two free pins for the bus (the Cardputer's own keyboard bus
+-- i2cscan: lists the devices that answer on an I2C bus. Give two free pins for the bus (the board's own keyboard bus
 -- is not offered). Needs firmware v0.1.0.10(beta) or newer.
 --   i2cscan SDA SCL [CLOCK]       e.g. i2cscan 1 2     (CLOCK in Hz, 100000 by default)
 -- The names are the usual parts for each address; the datasheet of your part tells the rest.

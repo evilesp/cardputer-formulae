@@ -11,7 +11,7 @@ local SEA = 106
 local GRAVITY = 0.045
 local MAX_SPARKS = 160
 -- The stars are kept in flat lists of numbers, not one table each: a table per star took about 400 bytes, and three hundred
--- of them filled the memory of the Cardputer. Colour, flags and the speed of fading share one number.
+-- of them filled the memory of the board. Colour, flags and the speed of fading share one number.
 local TRAIL, TWINKLE, SPLIT, CRACKLE, HEAVY, SOFT = 1, 2, 4, 8, 16, 32
 local DECAYS = { 0.006, 0.009, 0.010, 0.012, 0.013, 0.014, 0.016, 0.018 }
 local function pack(colour, flags, decay) return colour | (flags << 24) | ((decay - 1) << 30) end

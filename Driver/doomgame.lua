@@ -11,7 +11,7 @@
 -- The firmware sends a key press and, while the key is held, repeats of it, but no release. So a key counts as held while its
 -- events keep coming: one press alone keeps the motion going for a moment, the repeats keep it going while you hold the key,
 -- and when they stop, the motion stops. The rules are checked by tests/lua_host/doom_rules.lua (it is not a part of the package,
--- so it does not take memory on the Cardputer).
+-- so it does not take memory on the board).
 
 local draw, drawErr = driver.load("doomdraw", true)  -- which loads doomlevel
 if not draw then error(drawErr, 0) end

@@ -1,5 +1,5 @@
 #!lua
--- sox: SoX-style recording and playback on the Cardputer microphone and speaker. rec and play are copies of this
+-- sox: SoX-style recording and playback on the board microphone and speaker. rec and play are copies of this
 -- package under their own names (brew installs one command per package). Mono 16-bit only; -c 1 and -b 16 are accepted.
 --   sox [-r RATE] INPUT OUTPUT [EFFECT...]   INPUT: FILE, -n (nothing) or -d (microphone)
 --                                            OUTPUT: FILE, -n (nothing) or -d (speaker)

@@ -21,7 +21,7 @@ local COMMON = {
   ["letmein"] = true, ["admin"] = true, ["welcome"] = true, ["login"] = true,
   ["dragon"] = true, ["monkey"] = true, ["iloveyou"] = true, ["sunshine"] = true,
   ["football"] = true, ["master"] = true, ["passw0rd"] = true, ["abc123"] = true,
-  ["cardputer"] = true, ["linux"] = true, ["hello"] = true, ["secret"] = true,
+  ["esplinux"] = true, ["linux"] = true, ["hello"] = true, ["secret"] = true,
 }
 
 -- true when three or more of the same character come in a row, such as aaa

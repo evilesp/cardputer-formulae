@@ -1,6 +1,6 @@
 #!lua
 -- connect4: drop discs into the columns and get four in a row (across, up or slanting) before the other side. Play against
--- the bot (three levels) or two players on one Cardputer. a and d (or the arrows) choose the column, space or enter drops,
+-- the bot (three levels) or two players on one board. a and d (or the arrows) choose the column, space or enter drops,
 -- u takes back the last move against the bot, n starts again, ctrl-q quits. Needs the graphics and the ui package.
 -- Run it with --selftest to check the rules and the bot.
 
@@ -106,7 +106,7 @@ local function search(b, me, depth, alpha, beta)
 end
 
 -- the column the bot plays. Level 1 looks 2 moves ahead and sometimes plays at random, level 3 looks 5 ahead.
-local DEPTH = { 2, 4, 5 }  -- 6 took seconds a move on the Cardputer
+local DEPTH = { 2, 4, 5 }  -- 6 took seconds a move on the board
 local function botMove(b, me, level)
   if level == 1 and math.random() < 0.3 then
     local free = {}

@@ -1,7 +1,7 @@
 #!lua
 -- json: reads JSON text for the apps (brew installs it as a driver: driver.load("json")). json.decode(text) gives tables:
 -- objects have string keys, arrays are lists (1 is the first), numbers are numbers, true and false are booleans, null is nil.
--- It returns nil and the reason for text that is not JSON. Kept small, for the memory of the Cardputer: a text is read once.
+-- It returns nil and the reason for text that is not JSON. Kept small, for the memory of the board: a text is read once.
 
 local json = {}
 

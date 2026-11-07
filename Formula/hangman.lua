@@ -1,7 +1,7 @@
 #!lua
 -- hangman: guess the word one letter at a time. Type letters, Enter starts a new game, q quits.
 
-local WORDS = { "cardputer", "terminal", "keyboard", "battery", "package", "storage",
+local WORDS = { "espressif", "terminal", "keyboard", "battery", "package", "storage",
                 "wireless", "firmware", "pixel", "gpio", "scheduler", "lua" }
 
 local STAGES = {

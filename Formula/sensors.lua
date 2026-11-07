@@ -2,7 +2,7 @@
 -- sensors: live charts of the motion sensor and the battery. 1 shows the accelerometer (x, y, z in g), 2 the gyroscope
 -- (x, y, z in degrees per second), 3 the battery (percent, with the voltage and whether it charges). The charts show
 -- the last 200 readings, ten a second. Every reading is also written to /home/user/sensors.csv on the SD card, a new file
--- for each run (it starts again after 3000 lines), so the memory of the Cardputer is not used for the log. ctrl-q quits.
+-- for each run (it starts again after 3000 lines), so the memory of the board is not used for the log. ctrl-q quits.
 -- Needs the graphics, the ui package and firmware v0.1.0.15(beta) (fs.append). Run it with --selftest to check the history.
 
 local KEEP = 200

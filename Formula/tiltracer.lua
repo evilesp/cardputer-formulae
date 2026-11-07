@@ -1,6 +1,6 @@
 #!lua
 -- tiltracer: a race against five bots on a track with bends and hills, in pseudo 3D. The car speeds up by itself; s brakes,
--- a and d steer (or tilt the Cardputer to steer, t switches the tilt on and off). Bump into a car and you lose speed; off the
+-- a and d steer (or tilt the board to steer, t switches the tilt on and off). Bump into a car and you lose speed; off the
 -- road you are slow. Three laps (or five); you start last and must get to the front. Choose easy, normal or hard bots.
 -- r starts the race again, ctrl-q quits. Needs the graphics; the motion sensor is used when it is there.
 -- Run it with --selftest to check the track, the steering and the race order.
@@ -10,7 +10,7 @@ local SEG = 200            -- the length of a segment of road
 local ROAD = 2000          -- half the width of the road
 local CAM_H = 1000         -- the height of the camera
 local DEPTH = 0.84         -- 1 / tan(fov / 2) for a field of view of 100 degrees
-local DRAW = 34            -- the segments drawn ahead (more is slower on the Cardputer)
+local DRAW = 34            -- the segments drawn ahead (more is slower on the board)
 local MAX_SPEED = SEG * 60 -- per second
 local PLAYER_Z = CAM_H * DEPTH
 local CENTRIFUGAL = 0.3

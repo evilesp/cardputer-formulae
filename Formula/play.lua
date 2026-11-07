@@ -1,5 +1,5 @@
 #!lua
--- play: plays a WAV or AIFF file on the Cardputer speaker, or a tone, with SoX syntax. Same code as the sox package.
+-- play: plays a WAV or AIFF file on the board speaker, or a tone, with SoX syntax. Same code as the sox package.
 --   play FILE|-n [synth SECONDS sine|square|noise [FREQ]] [trim 0 SECONDS]
 --   play FILE.avi                 shows a video on the screen and plays its sound (q or Ctrl+C stops it)
 -- Effects: trim 0 SECONDS (plays only that long), stat (prints the levels), synth (a tone instead of a file).

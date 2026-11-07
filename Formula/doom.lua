@@ -8,7 +8,7 @@
 --   z  quick turn left                     c  quick turn right (for aiming)
 --   f or enter  fire                       space  stop everything
 --   m  the map     p  pause     x  sound on / off     ctrl-q  quit
--- doom --start skips the title. This file is only the launcher: the game is the driver doomgame, which the Cardputer keeps in
+-- doom --start skips the title. This file is only the launcher: the game is the driver doomgame, which the board keeps in
 -- memory without the line numbers (driver.load with true), because the memory of the device is small.
 
 if #arg > 0 and arg[1] ~= "--start" then

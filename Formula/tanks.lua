@@ -162,7 +162,7 @@ end
 
 -- the whole flight of a shell, without drawing: where it lands, and (when keepPath) the points of the flight. keepPath may be
 -- a list to fill again (x1, y1, x2, y2, ... flat): the preview runs every frame, and a new table for every point of every
--- frame was more garbage than the memory of the Cardputer could take.
+-- frame was more garbage than the memory of the board could take.
 local function simulate(ground, tanks, owner, wind, s, keepPath)
   local path = keepPath and (type(keepPath) == "table" and keepPath or {}) or nil
   local n = 0

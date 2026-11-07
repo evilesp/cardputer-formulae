@@ -4,7 +4,7 @@
 --   wikipedia -l en WORDS     searches another language: en, de, fr...
 -- Type a search (or give it on the command line) and pick an article with up/down and Enter. Read it with up/down,
 -- space, pageup/pagedown, g and G. b goes back, / starts a new search, ctrl-q quits.
--- Only the lead of an article is shown: the whole article is too big for the ADV's RAM. Polish letters are written
+-- Only the lead of an article is shown: the whole article is too big for the RAM of the board. Polish letters are written
 -- without their accents, because the screen has no Polish font.
 
 local COLS, ROWS = term.size()
@@ -185,7 +185,7 @@ end
 
 -- one request to the API of the language; the body of the answer, or nil and the reason
 -- The answer is kept small: a lead of 2400 characters (exchars) is at most about 15 KB even with the \u escapes of Polish
--- letters, and the Cardputer's heap cannot hold a big answer for long, so the TLS connection of the next page can fail.
+-- letters, and the board's heap cannot hold a big answer for long, so the TLS connection of the next page can fail.
 local function apiGet(query)
   local code, body = net.fetch("https://" .. LANG .. ".wikipedia.org/w/api.php?format=json&formatversion=2&" .. query,
     24576)

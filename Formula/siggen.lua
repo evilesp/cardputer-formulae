@@ -1,6 +1,6 @@
 #!lua
 -- siggen: a square wave generator on a pin, for testing a buzzer, an LED or a circuit. w and s choose the pin from the pins
--- of the Cardputer that may be used, a and d change the frequency (by 1 Hz below 100 Hz, 10 Hz below 1000 Hz, 100 Hz above),
+-- of the board that may be used, a and d change the frequency (by 1 Hz below 100 Hz, 10 Hz below 1000 Hz, 100 Hz above),
 -- enter starts and stops it, ctrl-q quits (and stops the wave). Needs the graphics, the ui package and firmware v0.1.0.18(beta)
 -- (gpio.tone). Run it with --selftest to check the frequency steps.
 

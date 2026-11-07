@@ -1,5 +1,5 @@
 #!lua
--- rtc: the clock of a DS3231 real-time clock module on an I2C bus. The Cardputer has no clock of its own, so the time
+-- rtc: the clock of a DS3231 real-time clock module on an I2C bus. The board has no clock of its own, so the time
 -- is lost when it is switched off; the module keeps it with its battery.
 --   rtc SDA SCL                             show the time the module keeps
 --   rtc SDA SCL set "2026-10-11 16:30:45"   set the time

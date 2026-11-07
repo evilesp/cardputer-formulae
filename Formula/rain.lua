@@ -28,7 +28,7 @@ local function newDrop(layer, top)
 end
 
 -- the drops of the show are kept in three flat lists (x, y, layer): a table per drop took about 130 bytes, and the rain
--- with its city did not fit in the memory of the Cardputer
+-- with its city did not fit in the memory of the board
 local MAX_DROPS = 160
 
 -- moves a drop; true when it reached the street (near drops fall further down the street, they are closer to you)

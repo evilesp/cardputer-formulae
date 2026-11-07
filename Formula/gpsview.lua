@@ -3,7 +3,7 @@
 -- module's RX to the pin TX (-1 when the module is not wired back: it only has to send). Needs the gps driver:
 -- brew install gps. Needs firmware v0.1.0.10(beta) or newer.
 --   gpsview RX TX [BAUD]          e.g. gpsview 1 2      (BAUD 9600 by default)
--- Free pins on the Cardputer ADV: 1-7, 13, 15-18, 44, 47, 48. The GPS needs a view of the sky: a first fix can take a
+-- Use two pins that are free (the gpio command lists them). The GPS needs a view of the sky: a first fix can take a
 -- few minutes outdoors. q quits, and the port is closed when the app ends.
 
 local USAGE = "usage: gpsview RX TX [BAUD]   e.g. gpsview 1 2   (TX -1 if the module is not wired back)"

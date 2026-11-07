@@ -7,7 +7,7 @@
 --   adc:read(0)          -- 0 to 1023
 --   adc:volts(0, 3.3)    -- volts, when the chip's VREF pin is at 3.3 V
 -- Wiring: CLK to sck, DIN to mosi, DOUT to miso, CS to cs (plus VDD, VREF, AGND and DGND). The chip's logic and VREF
--- levels must match the Cardputer's pins, so 3.3 V is the safe choice.
+-- levels must match the board's pins, so 3.3 V is the safe choice.
 -- Run it as a script with --selftest to check the protocol with a fake bus.
 
 local M = {}

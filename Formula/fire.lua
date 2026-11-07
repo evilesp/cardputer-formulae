@@ -2,7 +2,7 @@
 -- fire: the doom fire effect, a bed of embers with flames that rise, flicker and die. space changes the colour of the fire
 -- (red, blue, green, purple), w and s make it hotter or colder, a and d blow the wind, q quits. Needs the graphics.
 -- The heat of every cell is packed eight to a number (8 bits each): a table with one entry per cell took about 32 KB of the
--- Cardputer's memory, and the fire ran out of memory next to the WiFi. Run it with --selftest to check the palette and the spreading.
+-- the board's memory, and the fire ran out of memory next to the WiFi. Run it with --selftest to check the palette and the spreading.
 
 local W, H = 240, 135
 local CELL = 5

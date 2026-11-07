@@ -103,7 +103,7 @@ local function legalMoves(b, side)
 end
 
 -- A step (no jump) is one number, from * 100 + to, with the squares numbered (r - 1) * 8 + c: a deep search keeps a list of
--- moves at every level, and tables there filled the memory of the Cardputer. A jump stays a table { from, path, taken }.
+-- moves at every level, and tables there filled the memory of the board. A jump stays a table { from, path, taken }.
 local function square(i) return (i - 1) // N + 1, (i - 1) % N + 1 end
 local function fromOf(m)
   if type(m) == "number" then local r, c = square(m // 100) return { r, c } end
@@ -174,7 +174,7 @@ local function evaluate(b, me)
 end
 
 -- The search stops when its time is up (the hard bot thinks for at most THINK_MS) and gives the garbage of the move lists
--- back to the memory as it goes: the move lists of the nodes left a lot of it, and the Cardputer ran out of memory.
+-- back to the memory as it goes: the move lists of the nodes left a lot of it, and the board ran out of memory.
 local THINK_MS = 2500
 local TIMEOUT = {}
 local deadline, nodes = nil, 0

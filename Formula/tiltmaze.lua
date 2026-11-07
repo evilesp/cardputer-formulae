@@ -1,8 +1,8 @@
 #!lua
--- tiltmaze: a ball rolls through a maze. Tilt the Cardputer to roll it (the motion sensor): tilt right to roll right, tilt
+-- tiltmaze: a ball rolls through a maze. Tilt the board to roll it (the motion sensor): tilt right to roll right, tilt
 -- away from you to roll down. Without the sensor, the keys a d w s push it. Get the ball to the exit at the bottom-right
 -- corner. n makes a new maze, r starts this maze again, ctrl-q quits. Needs the graphics, the ui package and a motion
--- sensor (the ADV board). Run it with --selftest to check the maze and the walls.
+-- sensor (the board needs one). Run it with --selftest to check the maze and the walls.
 
 local COLS, ROWS = 12, 7
 local LINE_Y = 128          -- the line of text at the bottom
@@ -198,7 +198,7 @@ local ok, problem = pcall(function()
     local ax, ay = 0, 0
     if sys.imu then
       local x, y = sys.imu()
-      -- the sensor reads a tilt to the right as negative: the ball rolls the way the Cardputer is tilted
+      -- the sensor reads a tilt to the right as negative: the ball rolls the way the board is tilted
       if x then ax, ay = math.max(-1, math.min(1, -x)), math.max(-1, math.min(1, y)) end
     end
     local held = key.down and key.down() or {}

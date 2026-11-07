@@ -1,9 +1,9 @@
 # cardputer-formulae
 
-Pakiety do menedżera `brew` na Cardputer Linux (M5Stack Cardputer ADV).
+Pakiety do menedżera `apt`/`brew` na ESP Linux (płytka Guition JC4880P443C, ESP32-P4).
 Każda formuła to program w Lua, który uruchamia się na urządzeniu.
 
-## Użycie na Cardputerze
+## Użycie na urządzeniu
 
 ```bash
 brew tap https://raw.githubusercontent.com/evilesp/cardputer-formulae/main
@@ -89,7 +89,7 @@ brew install htop nano snake
 | steps | licznik kroków: dziś kontra cel, ostatnie 7 dni, zerowanie; liczy w tle (firmware v0.1.0.18) |
 | sleep | tryb oszczędny: godzina, data, kroki i bateria na najniższej jasności, 80 MHz, WiFi oszczędza prąd; dowolny klawisz budzi |
 | tiltracer | wyścig z pięcioma botami po torze 3D z zakrętami i wzniesieniami: 3 lub 5 okrążeń, pozycje, czasy okrążeń; skręt a d albo przechyłem |
-| tiltmaze | labirynt z kulką: przechyl Cardputer, żeby kulka dotarła do wyjścia |
+| tiltmaze | labirynt z kulką: przechyl płytkę, żeby kulka dotarła do wyjścia |
 | spectrum | widmo dźwięku z mikrofonu jako 16 słupków z nutą i szczytami (firmware v0.1.0.18) |
 | sequencer | automat perkusyjny: 8 ścieżek po 16 kroków, tempo, zapis i odczyt rytmu na karcie SD |
 | morse | alfabet Morse'a z dźwiękiem: nadawanie tekstu albo nauka rozpoznawania liter i cyfr |
@@ -173,7 +173,7 @@ brew install htop nano snake
 | sand | animacja: piasek sypie się i tworzy kopce, woda spływa z nich i wypełnia dołki, kamień zostaje tam, gdzie go postawisz (cyfry 1 piasek, 2 woda, 3 kamień, 0 gumka; w s a d kursor; spacja sypie, `p` sypie ciągle, `c` czyści, `q` wychodzi) |
 | kaleidoscope | animacja: punkt wędruje po torze, a jego lustrzane kopie tworzą symetryczny kwiat z kolorowym śladem (`a` `d` zmieniają liczbę lustrzanych boków od 4 do 12, `w` `s` prędkość, spacja nowy wzór, `c` czyści ślad, `p` pauza, `q` wychodzi) |
 | lander | lądowanie modułu księżycowego na płaskim lądowisku: `w` silnik główny, `a` `d` boczne dysze; paliwo się kończy, lądowanie za szybkie lub poza lądowiskiem to rozbicie, `n` następny poziom, `r` od nowa, `q` wychodzi |
-| bouncelogo | animacja w stylu wygaszacza DVD: pudełko z napisem CARDPUTER odbija się od krawędzi i zmienia kolor, licznik trafień w rogi; spacja nowy kolor, `w` `s` prędkość, `c` czyści licznik, `p` pauza, `q` wychodzi |
+| bouncelogo | animacja w stylu wygaszacza DVD: pudełko z napisem ESP LINUX odbija się od krawędzi i zmienia kolor, licznik trafień w rogi; spacja nowy kolor, `w` `s` prędkość, `c` czyści licznik, `p` pauza, `q` wychodzi |
 | lissajous | animacja: krzywe Lissajous, punkt rysuje figurę dwóch falujących sygnałów z ogonem; `a` `d` częstotliwość w poziomie, `w` `s` częstotliwość w pionie, spacja faza, `p` pauza, `q` wychodzi |
 | langton | animacja: mrówka Langtona, prosta reguła buduje na siatce wzór z autostradą; `w` `s` prędkość, `p` pauza, `c` zaczyna od nowa, `q` wychodzi |
 | fractaltree | animacja: drzewo fraktalne rośnie gałąź po gałęzi i kołysze się na wietrze, a czubki zieleniają się; `a` `d` rozstaw odgałęzień (10–70 stopni), `w` `s` wiatr, spacja nowe drzewo, `q` wychodzi |
@@ -188,7 +188,7 @@ brew install htop nano snake
 | cube | animacja: obracający się sześcian 3D z perspektywą, bliższe krawędzie są jaśniejsze; `a` `d` rozmiar, `w` `s` prędkość, spacja zmienia kolory, `p` pauza, `q` wychodzi |
 | desktop | środowisko graficzne z dotykiem (beta): ikony wszystkich aplikacji, okna przesuwane za pasek tytułu, pasek zadań, menu startowe, panel szybki (przeciągnij z góry), gesty; `desktop enable` / `desktop disable` włącza i wyłącza start po uruchomieniu, `desktop install NAZWA` dodaje pakiety (aplikacje, motywy, tapety) z folderu `Desktop/`, zwykłe pliki tekstowe, które każdy może napisać; bez ekranu dotykowego strzałki sterują wskaźnikiem |
 
-Są to reimplementacje dla Cardputera o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
+Są to reimplementacje w Lua o tych samych nazwach (oprócz `nano`, `cal`, `calc`, `hexdump`, `httping`, `pinmon`, które są własne), nie oryginalne programy.
 
 ## Format
 

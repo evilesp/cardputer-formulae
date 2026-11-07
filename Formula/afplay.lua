@@ -1,9 +1,9 @@
 #!lua
--- afplay: plays a WAV or AIFF file on the Cardputer speaker, like the afplay of macOS.
+-- afplay: plays a WAV or AIFF file on the board speaker, like the afplay of macOS.
 --   afplay [-v VOLUME] [--time SECONDS] FILE
 --   -v VOLUME   0 to 1: a share of the current speaker volume (1 keeps it). The volume is put back afterwards.
 --   --time      plays only the first SECONDS
--- The sound files of macOS (/System/Library/Sounds) are not on the Cardputer: copy a .wav or .aiff file to the SD card.
+-- The sound files of macOS (/System/Library/Sounds) are not on the board: copy a .wav or .aiff file to the SD card.
 -- A file is 8 or 16 bit, mono or stereo. Ctrl+C stops the sound.
 
 if not audio then

@@ -2,7 +2,7 @@
 -- waves: a sunset over the open sea. The sun goes down behind the horizon, its light breaks into a glittering path on the water,
 -- long swells roll in with foam on their crests, clouds glow pink from below, a sailboat crosses far away, gulls fly by and in
 -- the end the stars and the moon come out. space starts the evening again, a and d move the sun, w and s make the sea rougher
--- or calmer, q quits. waves 0.5 starts later in the evening (0 is day, 1 is night). Drawn with few shapes a frame, so it runs smoothly on the Cardputer. Needs the graphics.
+-- or calmer, q quits. waves 0.5 starts later in the evening (0 is day, 1 is night). Drawn with few shapes a frame, so it runs smoothly on the board. Needs the graphics.
 -- Run it with --selftest to check the colours of the sky and the perspective of the sea.
 
 local W, H = 240, 135

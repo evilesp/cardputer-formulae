@@ -1,5 +1,5 @@
 #!lua
--- fastfetch: a short summary of the device, next to a small Cardputer logo.
+-- fastfetch: a short summary of the device, next to a small logo of a computer.
 
 local LOGO = {
   "  .-----------.  ",
@@ -33,7 +33,7 @@ local packages = fs.list("/usr/local/bin") or {}
 local info = {
   { "", user .. "@" .. host, "white" },
   { "", string.rep("-", #user + #host + 1), "dim" },
-  { "OS", "Cardputer Linux " .. sys.version() },
+  { "OS", "ESP Linux " .. sys.version() },
   { "Host", sys.board() },
   { "CPU", string.format("%s, %d cores @ %d MHz", model, cores, mhz) },
   { "Uptime", uptimeText() },

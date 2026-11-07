@@ -1,5 +1,5 @@
 #!lua
--- rec: records from the Cardputer microphone, with SoX syntax. Same code as the sox package (only MODE differs).
+-- rec: records from the board microphone, with SoX syntax. Same code as the sox package (only MODE differs).
 --   rec [-r RATE] FILE|-n [trim 0 SECONDS] [stat]    records a WAV file, or -n only measures
 -- Effects: trim 0 SECONDS (the length), stat (prints the levels). Ctrl+C stops a recording.
 -- Mono 16-bit only: -c 1 and -b 16 are accepted.

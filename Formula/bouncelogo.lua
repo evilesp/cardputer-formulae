@@ -1,5 +1,5 @@
 #!lua
--- bouncelogo: the old DVD screensaver. A small CARDPUTER box flies across the screen and bounces off the edges,
+-- bouncelogo: the old DVD screensaver. A small ESP LINUX box flies across the screen and bounces off the edges,
 -- changing colour at every bounce. Each time it hits two edges at once (a corner) the corner counter goes up.
 -- w and s change the speed, space picks a new colour, c clears the counter, p pauses, q quits.
 -- Needs the graphics (firmware v0.1.0.13). Run it with --selftest to check the bouncing.
@@ -107,7 +107,7 @@ local ok, problem = pcall(function()
     end
     gfx.clear(BG)
     gfx.fill(math.floor(b.x), math.floor(b.y), LW, LH, b.col)
-    gfx.text(math.floor(b.x) + 4, math.floor(b.y) + 5, "CARDPUTER", BG, 1)
+    gfx.text(math.floor(b.x) + 4, math.floor(b.y) + 5, "ESP LINUX", BG, 1)
     gfx.text(4, H - 10, "corners " .. corners, 0x808080, 1)
     if sys.millis() - shown < 1800 then
       gfx.text(4, 2, "space colour w s speed q quits", 0xffffff, 1)

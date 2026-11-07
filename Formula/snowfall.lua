@@ -65,7 +65,7 @@ local function noise(n)
 end
 
 -- made once: the pines. The stars, the hills and the sparkles are worked out from their number each frame (lists of them
--- did not fit in the memory of the Cardputer next to the snow).
+-- did not fit in the memory of the board next to the snow).
 local trees = {}
 for i = 1, 12 do
   local x = i * 20 - 12 + math.floor(noise(i) * 10)

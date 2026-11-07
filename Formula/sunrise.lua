@@ -1,5 +1,5 @@
 #!lua
--- sunrise: when the sun rises and sets, the solar noon and the length of the day, worked out on the Cardputer (no
+-- sunrise: when the sun rises and sets, the solar noon and the length of the day, worked out on the board (no
 -- network). The times are in the clock's time zone once the clock is set (WiFi), else in UTC.
 -- usage: sunrise [LATITUDE LONGITUDE] [YYYY-MM-DD]     (Warsaw and today when left out; south and west are negative)
 --   sunrise 50.06 19.94          Krakow today
