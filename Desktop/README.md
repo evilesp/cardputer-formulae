@@ -15,3 +15,6 @@ Choose a theme and wallpaper in `/home/user/.desktop.conf`:
     theme=nord
     wallpaper=dusk
     hidden=doom,htop
+    pinned=terminal,files,settings,snake
+
+`pinned` is the home screen (what you pin with a long press in the launcher is saved there). `hidden` apps are not in the launcher.

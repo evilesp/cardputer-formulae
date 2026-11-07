@@ -19,7 +19,7 @@ local FIELDS = {
   { key = "pause", label = "pause ms" },
 }
 
-local settings = { tx = 44, rx = nil, pause = 500 }
+local settings = { tx = nil, rx = nil, pause = 500 }
 local state = {
   screen = "list",                -- "list", "remote" or "settings"
   remotes = {}, sel = 1,          -- the remote names and the cursor on them
@@ -44,12 +44,12 @@ local function pauseNumber(text)
   return nil
 end
 
--- the settings file: tx=44, rx=5 or rx=none, pause=500
+-- the settings file: tx=12, rx=5 or none for a pin that is not set, pause=500 (no default TX pin: 44 is the SD card)
 local function parseSettings(text)
-  local s = { tx = 44, rx = nil, pause = 500 }
+  local s = { tx = nil, rx = nil, pause = 500 }
   for key, value in text:gmatch("(%w+)=([^\n]*)") do
     if key == "tx" then
-      s.tx = pinNumber(value) or s.tx
+      s.tx = pinNumber(value)
     elseif key == "rx" then
       s.rx = pinNumber(value)
     elseif key == "pause" then
@@ -60,7 +60,7 @@ local function parseSettings(text)
 end
 
 local function settingsText(s)
-  return string.format("tx=%d\nrx=%s\npause=%d\n", s.tx, s.rx and tostring(s.rx) or "none", s.pause)
+  return string.format("tx=%s\nrx=%s\npause=%d\n", s.tx and tostring(s.tx) or "none", s.rx and tostring(s.rx) or "none", s.pause)
 end
 
 -- sets one setting from typed text (the RX pin may be "none"). Returns true, or false and the reason.
@@ -71,8 +71,8 @@ local function applySetting(s, key, text)
     s.pause = n
     return true
   end
-  if key == "rx" and text == "none" then
-    s.rx = nil
+  if (key == "rx" or key == "tx") and text == "none" then
+    s[key] = nil
     return true
   end
   local n = pinNumber(text)
@@ -130,7 +130,7 @@ local function selftest()
   local s = parseSettings("tx=44\nrx=5\npause=300\n")
   check(s.tx == 44 and s.rx == 5 and s.pause == 300, "settings with all three values")
   s = parseSettings("rx=none\n")
-  check(s.tx == 44 and s.rx == nil and s.pause == 500, "settings: rx none and the defaults")
+  check(s.tx == nil and s.rx == nil and s.pause == 500, "settings: no default pins")
   check(settingsText(parseSettings(settingsText(s))) == settingsText(s), "settings round trip")
   local buttons = parseRemote("Power|9000 4500 560\nVol+|560 560\nbroken\n|1 2\n")
   check(#buttons == 2 and buttons[1].name == "Power" and #buttons[1].timings == 3, "remote lines")
@@ -205,7 +205,8 @@ end
 
 local function drawList()
   local rx = settings.rx and tostring(settings.rx) or "none"
-  drawFrame(string.format("remote   TX %d  RX %s", settings.tx, rx), "enter open  n new  p pins  q quit")
+  local tx = settings.tx and tostring(settings.tx) or "none"
+  drawFrame(string.format("remote   TX %s  RX %s", tx, rx), "enter open  n new  p pins  q quit")
   if #state.remotes == 0 then row(2, "no remotes yet: press n to make one", "dim") end
   local first = firstShown(state.sel)
   for i = first, math.min(#state.remotes, first + LIST_ROWS - 1) do
@@ -225,7 +226,7 @@ local function drawRemote()
 end
 
 local function fieldText(key)
-  if key == "rx" then return settings.rx and tostring(settings.rx) or "none" end
+  if key == "rx" or key == "tx" then return settings[key] and tostring(settings[key]) or "none" end
   return tostring(settings[key])
 end
 
@@ -300,6 +301,10 @@ local function newRemote()
 end
 
 local function sendButton(b)
+  if not settings.tx then
+    state.message = "set the TX pin first: back, p"
+    return false
+  end
   local ok, err = ir.send(settings.tx, b.timings)
   if ok then return true end
   state.message = "send failed: " .. tostring(err)

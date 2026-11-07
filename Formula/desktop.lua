@@ -8,6 +8,10 @@
 --   desktop list          the desktop packages (apps, themes, wallpapers) that are installed
 --   desktop install NAME  installs a desktop package: NAME of the repository, or a full URL of a .app/.theme/.wall file
 --   desktop remove NAME   removes one
+-- Home screen: the apps pinned to it, and a dock with the launcher (the grid of dots: every app), the terminal, files and settings.
+-- Hold an app (in the launcher or on the home screen) for Open, Pin to home or Unpin, and Hide. The terminal window runs commands
+-- with sys.run (reading and the known commands; a command that changes the device asks for y first); exit closes it, logout leaves
+-- the desktop. Typing needs a keyboard (the Bluetooth one or the serial port).
 -- Gestures (one finger): tap = click; double tap on a title bar = maximize; long press on an icon = menu; drag a title bar
 -- = move the window; drag the grip in the corner = resize; drag in a list = scroll; swipe down from the top edge = quick
 -- panel; swipe up from the bottom edge = start menu; swipe left/right on the desktop = next/previous page of icons.
@@ -16,7 +20,7 @@
 --   /usr/share/desktop/apps/NAME.app      Name=, Exec=(a program of /usr/local/bin or a path), Icon=(letter), Color=0xRRGGBB, Comment=
 --   /usr/share/desktop/themes/NAME.theme  bg= bar= text= dim= accent= panel= title= border= danger= wall_top= wall_bottom=
 --   /usr/share/desktop/wallpapers/NAME.wall  top=0xRRGGBB bottom=0xRRGGBB
---   /etc/desktop.conf and /home/user/.desktop.conf (the second wins):  theme=ubuntu  wallpaper=NAME  hidden=app1,app2
+--   /etc/desktop.conf and /home/user/.desktop.conf (the second wins):  theme=ubuntu  wallpaper=NAME  hidden=app1,app2  pinned=terminal,files,snake
 -- The touch reading is in one place (readPointer): it uses touch.read() when the firmware has it. Run with --selftest.
 
 local APPS_DIR, THEMES_DIR, WALL_DIR = "/usr/share/desktop/apps", "/usr/share/desktop/themes", "/usr/share/desktop/wallpapers"
@@ -82,6 +86,25 @@ local function fit(text, chars)
   if chars <= 2 then return text:sub(1, math.max(0, chars)) end
   return text:sub(1, chars - 2) .. ".."
 end
+
+-- "a,b c" -> { "a", "b", "c" }
+local function idList(text)
+  local out = {}
+  for id in (text or ""):gmatch("[^,%s]+") do out[#out + 1] = id end
+  return out
+end
+
+-- the list with the id added at the end, or removed when it is there; the second value is true when it is in the new list
+local function toggleId(list, id)
+  local out, found = {}, false
+  for _, v in ipairs(list) do
+    if v == id then found = true else out[#out + 1] = v end
+  end
+  if not found then out[#out + 1] = id end
+  return out, not found
+end
+
+local DEFAULT_PINNED = "terminal,files,settings,monitor,about"
 
 local THEMES = {
   ubuntu = { bg = 0x2c001e, bar = 0x1d0014, text = 0xf2f2f2, dim = 0xaea79f, accent = 0xe95420, panel = 0x3a1a30, title = 0x5e2750,
@@ -177,7 +200,7 @@ end
 local pointer = { x = 0, y = 0, down = false, keyboard = false }
 
 -- the touch reading in one place. touch.read() may give x, y (nil when not touched), or a table of points, or { x =, y = }.
-local function readPointer(w, h, held, pressedKeys)
+local function readPointer(w, h, held, pressedKeys, typingNow)
   if touch and touch.read then
     local ok, a, b = pcall(touch.read)
     if ok then
@@ -201,13 +224,13 @@ local function readPointer(w, h, held, pressedKeys)
   pointer.keyboard = true
   local step = math.max(2, w // 60)
   for _, k in ipairs(held) do
-    if k == "left" or k == "a" then pointer.x = pointer.x - step end
-    if k == "right" or k == "d" then pointer.x = pointer.x + step end
-    if k == "up" or k == "w" then pointer.y = pointer.y - step end
-    if k == "down" or k == "s" then pointer.y = pointer.y + step end
+    if k == "left" or (k == "a" and not typingNow) then pointer.x = pointer.x - step end
+    if k == "right" or (k == "d" and not typingNow) then pointer.x = pointer.x + step end
+    if k == "up" or (k == "w" and not typingNow) then pointer.y = pointer.y - step end
+    if k == "down" or (k == "s" and not typingNow) then pointer.y = pointer.y + step end
   end
   pointer.x, pointer.y = clamp(pointer.x, 0, w - 1), clamp(pointer.y, 0, h - 1)
-  pointer.down = pressedKeys.enter or false
+  pointer.down = (pressedKeys.enter and not typingNow) or false
 end
 
 -- ---------------------------------------------------------------- commands (the terminal side)
@@ -311,6 +334,13 @@ if arg and arg[1] == "--selftest" then
   check(fit("abcdefgh", 5) == "abc..", "fit")
   check(fit("abc", 5) == "abc" and #fit("abcdefgh", 5) == 5, "fit keeps the width")
   check(mix(0, 0xffffff, 0.5) == 0x808080 and clamp(5, 0, 3) == 3, "mix and clamp")
+  local ids = idList("a, b,c")
+  check(#ids == 3 and ids[2] == "b" and #idList(nil) == 0, "an id list")
+  local t2, on = toggleId(ids, "d")
+  check(#t2 == 4 and t2[4] == "d" and on, "pinning adds an id at the end")
+  local t3, on3 = toggleId(t2, "b")
+  check(#t3 == 3 and t3[2] == "c" and not on3, "unpinning removes it and keeps the order")
+  check(#idList(DEFAULT_PINNED) == 5 and idList(DEFAULT_PINNED)[1] == "terminal", "the default home screen starts with the terminal")
   -- gestures: a tap, a double tap, a long press, a drag and a swipe
   local g = Gesture.new(8)
   check(g:update(50, 50, true, 0) == "down" and g:update(50, 50, false, 80) == "tap", "a tap")
@@ -387,10 +417,12 @@ end
 
 local W, H, K, U            -- screen size, scale (1 on a small screen, more on a big one), the text line height
 local BAR_H, TASK_H
-local apps, hidden = {}, {}
+local apps, hidden, pinned = {}, {}, {}
+local DOCK_H
 local windows, focusId, nextId = {}, nil, 1
 local page, menuOpen, quickOpen, popup, toast, toastUntil = 1, false, false, nil, nil, 0
 local menuScroll = 0
+local typing = false         -- a terminal window has the focus: the keys go to it, not to the pointer
 local gesture
 local running = true
 local drag = nil            -- { kind = "move"|"resize"|"scroll"|"slider", ... }
@@ -407,6 +439,7 @@ end
 
 -- the apps: built-in windows, the .app files, then every program of /usr/local/bin that has no .app file
 local BUILTIN = {
+  { id = "terminal", name = "Terminal", icon = ">_", color = 0x2e3436, kind = "terminal" },
   { id = "files", name = "Files", icon = "Fi", color = 0x3584e4, kind = "files" },
   { id = "settings", name = "Settings", icon = "St", color = 0x77767b, kind = "settings" },
   { id = "monitor", name = "Monitor", icon = "Mo", color = 0x26a269, kind = "monitor" },
@@ -432,6 +465,31 @@ local function loadApps()
       seen[f] = true
     end
   end
+end
+
+local function appById(id)
+  for _, a in ipairs(apps) do if a.id == id then return a end end
+  return nil
+end
+
+local function savePinned()
+  conf.pinned = table.concat(pinned, ",")
+  writeUserConf(conf)
+end
+
+-- the apps of the home screen, in the order they were pinned (an app that is gone or hidden is skipped)
+local function pinnedApps()
+  local out = {}
+  for _, id in ipairs(pinned) do
+    local a = appById(id)
+    if a and not hidden[a.id] then out[#out + 1] = a end
+  end
+  return out
+end
+
+local function isPinned(id)
+  for _, v in ipairs(pinned) do if v == id then return true end end
+  return false
 end
 
 local function visibleApps()
@@ -471,10 +529,17 @@ local function newWindow(app)
   for _, win in ipairs(windows) do
     if win.app.id == app.id then focusId = win.id; win.min = false; return win end
   end
-  local ww, wh = math.min(W - 8 * K, 200 * K), math.min(H - BAR_H - TASK_H - 8 * K, 110 * K)
+  local wantW, wantH = 200 * K, 110 * K
+  if app.kind == "terminal" then wantW, wantH = 300 * K, 150 * K
+  elseif app.kind == "settings" then wantW, wantH = 200 * K, 134 * K end
+  local ww, wh = math.min(W - 8 * K, wantW), math.min(H - BAR_H - TASK_H - 8 * K, wantH)
   local off = ((#windows) % 4) * 8 * K
   local win = { id = nextId, app = app, title = app.name, x = 4 * K + off, y = BAR_H + 4 * K + off, w = ww, h = wh, scroll = 0,
                 max = false, min = false, dir = "/", sel = nil }
+  if app.kind == "terminal" then
+    win.lines = { "ESP Linux terminal: type a command and press enter.", "exit closes this window, logout leaves the desktop." }
+    win.input, win.history, win.hpos, win.pending = "", {}, 0, nil
+  end
   win.x = clamp(win.x, 0, math.max(0, W - win.w))
   win.y = clamp(win.y, BAR_H, math.max(BAR_H, H - TASK_H - win.h))
   nextId = nextId + 1
@@ -516,6 +581,62 @@ local function winAt(x, y)
       local wx, wy, ww, wh = windowRect(win)
       if x >= wx and x < wx + ww and y >= wy and y < wy + wh then return win end
     end
+  end
+  return nil
+end
+
+-- ---- the terminal window
+local function termPrint(win, text_)
+  for line in (text_ .. "\n"):gmatch("([^\n]*)\n") do win.lines[#win.lines + 1] = line end
+  while #win.lines > 300 do table.remove(win.lines, 1) end
+  win.tscroll = 0
+end
+
+local function termRun(win, cmd, confirmed)
+  if not (sys and sys.run) then termPrint(win, "sys.run is not in this firmware"); return end
+  local ok, out, code = pcall(sys.run, cmd, confirmed)
+  if not ok then termPrint(win, "error: " .. tostring(out)); return end
+  if out == nil then
+    if code == "confirm" then
+      win.pending = cmd
+      termPrint(win, "this changes the device: type y and enter to run it, anything else cancels")
+    else
+      termPrint(win, tostring(code or "the command was refused"))
+    end
+    return
+  end
+  if out ~= "" then termPrint(win, (out:gsub("\r", ""):gsub("\n+$", ""))) end
+end
+
+-- one key typed into a terminal window
+local function termKey(win, k)
+  if k == "enter" then
+    local cmd = win.input
+    win.input = ""
+    termPrint(win, "user@esp:~$ " .. cmd)
+    if win.pending then
+      local pending = win.pending
+      win.pending = nil
+      if cmd == "y" then termRun(win, pending, true) else termPrint(win, "cancelled") end
+    elseif cmd == "exit" then
+      return "close"
+    elseif cmd == "logout" then
+      return "logout"
+    elseif cmd == "clear" then
+      win.lines = {}
+    elseif cmd ~= "" then
+      win.history[#win.history + 1] = cmd
+      win.hpos = #win.history + 1
+      termRun(win, cmd, false)
+    end
+  elseif k == "backspace" then
+    win.input = win.input:sub(1, -2)
+  elseif k == "up" then
+    if win.hpos > 1 then win.hpos = win.hpos - 1; win.input = win.history[win.hpos] or "" end
+  elseif k == "down" then
+    if win.hpos < #win.history then win.hpos = win.hpos + 1; win.input = win.history[win.hpos] else win.hpos = #win.history + 1; win.input = "" end
+  elseif #k == 1 and k:byte() >= 32 and k:byte() < 127 then
+    win.input = win.input .. k
   end
   return nil
 end
@@ -599,6 +720,28 @@ local function drawWindowContent(win, x, y, w, h)
     end
     hit(x, y, w, h, "scroll", win)
     text(x + 2 * K, y + h - 9 * K, fit(win.dir, (w - 4 * K) // (6 * K)), theme.dim)
+  elseif win.app.kind == "terminal" then
+    gfx.fill(x, y, w, h, 0x0c0c0c)
+    local cw = math.max(10, (w - 8 * K) // (6 * K))
+    local lineH = 9 * K
+    local rows = math.max(1, (h - 4 * K) // lineH - 1)
+    -- the lines, cut to the width of the window
+    local shown = {}
+    for _, l in ipairs(win.lines) do
+      local rest = l
+      if rest == "" then shown[#shown + 1] = "" end
+      while #rest > 0 do shown[#shown + 1] = rest:sub(1, cw); rest = rest:sub(cw + 1) end
+    end
+    win.tscroll = clamp(win.tscroll or 0, 0, math.max(0, #shown - rows))
+    local last = #shown - win.tscroll
+    for r = 1, rows do
+      local line = shown[last - rows + r]
+      if line then text(x + 4 * K, y + 2 * K + (r - 1) * lineH, line, 0xd0d0d0) end
+    end
+    local prompt = "user@esp:~$ " .. win.input .. ((now // 500) % 2 == 0 and "_" or " ")
+    gfx.fill(x, y + h - lineH - 2 * K, w, lineH + 2 * K, 0x1a1a1a)
+    text(x + 4 * K, y + h - lineH, fit(prompt, cw), 0x8ae234)
+    hit(x, y, w, h, "tscroll", win)
   elseif win.app.kind == "settings" then
     gfx.fill(x, y, w, h, theme.panel)
     local bright = tonumber(sys.setting and sys.setting("brightness") or "") or 128
@@ -618,7 +761,13 @@ local function drawWindowContent(win, x, y, w, h)
       text(bx + 3 * K, y + 68 * K, n, 0xffffff)
       hit(bx, y + 66 * K, bw, 11 * K, "theme", n)
     end
-    text(x + 4 * K, y + 82 * K, "More themes: desktop install NAME", theme.dim, 1)
+    local boot = isEnabled()
+    text(x + 4 * K, y + 84 * K, "Start the desktop at boot", theme.text)
+    gfx.fill(x + w - 40 * K, y + 82 * K, 34 * K, 11 * K, boot and theme.accent or theme.title)
+    text(x + w - 36 * K, y + 84 * K, boot and "on" or "off", 0xffffff)
+    hit(x + w - 40 * K, y + 82 * K, 34 * K, 11 * K, "boot")
+    text(x + 4 * K, y + 100 * K, "Pin apps: hold an icon in the launcher", theme.dim, 1)
+    text(x + 4 * K, y + 110 * K, "More themes: desktop install NAME", theme.dim, 1)
   elseif win.app.kind == "monitor" then
     refreshInfo()
     gfx.fill(x, y, w, h, theme.panel)
@@ -667,11 +816,11 @@ local function drawWindow(win)
 end
 
 -- ---- the icons, the bars, the menus
-local function layoutIcons()
-  local cell = 46 * K
+local function layoutIcons(bottomReserve)
+  local cell = 52 * K
   local cols = math.max(1, W // cell)
   local top = BAR_H + 4 * K
-  local rows = math.max(1, (H - TASK_H - top) // (cell + 2 * K))
+  local rows = math.max(1, (H - TASK_H - (bottomReserve or 0) - top) // (cell + 2 * K))
   return cell, cols, rows, top
 end
 
@@ -688,12 +837,43 @@ local function drawIcon(x, y, size, app, highlight)
   text(x + (size - tw(label, K * 2)) // 2, y + (size - 8 * K * 2) // 2, label, 0xffffff, K * 2)
 end
 
+-- the four fixed places of the dock: the launcher (a grid of dots) and three apps
+local DOCK_APPS = { "terminal", "files", "settings" }
+
+local function drawDock()
+  local size = 26 * K
+  local gap = 10 * K
+  local n = 1 + #DOCK_APPS
+  local bw = n * size + (n - 1) * gap + 16 * K
+  local bh = DOCK_H - 4 * K
+  local bx, by = (W - bw) // 2, H - TASK_H - DOCK_H + 2 * K
+  gfx.round(bx, by, bw, bh, 8 * K, mix(theme.bar, 0x000000, 0.25))
+  local x = bx + 8 * K
+  local y = by + (bh - size) // 2
+  -- the launcher button: nine dots
+  gfx.round(x, y, size, size, 6 * K, theme.accent)
+  for r = 0, 2 do
+    for c = 0, 2 do gfx.disc(x + 6 * K + c * 7 * K, y + 6 * K + r * 7 * K, 2 * K, 0xffffff) end
+  end
+  hit(x - gap // 2, by, size + gap, bh, "menu")
+  x = x + size + gap
+  for _, id in ipairs(DOCK_APPS) do
+    local a = appById(id)
+    if a then
+      drawIcon(x, y, size, a)
+      hit(x - gap // 2, by, size + gap, bh, "dock", a)
+    end
+    x = x + size + gap
+  end
+end
+
 local function drawDesktop()
   -- the wallpaper: a vertical gradient in bands
   local band = math.max(2, H // 40)
   for y = 0, H - 1, band do gfx.fill(0, y, W, band, mix(wallTop, wallBottom, y / H)) end
-  local list = visibleApps()
-  local cell, cols, rows, top = layoutIcons()
+  -- the home screen: the apps pinned to it (the launcher lists all the others)
+  local list = pinnedApps()
+  local cell, cols, rows, top = layoutIcons(DOCK_H)
   local perPage = cols * rows
   local pages = math.max(1, math.ceil(#list / perPage))
   page = clamp(page, 1, pages)
@@ -709,9 +889,14 @@ local function drawDesktop()
     text(xPad + col * cell + (cell - tw(label)) // 2, y + 30 * K, label, 0xffffff)
     hit(xPad + col * cell, y, cell, cell, "icon", app)
   end
-  if pages > 1 then
-    for p = 1, pages do gfx.disc(W // 2 + (p - (pages + 1) / 2) * 8 * K, H - TASK_H - 6 * K, 2 * K, p == page and 0xffffff or theme.dim) end
+  if #list == 0 then
+    local msg = "Nothing here yet: open the launcher and hold an app to pin it"
+    text((W - tw(msg)) // 2, H // 2 - 4 * K, msg, theme.dim)
   end
+  if pages > 1 then
+    for p = 1, pages do gfx.disc(W // 2 + (p - (pages + 1) / 2) * 8 * K, H - TASK_H - DOCK_H - 3 * K, 2 * K, p == page and 0xffffff or theme.dim) end
+  end
+  drawDock()
 end
 
 local function clockText()
@@ -732,7 +917,7 @@ local function drawBars()
   -- the task bar
   gfx.fill(0, H - TASK_H, W, TASK_H, theme.bar)
   gfx.fill(2 * K, H - TASK_H + 2 * K, 30 * K, TASK_H - 4 * K, menuOpen and theme.accent or theme.title)
-  text(5 * K, H - TASK_H + (TASK_H - 8 * K) // 2, "Menu", 0xffffff)
+  text(5 * K, H - TASK_H + (TASK_H - 8 * K) // 2, "Apps", 0xffffff)
   hit(0, H - TASK_H, 34 * K, TASK_H, "menu")
   local x = 36 * K
   local tabW = math.min(48 * K, math.max(20 * K, (W - x - 4 * K) // math.max(1, #windows)))
@@ -745,24 +930,43 @@ local function drawBars()
   end
 end
 
+-- the launcher: every app in a grid over the whole desktop; drag up and down to scroll, tap to open, hold for pin / hide
+local function launcherLayout()
+  local cell = 52 * K
+  local cols = math.max(1, W // cell)
+  local top = BAR_H + 16 * K
+  local rows = math.max(1, (H - TASK_H - top) // cell)
+  return cell, cols, rows, top
+end
+
 local function drawMenu()
   local list = visibleApps()
-  local mw, rowH = math.min(W, 110 * K), 12 * K
-  local mh = math.min(H - BAR_H - TASK_H, #list * rowH + 4 * K)
-  local mx, my = 0, H - TASK_H - mh
-  gfx.fill(mx, my, mw, mh, theme.panel)
-  gfx.rect(mx, my, mw, mh, theme.border)
-  local rows = (mh - 4 * K) // rowH
-  menuScroll = clamp(menuScroll, 0, math.max(0, #list - rows))
-  for r = 1, rows do
-    local app = list[menuScroll + r]
-    if not app then break end
-    local ry = my + 2 * K + (r - 1) * rowH
-    gfx.fill(mx + 3 * K, ry + 1 * K, 9 * K, 9 * K, app.color or iconColor(app.name))
-    text(mx + 15 * K, ry + 2 * K, fit(app.name, (mw - 18 * K) // (6 * K)), theme.text)
-    hit(mx, ry, mw, rowH, "menuitem", app)
+  local cell, cols, rows, top = launcherLayout()
+  gfx.fill(0, BAR_H, W, H - BAR_H - TASK_H, mix(theme.bar, theme.bg, 0.5))
+  hit(0, BAR_H, W, H - BAR_H - TASK_H, "menuscroll")  -- first: the icons are tested before it
+  text(8 * K, BAR_H + 4 * K, "All apps (" .. #list .. ")", theme.text)
+  local totalRows = math.ceil(#list / cols)
+  menuScroll = clamp(menuScroll, 0, math.max(0, totalRows - rows))
+  local xPad = (W - cols * cell) // 2
+  for r = 0, rows - 1 do
+    for c = 0, cols - 1 do
+      local app = list[(menuScroll + r) * cols + c + 1]
+      if app then
+        local x, y = xPad + c * cell + (cell - 28 * K) // 2, top + r * cell
+        drawIcon(x, y, 28 * K, app)
+        if isPinned(app.id) then gfx.disc(x + 28 * K - 2 * K, y + 2 * K, 3 * K, 0xffffff) end
+        local label = fit(app.name, cell // (6 * K))
+        text(xPad + c * cell + (cell - tw(label)) // 2, y + 30 * K, label, theme.text)
+        hit(xPad + c * cell, y, cell, cell, "menuitem", app)
+      end
+    end
   end
-  hit(mx, my, mw, mh, "menuscroll")
+  if totalRows > rows then  -- a scroll bar
+    local trackH = rows * cell
+    local barH = math.max(8 * K, trackH * rows // totalRows)
+    local barY = top + (trackH - barH) * menuScroll // math.max(1, totalRows - rows)
+    gfx.fill(W - 3 * K, barY, 2 * K, barH, theme.dim)
+  end
 end
 
 local function drawQuick()
@@ -791,15 +995,17 @@ end
 
 local function drawPopup()
   local p = popup
-  local pw, ph = 56 * K, 26 * K
+  local pw, ph = 64 * K, 39 * K
   local px, py = clamp(p.x, 0, W - pw), clamp(p.y, BAR_H, H - TASK_H - ph)
   gfx.fill(px, py, pw, ph, theme.panel)
   gfx.rect(px, py, pw, ph, theme.border)
+  hit(0, 0, W, H, "popclose")
   text(px + 4 * K, py + 3 * K, "Open", theme.text)
   hit(px, py, pw, 13 * K, "popopen", p.app)
-  text(px + 4 * K, py + 16 * K, "Hide", theme.text)
-  hit(px, py + 13 * K, pw, 13 * K, "pophide", p.app)
-  hit(0, 0, W, H, "popclose")
+  text(px + 4 * K, py + 16 * K, isPinned(p.app.id) and "Unpin" or "Pin to home", theme.text)
+  hit(px, py + 13 * K, pw, 13 * K, "poppin", p.app)
+  text(px + 4 * K, py + 29 * K, "Hide", theme.text)
+  hit(px, py + 26 * K, pw, 13 * K, "pophide", p.app)
 end
 
 local function render()
@@ -858,10 +1064,21 @@ local function doAction(e, kind)
     if e.arg.id == focusId and not e.arg.min then e.arg.min = true; focusId = nil else focusWindow(e.arg) end
   elseif a == "menu" then menuOpen, quickOpen, popup = not menuOpen, false, nil
   elseif a == "quick" then quickOpen, menuOpen = not quickOpen, false
-  elseif a == "menuitem" or a == "icon" then if kind == "long" and a == "icon" then popup = { x = e.x, y = e.y, app = e.arg } else launch(e.arg) end
+  elseif a == "menuitem" or a == "icon" then
+    if kind == "long" then popup = { x = e.x, y = e.y, app = e.arg } else launch(e.arg) end
+  elseif a == "dock" then launch(e.arg)
   elseif a == "popopen" then launch(e.arg)
+  elseif a == "poppin" then
+    pinned = toggleId(pinned, e.arg.id)
+    savePinned()
+    popup = nil
+  elseif a == "boot" then
+    local ok = setEnabled(not isEnabled())
+    if not ok then showToast("could not change ~/.profile") end
   elseif a == "pophide" then
     hidden[e.arg.id] = true
+    pinned = (function() local out = {} for _, v in ipairs(pinned) do if v ~= e.arg.id then out[#out + 1] = v end end return out end)()
+    savePinned()
     local ids = {}
     for id in pairs(hidden) do ids[#ids + 1] = id end
     table.sort(ids)
@@ -897,6 +1114,7 @@ local function handleEvent(ev)
   local x, y = gesture.x, gesture.y
   if ev == "down" then
     drag = nil
+    if menuOpen and not popup then drag = { kind = "menu", acc = 0 }; return end  -- the launcher scrolls by dragging
     local s = hitAt(x, y, "slider")
     if s and (quickOpen or (winAt(x, y) and s.arg)) then drag = { kind = "slider", a = s.arg }; setSlider(s.arg, x) ; return end
     local g = hitAt(x, y, "grip")
@@ -905,6 +1123,8 @@ local function handleEvent(ev)
     if t then drag = { kind = "move", win = t.arg }; focusWindow(t.arg); return end
     local sc = hitAt(x, y, "scroll")
     if sc then drag = { kind = "scroll", win = sc.arg, acc = 0 } end
+    local ts = hitAt(x, y, "tscroll")
+    if ts then drag = { kind = "tscroll", win = ts.arg, acc = 0 }; focusWindow(ts.arg) end
   elseif ev == "drag" then
     if not drag then return end
     if drag.kind == "slider" then setSlider(drag.a, x)
@@ -914,6 +1134,16 @@ local function handleEvent(ev)
     elseif drag.kind == "resize" then
       drag.win.w = clamp(drag.win.w + gesture.dx, 70 * K, W - drag.win.x)
       drag.win.h = clamp(drag.win.h + gesture.dy, 40 * K, H - TASK_H - drag.win.y)
+    elseif drag.kind == "menu" then
+      drag.acc = drag.acc - gesture.dy
+      local step = 52 * K
+      while drag.acc >= step do menuScroll = menuScroll + 1; drag.acc = drag.acc - step end
+      while drag.acc <= -step do menuScroll = menuScroll - 1; drag.acc = drag.acc + step end
+    elseif drag.kind == "tscroll" then
+      drag.acc = drag.acc + gesture.dy
+      local step = 9 * K
+      while drag.acc >= step do drag.win.tscroll = (drag.win.tscroll or 0) + 1; drag.acc = drag.acc - step end
+      while drag.acc <= -step do drag.win.tscroll = (drag.win.tscroll or 0) - 1; drag.acc = drag.acc + step end
     elseif drag.kind == "scroll" then
       drag.acc = drag.acc - gesture.dy
       local step = 11 * K
@@ -929,29 +1159,31 @@ local function handleEvent(ev)
     if d == "down" and startY < BAR_H + 6 * K then quickOpen, menuOpen = true, false
     elseif d == "up" and startY > H - TASK_H - 6 * K then menuOpen, quickOpen = true, false
     elseif d == "up" and quickOpen then quickOpen = false
-    elseif d == "down" and menuOpen then menuOpen = false
+    elseif d == "down" and menuOpen and startY < BAR_H + 6 * K then menuOpen = false
     elseif (d == "left" or d == "right") and not winAt(gesture.x0, gesture.y0) and not menuOpen and not quickOpen then
       page = page + (d == "left" and 1 or -1)
-    elseif menuOpen and (d == "up" or d == "down") then
-      menuScroll = menuScroll + (d == "up" and 3 or -3)
     end
   elseif ev == "tap" or ev == "dtap" or ev == "long" then
     drag = nil
     -- a tap outside an open menu or panel closes it
     local e = hitAt(x, y)
-    if popup and (not e or e.action ~= "popopen" and e.action ~= "pophide") then popup = nil; return end
+    if popup then  -- a tap while the menu of an icon is open: one of its three items, or it closes
+      if e and (e.action == "popopen" or e.action == "pophide" or e.action == "poppin") and ev == "tap" then doAction(e, "tap") else popup = nil end
+      return
+    end
     if menuOpen and (not e or (e.action ~= "menuitem" and e.action ~= "menuscroll" and e.action ~= "menu")) then menuOpen = false; return end
+    if menuOpen and e.action == "menuscroll" then return end
     if quickOpen and (not e or (e.action ~= "power" and e.action ~= "slider" and e.action ~= "quickpanel" and e.action ~= "quick")) then quickOpen = false; return end
     if e and e.action == "title" and ev == "dtap" then e.arg.max = not e.arg.max; return end
-    if e and e.action == "icon" then
+    if e and (e.action == "icon" or e.action == "menuitem") then
       if ev == "long" then doAction(e, "long") elseif ev == "tap" then doAction(e, "tap") end
       return
     end
     if ev == "long" then return end
     if e and e.action ~= "desktop" and e.action ~= "title" and e.action ~= "scroll" and e.action ~= "focus" and e.action ~= "menuscroll"
-       and e.action ~= "quickpanel" and e.action ~= "slider" and e.action ~= "grip" then
+       and e.action ~= "quickpanel" and e.action ~= "slider" and e.action ~= "grip" and e.action ~= "tscroll" then
       doAction(e, "tap")
-    elseif e and (e.action == "scroll" or e.action == "focus") then
+    elseif e and (e.action == "scroll" or e.action == "focus" or e.action == "tscroll") then
       local win = winAt(x, y)
       if win then focusWindow(win) end
       local f = hitAt(x, y, "file")
@@ -970,25 +1202,40 @@ local function main()
   if W >= 400 or H >= 400 then K = math.max(K, 2) end
   U = 8 * K
   BAR_H, TASK_H = 12 * K, 14 * K
+  DOCK_H = 36 * K
   gesture = Gesture.new(8 * K)
   setHidden(conf.hidden)
+  pinned = idList(conf.pinned or DEFAULT_PINNED)
   loadApps()
   pointer.x, pointer.y = W // 2, H // 2
   while running do
     now = sys.millis()
     local held = key.down and key.down() or {}
-    local pressed = {}
+    local pressed, typed = {}, {}
+    local fw = nil
+    for _, w in ipairs(windows) do if w.id == focusId and not w.min then fw = w end end
+    typing = fw ~= nil and fw.app.kind == "terminal"
     local k = key.poll()
     while k do
       if k == "ctrl-q" then running = false end
       pressed[k] = true
+      typed[#typed + 1] = k
       k = key.poll()
+    end
+    if typing then
+      for _, tk in ipairs(typed) do
+        if tk ~= "ctrl-q" and tk ~= "tab" then
+          local result = termKey(fw, tk)
+          if result == "close" then closeWindow(fw); break
+          elseif result == "logout" then running = false; break end
+        end
+      end
     end
     local heldSet = {}
     for _, name in ipairs(held) do heldSet[name] = true end
     if heldSet.enter then pressed.enter = true end
     if pressed[" "] and pointer.keyboard then pointer.down = true end
-    readPointer(W, H, held, pressed)
+    readPointer(W, H, held, pressed, typing)
     if pointer.keyboard and heldSet[" "] then pointer.down = true end
     local ev = gesture:update(pointer.x, pointer.y, pointer.down, now)
     if ev then handleEvent(ev) end

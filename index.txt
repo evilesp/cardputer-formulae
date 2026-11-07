@@ -42,7 +42,7 @@ server|1.0.0.2|a web page for a phone or a laptop: terminal, SD card files (uplo
 gps|1.0|driver for GPS modules on a UART (NMEA sentences): an app loads it with driver.load("gps")|Driver/gps.lua
 gpsview|1.0.0.1|position, satellites and speed from a GPS module on a UART: gpsview RX TX (needs the gps driver)|Formula/gpsview.lua
 i2cscan|1.0.0.1|lists the devices on an I2C bus, on two free pins: i2cscan SDA SCL|Formula/i2cscan.lua
-remote|1.0.0.1|infrared remotes: learn the buttons of a remote (press them at the receiver), name them, send one or all in order; set the TX and RX pins with p: remote (needs firmware v0.1.0.11)|Formula/remote.lua
+remote|1.0.0.2|infrared remotes: learn the buttons of a remote (press them at the receiver), name them, send one or all in order; set the TX and RX pins with p: remote (needs firmware v0.1.0.11)|Formula/remote.lua
 softspi|1.0|software SPI on any GPIO pins, bit-banged in Lua, for devices whose pins the hardware SPI cannot reach (needs firmware v0.1.0.11)|Driver/softspi.lua
 mcp3008|1.0.0.1|driver for the MCP3008 analogue-to-digital converter: 8 inputs, 10 bits, on a hardware or software SPI bus (needs firmware v0.1.0.11)|Driver/mcp3008.lua
 adcview|1.0|the 8 inputs of an MCP3008 on the screen: adcview SCK MOSI MISO CS [VREF] (q quits; needs softspi and mcp3008)|Formula/adcview.lua
@@ -87,8 +87,8 @@ doomgame|1.0.0.5|the rules and the game loop of doom: player, monsters, shooting
 memcleaner|1.0.0.1|frees room on the SD card: finds empty files, copies, cache, temporary files, unfinished downloads and very old files, and asks y or n for each (needs firmware v0.1.0.14)|Formula/memcleaner.lua
 steps|1.0|the step counter: today's steps against a goal, the last seven days, reset or pause (firmware v0.1.0.18; counts in the background)|needs:ui|Formula/steps.lua
 sleep|1.0|low power screen: time, date, steps and battery at the lowest brightness, 80 MHz, WiFi power saving; any key wakes it (firmware v0.1.0.18; 'sleep' alone, 'sleep N' still waits)|needs:ui|Formula/sleep.lua
-tiltracer|1.0.0.4|a race against five bots on a 3D track with bends and hills: 3 or 5 laps, positions, lap times; steer with a d or by tilting|Formula/tiltracer.lua
-tiltmaze|1.0.0.2|ball maze: tilt the board to roll the ball to the exit (motion sensor)|needs:ui|Formula/tiltmaze.lua
+tiltracer|1.0.0.5|a race against five bots on a 3D track with bends and hills: 3 or 5 laps, positions, lap times; gas w or up, brake s or down, steer with a d or arrows or by tilting|Formula/tiltracer.lua
+tiltmaze|1.0.0.3|ball maze: arrow keys or tilt the board to roll the ball to the exit (motion sensor)|needs:ui|Formula/tiltmaze.lua
 spectrum|1.0|sound from the microphone as 16 bars with note and peaks (firmware v0.1.0.18, audio.listen)|needs:ui|Formula/spectrum.lua
 sequencer|1.0|drum machine: 8 tracks of 16 steps, tempo, save and load the beat on the SD card (firmware v0.1.0.18 for the sound)|needs:ui|Formula/sequencer.lua
 morse|1.0|Morse code with sound: send a text, or learn to hear letters and digits (firmware v0.1.0.18 for the tones)|needs:ui|Formula/morse.lua
@@ -188,4 +188,4 @@ cube|1.0|a spinning 3D wireframe cube drawn with perspective: a d size, w s spee
 natan|1.0.0.1|ask the device in plain words: natan ile mam miejsca na karcie sd. The small models of the device answer (pulled by themselves the first time); natan /set local, natan /set ollama HOST:PORT or natan /set api HOST:PORT KEY change who answers|needs:json natanlocal|Formula/natan.lua
 natanlocal|1.0.0.0|the three small models of natan on this device (intent, command, reply): driver.load("natanlocal"); needs firmware v0.1.1|needs:json|Driver/natanlocal.lua
 natan-local-pl|1.0.0.0|natan-local-pl QUESTION: the same as natan, only with the models of this device, in Polish or English|needs:json natanlocal|Formula/natan-local-pl.lua
-desktop|1.0.0.3|graphical desktop with touch: icons of all apps, windows, task bar, start menu, quick panel, themes and wallpapers as text packages; desktop enable/disable at boot, desktop install NAME (beta, needs touch.read from the firmware)|Formula/desktop.lua
+desktop|1.0.0.4|graphical desktop with touch: home screen with pinned apps and a dock (launcher, terminal, files, settings), windows, task bar, quick panel, themes and wallpapers as text packages; desktop enable/disable at boot, desktop install NAME (beta, needs touch.read from the firmware)|Formula/desktop.lua

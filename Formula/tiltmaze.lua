@@ -1,6 +1,6 @@
 #!lua
 -- tiltmaze: a ball rolls through a maze. Tilt the board to roll it (the motion sensor): tilt right to roll right, tilt
--- away from you to roll down. Without the sensor, the keys a d w s push it. Get the ball to the exit at the bottom-right
+-- away from you to roll down. Without the sensor, the arrow keys (or a d w s) push it. Get the ball to the exit at the bottom-right
 -- corner. n makes a new maze, r starts this maze again, ctrl-q quits. Needs the graphics, the ui package and a motion
 -- sensor (the board needs one). Run it with --selftest to check the maze and the walls.
 
@@ -203,10 +203,10 @@ local ok, problem = pcall(function()
     end
     local held = key.down and key.down() or {}
     for _, k in ipairs(held) do
-      if k == "a" then ax = ax - 1 end
-      if k == "d" then ax = ax + 1 end
-      if k == "w" then ay = ay - 1 end
-      if k == "s" then ay = ay + 1 end
+      if k == "a" or k == "left" then ax = ax - 1 end
+      if k == "d" or k == "right" then ax = ax + 1 end
+      if k == "w" or k == "up" then ay = ay - 1 end
+      if k == "s" or k == "down" then ay = ay + 1 end
     end
     local k = key.poll()
     while k do

@@ -1,6 +1,6 @@
 #!lua
--- tiltracer: a race against five bots on a track with bends and hills, in pseudo 3D. The car speeds up by itself; s brakes,
--- a and d steer (or tilt the board to steer, t switches the tilt on and off). Bump into a car and you lose speed; off the
+-- tiltracer: a race against five bots on a track with bends and hills, in pseudo 3D. Hold w or up for gas, s or down brakes,
+-- a and d (or the arrows) steer (or tilt the board to steer, t switches the tilt on and off). Bump into a car and you lose speed; off the
 -- road you are slow. Three laps (or five); you start last and must get to the front. Choose easy, normal or hard bots.
 -- r starts the race again, ctrl-q quits. Needs the graphics; the motion sensor is used when it is there.
 -- Run it with --selftest to check the track, the steering and the race order.
@@ -359,13 +359,16 @@ local function updateBots(dt)
   end
 end
 
-local function updatePlayer(dt, steer, brake)
+local function updatePlayer(dt, steer, brake, gas)
   local seg = math.floor((player.z + PLAYER_Z) / SEG)
   local pct = player.speed / MAX_SPEED
   player.steer = steer
   player.x = player.x + steer * dt * 2 * pct - curveAt(seg) * pct * pct * dt * CENTRIFUGAL * 2
   if brake then player.speed = player.speed - MAX_SPEED * dt
-  elseif state == "race" or state == "done" then player.speed = player.speed + MAX_SPEED / 5 * dt end
+  elseif state == "done" then player.speed = player.speed + MAX_SPEED / 5 * dt
+  elseif state == "race" then
+    if gas then player.speed = player.speed + MAX_SPEED / 5 * dt else player.speed = player.speed - MAX_SPEED / 10 * dt end
+  end
   if math.abs(player.x) > 1.05 and player.speed > MAX_SPEED / 4 then player.speed = player.speed - MAX_SPEED / 1.5 * dt end
   player.x = math.max(-2.2, math.min(2.2, player.x))
   -- a bump into a car ahead: you slow to its speed and bounce a little to the side
@@ -439,11 +442,12 @@ local ok, problem = pcall(function()
     local dt = math.min((now - last) / 1000, 0.1)
     last = now
     local held = key.down and key.down() or {}
-    local keySteer, brake = 0, false
+    local keySteer, brake, gas = 0, false, false
     for _, k in ipairs(held) do
       if k == "a" or k == "left" then keySteer = keySteer - 1 end
       if k == "d" or k == "right" then keySteer = keySteer + 1 end
       if k == "s" or k == "down" then brake = true end
+      if k == "w" or k == "up" then gas = true end
     end
     local k = key.poll()
     while k do
@@ -451,7 +455,7 @@ local ok, problem = pcall(function()
       if k == "r" then newRace() end
       if k == "t" then useTilt = not useTilt end
       if not key.down then  -- without the list of held keys a press steers for a moment
-        if k == "a" then keySteer = -1 elseif k == "d" then keySteer = 1 elseif k == "s" then brake = true end
+        if k == "a" then keySteer = -1 elseif k == "d" then keySteer = 1 elseif k == "s" then brake = true elseif k == "w" then gas = true end
       end
       k = key.poll()
     end
@@ -463,7 +467,7 @@ local ok, problem = pcall(function()
     end
     if state ~= "count" then
       updateBots(dt)
-      updatePlayer(dt, steer, brake)
+      updatePlayer(dt, steer, brake, gas)
     end
     bumpT = math.max(0, bumpT - dt)
     render()
