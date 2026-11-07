@@ -24,7 +24,7 @@ hangman|1.0.0.1|guess the word, type letters (press q)|Formula/hangman.lua
 base64|1.0|encode or decode text: base64 [-d] TEXT|Formula/base64.lua
 uuidgen|1.0|random UUID version 4: uuidgen [COUNT]|Formula/uuidgen.lua
 shasum|1.0|SHA-256 of a file or text: shasum FILE or shasum -s TEXT|Formula/shasum.lua
-duckduckgo|1.0.0.6|text browser for DuckDuckGo: duckduckgo WORDS (pages need firmware v0.1.0.8)|Formula/duckduckgo.lua
+duckduckgo|1.0.0.7|browser for DuckDuckGo with smooth fonts, pages and pictures: duckduckgo WORDS | duckduckgo img 20 cats (needs firmware v0.1.1 and the fonts driver)|Formula/duckduckgo.lua
 imuMonitor|1.0|live view of the accelerometer and gyroscope (q = quit)|Formula/imuMonitor.lua
 sox|1.0.0.1|SoX-style audio: sox -d out.wav trim 0 5 records, sox -n synth 1 sine 440 -d plays a tone|Formula/sox.lua
 rec|1.0.0.1|record from the microphone: rec FILE trim 0 5 (rec -n stat only measures)|Formula/rec.lua
@@ -38,7 +38,7 @@ parrotDancing|1.0.0.2|the party parrot of parrot.live: shaded letters, head circ
 asciiDonutAnimation|1.0|the spinning ASCII donut, drawn at the size of the screen (q quits)|Formula/asciiDonutAnimation.lua
 show|1.0|shows JPEG and PNG pictures from the SD card on the screen: show FILE... (needs firmware v0.1.0.10)|Formula/show.lua
 wikipedia|1.0.0.1|the lead of a Wikipedia article as text, no key: wikipedia WORDS or wikipedia -l en WORDS|Formula/wikipedia.lua
-server|1.0.0.1|a web page for a phone or a laptop: terminal, SD card files (upload, download), device state; server PORT [NAME] (needs v0.1.0.10)|Formula/server.lua
+server|1.0.0.2|a web page for a phone or a laptop: terminal, SD card files (upload, download), device state; server PORT [NAME] (needs v0.1)|Formula/server.lua
 gps|1.0|driver for GPS modules on a UART (NMEA sentences): an app loads it with driver.load("gps")|Driver/gps.lua
 gpsview|1.0|position, satellites and speed from a GPS module on a UART: gpsview RX TX (needs the gps driver)|Formula/gpsview.lua
 i2cscan|1.0|lists the devices on an I2C bus, on two free pins: i2cscan SDA SCL|Formula/i2cscan.lua
@@ -58,9 +58,10 @@ iss|1.0.0.1|where the International Space Station is now, on a map (needs WiFi, 
 rtc|1.0|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua
 doom|0.1.1.3|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; hold w s a d , / q e to move and turn, letter keys only, no Fn (sound from firmware v0.1.0.17; x turns it off; needs firmware v0.1.0.14)|needs:doomgame|Formula/doom.lua
 ui|1.0.0.1|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
+fonts|1.0.0.0|smooth Lato fonts (VLW files loaded from the tap): an app loads it with driver.load("fonts") (needs firmware v0.1.1)|Driver/fonts.lua
 uidemo|1.0.0.2|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs firmware v0.1.0.13)|needs:ui|Formula/uidemo.lua
-doomlevel|1.0.0.1|the level of doom: the map, the look of the walls and monsters, and the ray caster geometry (a driver for doom)|Driver/doomlevel.lua
-doomdraw|1.0.0.3|the picture and the menus of doom: walls and floor, monsters, weapon, crosshair, minimap and the bar at the bottom (a driver for doom)|needs:doomlevel|Driver/doomdraw.lua
+doomlevel|1.0.0.2|the level of doom: the map, the look of the walls and monsters, and the ray caster geometry (a driver for doom)|Driver/doomlevel.lua
+doomdraw|1.0.0.4|the picture and the menus of doom: walls and floor, monsters, weapon, crosshair, minimap and the bar at the bottom (a driver for doom)|needs:doomlevel|Driver/doomdraw.lua
 invaders|1.0.0.1|space invaders in pixels: a d move, f fires, three lives (needs firmware v0.1.0.13)|needs:ui|Formula/invaders.lua
 breakout|1.0.0.1|break the bricks with the ball, paddle on a and d (needs firmware v0.1.0.13)|needs:ui|Formula/breakout.lua
 flappy|1.0.0.1|fly the bird through the gaps in the pipes, space flaps (needs firmware v0.1.0.13)|needs:ui|Formula/flappy.lua
@@ -86,8 +87,6 @@ doomgame|1.0.0.4|the rules and the game loop of doom: player, monsters, shooting
 memcleaner|1.0.0.1|frees room on the SD card: finds empty files, copies, cache, temporary files, unfinished downloads and very old files, and asks y or n for each (needs firmware v0.1.0.14)|Formula/memcleaner.lua
 steps|1.0|the step counter: today's steps against a goal, the last seven days, reset or pause (firmware v0.1.0.18; counts in the background)|needs:ui|Formula/steps.lua
 sleep|1.0|low power screen: time, date, steps and battery at the lowest brightness, 80 MHz, WiFi power saving; any key wakes it (firmware v0.1.0.18; 'sleep' alone, 'sleep N' still waits)|needs:ui|Formula/sleep.lua
-deepSleep|1.0.0.1|deep sleep: screen off and processor stopped, a key or BOOT wakes the Cardputer (firmware v0.1.0.18)|Formula/deepSleep.lua
-off|1.0|switch off: the battery is cut where the board allows it, otherwise deep sleep until BOOT (firmware v0.1.0.18)|Formula/off.lua
 tiltracer|1.0.0.3|a race against five bots on a 3D track with bends and hills: 3 or 5 laps, positions, lap times; steer with a d or by tilting|Formula/tiltracer.lua
 tiltmaze|1.0.0.1|ball maze: tilt the Cardputer to roll the ball to the exit (motion sensor)|needs:ui|Formula/tiltmaze.lua
 spectrum|1.0|sound from the microphone as 16 bars with note and peaks (firmware v0.1.0.18, audio.listen)|needs:ui|Formula/spectrum.lua
@@ -187,3 +186,6 @@ helix|1.0|a double helix (DNA) turning on the screen: w s speed, a d coil length
 sortviz|1.0|sorting algorithms drawn as bars: bubble, insertion or selection sort with 1 2 3, n new shuffle (needs firmware v0.1.0.13)|Formula/sortviz.lua
 cube|1.0|a spinning 3D wireframe cube drawn with perspective: a d size, w s speed, space colours, p pauses (q quits)|Formula/cube.lua
 desktop|1.0.0.1|graphical desktop with touch: icons of all apps, windows, task bar, start menu, quick panel, themes and wallpapers as text packages; desktop enable/disable at boot, desktop install NAME (beta, needs touch.read from the firmware)|Formula/desktop.lua
+natan|1.0.0.1|ask the device in plain words: natan ile mam miejsca na karcie sd. The small models of the device answer (pulled by themselves the first time); natan /set local, natan /set ollama HOST:PORT or natan /set api HOST:PORT KEY change who answers|needs:json natanlocal|Formula/natan.lua
+natanlocal|1.0.0.0|the three small models of natan on this device (intent, command, reply): driver.load("natanlocal"); needs firmware v0.1.1|needs:json|Driver/natanlocal.lua
+natan-local-pl|1.0.0.0|natan-local-pl QUESTION: the same as natan, only with the models of this device, in Polish or English|needs:json natanlocal|Formula/natan-local-pl.lua

@@ -234,9 +234,9 @@ local function drawHud()
   if hp > 0 then gfx.fill(21, y + 4, math.floor(64 * hp / 100), 9, hpColor) end
   gfx.rect(20, y + 3, 66, 11, T.border)
   label(20 + (66 - textWidth(tostring(hp))) // 2, y + 5, tostring(hp))
-  label(96, y + 5, "AMMO", T.dim)
-  label(128, y + 5, tostring(P.ammo), P.ammo <= 5 and T.danger or T.text)
-  label(160, y + 5, "KILLS " .. P.kills .. "/" .. #S.enemies, T.text)
+  label(92, y + 5, "AMMO", T.dim)
+  label(124, y + 5, tostring(P.ammo), P.ammo <= 5 and T.danger or T.text)
+  label(144, y + 5, "KILLS " .. P.kills .. "/" .. #S.enemies, T.text)
 end
 
 local frames, fpsT, fps = 0, 0, 0
@@ -262,7 +262,9 @@ function draw.render(state)
     fps = frames * 1000 // (now - fpsT)
     frames, fpsT = 0, now
   end
-  label(212, VIEW_H + 5, fps .. " fps", T.dim)
+  -- at the right edge of the bar, where the whole number shows (it was cut off at the edge before)
+  local text = fps .. "fps"
+  label(SW - 2 - textWidth(text), VIEW_H + 5, text, T.dim)
 end
 
 -- ---- menus (they draw and wait for keys themselves) ----

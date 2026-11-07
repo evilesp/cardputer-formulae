@@ -64,17 +64,16 @@ level.LOOKS = {
 
 -- ---- the grid and where the things start ----
 
--- level.rows[y + 1] is a string of digits for the row y (cells counted from 0): 0 for floor and 1 to 4 for a wall. A table of
--- numbers for every row would take ten times the memory, and the memory of the Cardputer is small.
-local rows = {}
+-- cells[cy * MW + cx + 1] is the kind of the cell (cx, cy), counted from 0: 0 for floor and 1 to 4 for a wall. A table of
+-- numbers, not text: the ray caster reads the cells many times a frame, and a read from a table is quicker than a string call.
+local cells = {}
 local spawn = { enemies = {}, pickups = {}, start = { x = 1.5, y = 1.5 } }
 for y = 1, level.MH do
   local text = level.MAP_TEXT[y]
-  local digits = {}
   for x = 1, level.MW do
     local ch = text:sub(x, x)
     local cx, cy = x - 0.5, y - 0.5
-    digits[x] = tonumber(ch) and ch or "0"
+    cells[(y - 1) * level.MW + x] = tonumber(ch) or 0
     if ch == "P" then spawn.start = { x = cx, y = cy }
     elseif ch == "E" then spawn.enemies[#spawn.enemies + 1] = { kind = "imp", x = cx, y = cy }
     elseif ch == "D" then spawn.enemies[#spawn.enemies + 1] = { kind = "demon", x = cx, y = cy }
@@ -82,20 +81,15 @@ for y = 1, level.MH do
     elseif ch == "A" then spawn.pickups[#spawn.pickups + 1] = { kind = "ammo", x = cx, y = cy }
     end
   end
-  rows[y] = table.concat(digits)
 end
-level.rows = rows
 level.spawn = spawn
 
 -- ---- geometry ----
 
 -- the kind of the wall at the cell (cx, cy), counted from 0; outside the level is a wall too (kind 9)
-local byte = string.byte
 function level.wallAt(cx, cy)
-  local row = rows[cy + 1]
-  local t = row and byte(row, cx + 1)
-  if t == nil or cx < 0 then return 9 end
-  return t - 48
+  if cx < 0 or cy < 0 or cx >= level.MW or cy >= level.MH then return 9 end
+  return cells[cy * level.MW + cx + 1]
 end
 
 -- true when a circle of radius r around (x, y) reaches into a wall
@@ -107,7 +101,7 @@ end
 -- from (x, y) along (rdx, rdy): the distance to the first wall, the side it was hit on (0 or 1), the kind of the wall and
 -- where along it (0 to 1): the digital differential analyser of the classic ray caster
 function level.cast(x, y, rdx, rdy)
-  local wallAt = level.wallAt
+  local MW, MH = level.MW, level.MH
   local mapX, mapY = math.floor(x), math.floor(y)
   local ddx = rdx == 0 and 1e30 or math.abs(1 / rdx)
   local ddy = rdy == 0 and 1e30 or math.abs(1 / rdy)
@@ -121,7 +115,8 @@ function level.cast(x, y, rdx, rdy)
     else
       sdy, mapY, side = sdy + ddy, mapY + stepY, 1
     end
-    kind = wallAt(mapX, mapY)
+    if mapX < 0 or mapY < 0 or mapX >= MW or mapY >= MH then kind = 9
+    else kind = cells[mapY * MW + mapX + 1] end
     if kind > 0 then break end
   end
   local dist = side == 0 and (sdx - ddx) or (sdy - ddy)

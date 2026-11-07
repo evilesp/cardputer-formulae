@@ -1,13 +1,13 @@
 #!lua
--- server: a web page on the Cardputer for a phone or a laptop on the same WiFi. It has a terminal (the shell commands),
+-- server: a web page on the ESP for a phone or a laptop on the same WiFi. It has a terminal (the shell commands),
 -- the files of the SD card (download and upload) and the state of the device: memory, CPU, battery, SD card, WiFi.
 -- Needs firmware v0.1.0.10(beta) or newer.
---   server PORT [NAME]    the page is at http://IP:PORT; with NAME (for example cardputer) also at http://NAME.local:PORT
+--   server PORT [NAME]    the page is at http://IP:PORT; with NAME (for example esp) also at http://NAME.local:PORT
 -- There is no password: anyone on the same WiFi can open the page and run commands. Do not forward the port to the
 -- internet. A command from the page stops after 20 seconds; a program that needs the keyboard stops at once.
--- The page sends the header X-Cardputer: 1 with its changes, and a request must name the Cardputer (its address or its
+-- The page sends the header X-Esp: 1 with its changes, and a request must name the ESP (its address or its
 -- name). A page of another site cannot send either, so it cannot run a command here.
--- q on the Cardputer stops the server.
+-- q on the ESP stops the server.
 
 local PAGE = [==[
 <!doctype html>
@@ -15,7 +15,7 @@ local PAGE = [==[
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cardputer</title>
+<title>ESP</title>
 <style>
 :root { color-scheme: dark; }
 * { box-sizing: border-box; }
@@ -47,7 +47,7 @@ ul.files .dir { color: #f0d080; cursor: pointer; }
 </head>
 <body>
 <header>
-  <b>Cardputer</b>
+  <b>ESP</b>
   <nav>
     <button data-tab="term" class="on">Terminal</button>
     <button data-tab="files">Pliki</button>
@@ -61,7 +61,7 @@ ul.files .dir { color: #f0d080; cursor: pointer; }
       <input id="cmd" type="text" placeholder="np. ls, df, uptime" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
       <button class="act" id="run">Wy&#347;lij</button>
     </div>
-    <p class="muted">To terminal Cardputera. Polecenia, kt&#243;re wymagaj&#261; klawiatury (nano, snake, htop), zatrzymuj&#261; si&#281; od razu. Ka&#380;de polecenie dzia&#322;a najwy&#380;ej 20 sekund. Strza&#322;ki w g&#243;r&#281; i w d&#243;&#322; przewijaj&#261; histori&#281;.</p>
+    <p class="muted">To terminal ESPa. Polecenia, kt&#243;re wymagaj&#261; klawiatury (nano, snake, htop), zatrzymuj&#261; si&#281; od razu. Ka&#380;de polecenie dzia&#322;a najwy&#380;ej 20 sekund. Strza&#322;ki w g&#243;r&#281; i w d&#243;&#322; przewijaj&#261; histori&#281;.</p>
   </section>
   <section id="files">
     <div class="row">
@@ -118,7 +118,7 @@ ul.files .dir { color: #f0d080; cursor: pointer; }
     $('cmd').value = '';
     say('$ ' + line + '\n');
     $('run').disabled = true;
-    fetch('/api/exec', { method: 'POST', body: line, headers: { 'X-Cardputer': '1' } })
+    fetch('/api/exec', { method: 'POST', body: line, headers: { 'X-Esp': '1' } })
       .then(function (r) {
         var code = r.headers.get('X-Exit') || '0';
         return r.text().then(function (t) {
@@ -214,7 +214,7 @@ ul.files .dir { color: #f0d080; cursor: pointer; }
     var target = (cwd === '/' ? '' : cwd) + '/' + f.name;
     $('fmsg').textContent = 'Wysy\u0142anie ' + f.name + ' (' + size(f.size) + ')...';
     fetch('/api/upload?path=' + encodeURIComponent(target) + (overwrite ? '&overwrite=1' : ''),
-          { method: 'POST', body: f, headers: { 'X-Cardputer': '1' } })
+          { method: 'POST', body: f, headers: { 'X-Esp': '1' } })
       .then(function (r) {
         if (r.status === 409 && !overwrite) {
           if (confirm('Plik ' + f.name + ' ju\u017c istnieje. Nadpisa\u0107?')) return upload(f, true);
@@ -306,7 +306,7 @@ end
 
 local port = (#arg == 1 or #arg == 2) and tonumber(arg[1]) or nil
 if not port or port ~= math.floor(port) or port < 1 or port > 65535 then
-  print("usage: server PORT [NAME]   e.g. server 8080 cardputer")
+  print("usage: server PORT [NAME]   e.g. server 8080 esp")
   return
 end
 local name = arg[2] or ""
