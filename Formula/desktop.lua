@@ -416,7 +416,7 @@ if conf.wallpaper then
 end
 
 local W, H, K, U            -- screen size, scale (1 on a small screen, more on a big one), the text line height
-local BAR_H, TASK_H
+local BAR_H, TASK_H, TB
 local apps, hidden, pinned = {}, {}, {}
 local DOCK_H
 local windows, focusId, nextId = {}, nil, 1
@@ -444,6 +444,7 @@ local BUILTIN = {
   { id = "settings", name = "Settings", icon = "St", color = 0x77767b, kind = "settings" },
   { id = "monitor", name = "Monitor", icon = "Mo", color = 0x26a269, kind = "monitor" },
   { id = "about", name = "About", icon = "Ab", color = 0xe95420, kind = "about" },
+  { id = "touchcal", name = "Calibrate touch", icon = "+", color = 0x1a9fb8, exec = "touchcal", comment = "fix the touch position (sudo apt install touchcal)" },
 }
 
 local function loadApps()
@@ -794,25 +795,27 @@ end
 
 local function drawWindow(win)
   local x, y, w, h = windowRect(win)
-  local tb = 12 * K
+  hit(x, y, w, h, "focus", win)   -- first: of the zones that overlap, the one registered last wins, so the buttons come after it
+  local tb = TB
+  local bw = tb + 4 * K          -- a button is as wide as the bar is high, a little more: easy to hit with a finger
   local focused = win.id == focusId
   gfx.fill(x, y, w, tb, focused and theme.title or theme.bar)
-  text(x + 4 * K, y + 2 * K, fit(win.title, (w - 40 * K) // (6 * K)), theme.text)
+  text(x + 4 * K, y + (tb - 8 * K) // 2, fit(win.title, (w - 3 * bw - 6 * K) // (6 * K)), theme.text)
   -- close, maximize, minimize
-  gfx.fill(x + w - 11 * K, y + 1 * K, 10 * K, 10 * K, theme.danger)
-  text(x + w - 9 * K, y + 2 * K, "x", 0xffffff)
-  gfx.rect(x + w - 22 * K, y + 2 * K, 8 * K, 8 * K, theme.text)
-  gfx.hline(x + w - 32 * K, x + w - 26 * K, y + 9 * K, theme.text)
-  hit(x + w - 11 * K, y, 11 * K, tb, "close", win)
-  hit(x + w - 23 * K, y, 11 * K, tb, "maximize", win)
-  hit(x + w - 34 * K, y, 11 * K, tb, "minimize", win)
-  hit(x, y, w - 34 * K, tb, "title", win)
+  gfx.fill(x + w - bw, y, bw, tb, theme.danger)
+  text(x + w - bw // 2 - 3 * K, y + (tb - 8 * K) // 2, "x", 0xffffff)
+  local mid = y + tb // 2
+  gfx.rect(x + w - bw * 2 + bw // 2 - 4 * K, mid - 4 * K, 8 * K, 8 * K, theme.text)
+  gfx.hline(x + w - bw * 3 + bw // 2 - 4 * K, x + w - bw * 3 + bw // 2 + 4 * K, mid + 3 * K, theme.text)
+  hit(x + w - bw, y, bw, tb, "close", win)
+  hit(x + w - bw * 2, y, bw, tb, "maximize", win)
+  hit(x + w - bw * 3, y, bw, tb, "minimize", win)
+  hit(x, y, w - bw * 3, tb, "title", win)
   drawWindowContent(win, x, y + tb, w, h - tb)
   if not win.max then
     gfx.triangle(x + w - 1, y + h - 8 * K, x + w - 1, y + h - 1, x + w - 8 * K, y + h - 1, theme.dim)  -- the resize grip
-    hit(x + w - 10 * K, y + h - 10 * K, 10 * K, 10 * K, "grip", win)
+    hit(x + w - 16 * K, y + h - 16 * K, 16 * K, 16 * K, "grip", win)
   end
-  hit(x, y, w, h, "focus", win)
 end
 
 -- ---- the icons, the bars, the menus
@@ -1201,7 +1204,8 @@ local function main()
   K = clamp(math.min(W, H) // 240, 1, 4)
   if W >= 400 or H >= 400 then K = math.max(K, 2) end
   U = 8 * K
-  BAR_H, TASK_H = 12 * K, 14 * K
+  BAR_H, TASK_H = math.max(12 * K, 30), math.max(14 * K, 36)
+  TB = math.max(12 * K, 40)    -- the title bar of a window: at least 40 pixels, a finger is wider than a pixel
   DOCK_H = 36 * K
   gesture = Gesture.new(8 * K)
   setHidden(conf.hidden)
