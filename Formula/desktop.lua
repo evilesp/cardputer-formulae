@@ -77,6 +77,12 @@ local function mix(a, b, t)
     | math.floor(ab + ((b & 255) - ab) * t + 0.5)
 end
 
+-- a program file starts with "#!lua": load() does not skip that line (the shell does), so it becomes a comment
+local function asChunk(src, name)
+  if src:sub(1, 2) == "#!" then src = "--" .. src:sub(3) end
+  return load(src, "=" .. name)
+end
+
 local function clamp(v, lo, hi) return v < lo and lo or (v > hi and hi or v) end
 
 -- text that fits in `chars` characters
@@ -331,6 +337,8 @@ if arg and arg[1] == "--selftest" then
   local th = makeTheme("dark", "accent=0x112233\nbogus=1\n")
   check(th.accent == 0x112233 and th.bg == THEMES.dark.bg, "a .theme file changes only its keys")
   check(makeTheme("nothing").bg == THEMES.ubuntu.bg, "an unknown theme falls back to the default")
+  local chunk = asChunk("#!lua\nreturn 41 + 1", "t")
+  check(chunk and chunk() == 42 and load("#!lua\nreturn 1") == nil, "a program that starts with #!lua loads")
   check(fit("abcdefgh", 5) == "abc..", "fit")
   check(fit("abc", 5) == "abc" and #fit("abcdefgh", 5) == 5, "fit keeps the width")
   check(mix(0, 0xffffff, 0.5) == 0x808080 and clamp(5, 0, 3) == 3, "mix and clamp")
@@ -511,7 +519,7 @@ local function runProgram(app)
   end
   local src = readFile(path)
   if not src then showToast("not found: " .. path); return end
-  local chunk, err = load(src, "=" .. (words[1] or app.exec))
+  local chunk, err = asChunk(src, words[1] or app.exec)
   if not chunk then showToast("error: " .. tostring(err):sub(1, 40)); return end
   local savedArg = arg
   local newArg = {}
