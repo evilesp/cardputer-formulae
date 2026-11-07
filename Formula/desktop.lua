@@ -461,7 +461,7 @@ local function runProgram(app)
   gfx.close()
   local ok, problem = pcall(chunk)
   arg = savedArg
-  local w2, h2 = gfx.open()
+  local w2, h2 = gfx.open("native")
   if w2 then W, H = w2, h2 end
   if not ok and not tostring(problem):find("interrupted", 1, true) then showToast(fit(tostring(problem), 36)) end
 end
@@ -963,7 +963,7 @@ local function handleEvent(ev)
 end
 
 local function main()
-  local w, h = gfx.open()
+  local w, h = gfx.open("native")  -- the screen in its own pixels (800x480); an older firmware ignores the argument
   if not w then print("desktop: " .. tostring(h)); return end
   W, H = w, h
   K = clamp(math.min(W, H) // 240, 1, 4)

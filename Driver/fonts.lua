@@ -1,3 +1,4 @@
+#!lua
 -- fonts: the smooth fonts of the graphical apps (Lato, SIL Open Font License), made with tools/make_vlw.py and kept in the tap.
 -- An app loads this driver and calls fonts.ensure(): the files that are not on the card yet are fetched from the tap (1 MB at most
 -- for the set an app uses), once. After that gfx.font(fonts.path("lato-18")) gives text with soft edges.
