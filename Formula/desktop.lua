@@ -10,7 +10,8 @@
 --   desktop remove NAME   removes one
 -- Home screen: the apps pinned to it, and a dock with the launcher (the grid of dots: every app), the terminal, files and settings.
 -- Hold an app (in the launcher or on the home screen) for Open, Pin to home or Unpin, and Hide. The terminal window runs commands
--- with sys.run (reading and the known commands; a command that changes the device asks for y first); exit closes it, logout leaves
+-- with sys.shell (every command of the shell; one that asks questions or draws runs on the text terminal and the desktop returns on a key
+-- or a touch; on an older firmware sys.run: reading and the known commands, a command that changes the device asks for y); exit closes it, logout leaves
 -- the desktop. Typing needs a keyboard (the Bluetooth one or the serial port).
 -- Gestures (one finger): tap = click; double tap on a title bar = maximize; long press on an icon = menu; drag a title bar
 -- = move the window; drag the grip in the corner = resize; drag in a list = scroll; swipe down from the top edge = quick
@@ -526,7 +527,9 @@ local function runProgram(app)
   for i = 2, #words do newArg[i - 1] = words[i] end
   arg = newArg
   gfx.close()
+  if touch and touch.keys then touch.keys(true) end   -- a text app gets drags, taps and swipes as keys
   local ok, problem = pcall(chunk)
+  if touch and touch.keys then touch.keys(false) end
   arg = savedArg
   local w2, h2 = gfx.open("native")
   if w2 then W, H = w2, h2 end
@@ -601,7 +604,63 @@ local function termPrint(win, text_)
   win.tscroll = 0
 end
 
+-- Commands whose whole output fits a window and that never ask a question: their output is shown in the terminal window.
+-- Every other command (apt, nano, ollama, a program ...) runs on the real text terminal, because it may ask questions or draw
+-- the whole screen: the desktop gives the screen up, and takes it back when a key is pressed or the screen is touched.
+local CAPTURED = {}
+for name in ("ls cat echo pwd df free uname date whoami hostname uptime ps head tail grep wc find du sort uniq id battery lscpu lsblk "
+  .. "stat ip mkdir touch rm rmdir cp mv brightness beep imu touchscroll touchkeys which env history help man cal tree ver "
+  .. "lsusb lspci printenv basename dirname tr cut tee seq rev yes sleep true false test expr"):gmatch("%S+") do CAPTURED[name] = true end
+
+local function firstWord(stage)
+  return stage:match("^%s*sudo%s+(%S+)") or stage:match("^%s*(%S+)")
+end
+
+local function isCaptured(cmd)
+  if cmd:find("[<>]") then return false end
+  for stage in cmd:gmatch("[^|]+") do
+    local w = firstWord(stage)
+    if not w or not CAPTURED[w] then return false end
+  end
+  return true
+end
+
+-- a command on the real text terminal; the desktop comes back after a key or a touch
+local function runOnScreen(cmd)
+  gfx.close()
+  print("user@esp:~$ " .. cmd)
+  local ok, problem = pcall(sys.shell, cmd, true)
+  if not ok and not tostring(problem):find("interrupted", 1, true) then print("error: " .. tostring(problem)) end
+  print("")
+  print("[press a key or touch the screen to return to the desktop]")
+  local t0 = sys.millis()
+  local waiting = true
+  while waiting do
+    local down = false
+    if touch and touch.read then down = touch.read() ~= nil end
+    local pressed = key.poll()
+    if sys.millis() - t0 > 300 and (pressed or down) then waiting = false else sys.sleep(30) end  -- keys of the command itself do not count
+  end
+  local t1 = sys.millis()
+  while touch and touch.read and touch.read() and sys.millis() - t1 < 1500 do sys.sleep(30) end  -- until the finger is up, so the tap does not click the desktop
+  local w2, h2 = gfx.open("native")
+  if w2 then W, H = w2, h2 end
+end
+
 local function termRun(win, cmd, confirmed)
+  if sys and sys.shell then
+    local first = firstWord(cmd)
+    if first == "desktop" then termPrint(win, "the desktop is already running"); return end
+    if not isCaptured(cmd) then
+      runOnScreen(cmd)
+      termPrint(win, "(ran on the text terminal)")
+      return
+    end
+    local ok, out, code = pcall(sys.shell, cmd)
+    if not ok then termPrint(win, "error: " .. tostring(out)); return end
+    if out ~= "" then termPrint(win, (out:gsub("\r", ""):gsub("\n+$", ""))) end
+    return
+  end
   if not (sys and sys.run) then termPrint(win, "sys.run is not in this firmware"); return end
   local ok, out, code = pcall(sys.run, cmd, confirmed)
   if not ok then termPrint(win, "error: " .. tostring(out)); return end
