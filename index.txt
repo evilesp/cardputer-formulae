@@ -223,4 +223,4 @@ budget|1.0.0.1|your money in a text file: budget add 12.5 food lunch, list, repo
 loc|1.0.0.1|count lines of code per language in a folder|needs:rustc|Formula/loc.rs
 logstat|1.0.0.1|levels, hours and the most frequent messages of a log file|needs:go|Formula/logstat.go
 sysreport|1.0|a report of memory, disk, network and what is wrong: sysreport [-s FILE]|Formula/sysreport.sh
-pylib|1.0|Python: the library of Python written in Python, a driver of python3|Driver/pylib.lua
+pylib|1.0.0.1|Python: the library of Python written in Python, a driver of python3|Driver/pylib.lua

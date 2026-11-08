@@ -1763,6 +1763,19 @@ def disable(level=CRITICAL): pass
 def shutdown(): pass
 def captureWarnings(c): pass
 ]==],
+["logging.handlers"] = [==[
+import logging
+class RotatingFileHandler(logging.FileHandler):
+    def __init__(self, filename, mode="a", maxBytes=0, backupCount=0, **kw):
+        logging.FileHandler.__init__(self, filename, mode)
+TimedRotatingFileHandler = RotatingFileHandler
+class SysLogHandler(logging.Handler):
+    pass
+class MemoryHandler(logging.Handler):
+    pass
+class QueueHandler(logging.Handler):
+    pass
+]==],
 ["pathlib"] = [==[
 import os, fnmatch, glob as _glob
 class PurePath:
