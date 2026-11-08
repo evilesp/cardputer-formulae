@@ -1032,7 +1032,7 @@ local function drawIcon(x, y, size, app, highlight)
   local r = size // 5
   gfx.alpha(x + 1, y + 3, size, size, 0x000000, 70)
   gfx.round(x, y, size, size, r, c)
-  gfx.round(x + 2, y + 1, size - 4, size // 2, r, mix(c, 0xffffff, 0.14))
+  gfx.round(x + 2, y + 1, size - 4, size // 2, r, mix(c, 0xffffff, 0.08))
   gfx.round(x, y + size // 3, size, size - size // 3, r, c)
   if highlight then gfx.rect(x - 1, y - 1, size + 2, size + 2, 0xffffff) end
   local draw = GLYPHS[app.id]
@@ -1056,8 +1056,7 @@ local function drawDock()
   local bw = n * size + (n - 1) * gap + 16 * K
   local bh = DOCK_H - 4 * K
   local bx, by = (W - bw) // 2, H - TASK_H - DOCK_H + 2 * K
-  gfx.alpha(bx, by, bw, bh, 0x000000, 95)
-  gfx.rect(bx, by, bw, bh, mix(theme.border, 0xffffff, 0.2))
+  gfx.round(bx, by, bw, bh, 12, mix(wallBottom, 0x000000, 0.45))
   local x = bx + 8 * K
   local y = by + (bh - size) // 2
   -- the launcher button: nine dots
@@ -1080,9 +1079,6 @@ end
 local function drawDesktop()
   -- the wallpaper: a vertical gradient in bands
   gfx.gradient(0, 0, W, H, wallTop, wallBottom)
-  gfx.disc(W * 0.82, H * 0.18, H * 0.34, mix(wallTop, theme.accent, 0.16))
-  gfx.disc(W * 0.12, H * 0.92, H * 0.42, mix(wallBottom, theme.accent, 0.12))
-  gfx.disc(W * 0.46, H * 1.1, H * 0.34, mix(wallBottom, 0xffffff, 0.05))
   -- the home screen: the apps pinned to it (the launcher lists all the others)
   local list = pinnedApps()
   local cell, cols, rows, top = layoutIcons(DOCK_H)
