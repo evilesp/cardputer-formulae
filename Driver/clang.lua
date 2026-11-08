@@ -1119,7 +1119,9 @@ local function compile(src, isCpp)
 
   local function postfix()
     local c, t, lv = primary()
+    local postSt  -- x++ as a statement: no closure is needed
     while true do
+      postSt = nil
       if isOp("[") then
         adv()
         local i, it = expression()
@@ -1224,16 +1226,19 @@ local function compile(src, isCpp)
         adv()
         local s = d == 1 and "+" or "-"
         if t.n == "ptr" then
+          postSt = c .. "=R.padd(" .. c .. "," .. d .. ")"
           c = "(function() local _o=" .. c .. " " .. c .. "=R.padd(_o," .. d .. ") return _o end)()"
         else
           local nv = "_o" .. s .. "1"
-          if WRAP[t.n] then nv = "(" .. nv .. ")&" .. WRAP[t.n] end
+          local nv2 = c .. s .. "1"
+          if WRAP[t.n] then nv = "(" .. nv .. ")&" .. WRAP[t.n]; nv2 = "(" .. nv2 .. ")&" .. WRAP[t.n] end
+          postSt = placeSet(c, nv2)
           c = "(function() local _o=" .. c .. " " .. placeSet(c, nv) .. " return _o end)()"
         end
         lv = false
       else break end
     end
-    return c, t, lv
+    return c, t, lv, postSt
   end
 
   local function incStmt(c, t, d)
@@ -2684,7 +2689,60 @@ local function compile(src, isCpp)
   if not mainF then syntaxError("undefined reference to `main'", 0) end
   local sig = mainF[0] or mainF[2] or mainF[next(mainF)]
   emit("return G.main_" .. sig.arity)
-  return table.concat(out, "\n")
+  return C.optimize(table.concat(out, "\n"))
+end
+
+-- A peephole pass over the Lua text: R.load(R.padd(P,I)) makes a table for every access of p[i]; when P has no calls the access is made in place
+local function splitArgs(inner)
+  local depth, quote, parts, from = 0, nil, {}, 1
+  local i = 1
+  while i <= #inner do
+    local c = inner:sub(i, i)
+    if quote then
+      if c == "\\" then i = i + 1 elseif c == quote then quote = nil end
+    elseif c == '"' or c == "'" then quote = c
+    elseif c == "(" or c == "[" or c == "{" then depth = depth + 1
+    elseif c == ")" or c == "]" or c == "}" then depth = depth - 1
+    elseif c == "," and depth == 0 then parts[#parts + 1] = inner:sub(from, i - 1); from = i + 1 end
+    i = i + 1
+  end
+  parts[#parts + 1] = inner:sub(from)
+  return parts
+end
+local function pure(x) return not x:find("function", 1, true) and not x:find("[%w_%]%)]%(") and not x:find("[\"']") end
+function C.optimize(text)
+  -- i++ as a statement made a closure for every round of a loop
+  text = text:gsub("local _=%(function%(%) local _o=([%w_%.]+) ([%w_%.]+)=_o([%+%-])1 return _o end%)%(%)", function(a, b, op)
+    if a == b then return a .. "=" .. a .. op .. "1" end
+  end)
+  local pos = 1
+  while true do
+    local a, b = text:find("R.load(R.padd(", pos, true)
+    local c, d = text:find("R.store(R.padd(", pos, true)
+    local isStore = c and (not a or c < a)
+    if isStore then a, b = c, d end
+    if not a then break end
+    local pad = text:match("^%b()", b)  -- (P,I) of R.padd
+    local args = pad and splitArgs(pad:sub(2, -2))
+    local p, i = args and args[1], args and args[2]
+    local done = false
+    if args and #args == 2 and pure(p) and pure(i) and p:find("^[%a_]") then
+      local after = b + #pad  -- what follows R.padd(P,I)
+      if not isStore and text:sub(after, after) == ")" then
+        text = text:sub(1, a - 1) .. p .. ".a[" .. p .. ".i+" .. i .. "]" .. text:sub(after + 1)
+        done = true
+      elseif isStore and text:sub(after, after) == "," then
+        local whole = text:match("^%b()", a + 7)  -- ( R.padd(P,I) , V ) of R.store
+        local rest = whole and splitArgs(whole:sub(2, -2))
+        if rest and #rest >= 2 then
+          text = text:sub(1, a - 1) .. p .. ".a[" .. p .. ".i+" .. i .. "]=" .. table.concat(rest, ",", 2) .. text:sub(a + 7 + #whole)
+          done = true
+        end
+      end
+    end
+    pos = done and a or b + 1
+  end
+  return text
 end
 
 C.compile = compile

@@ -198,12 +198,12 @@ python|1.0.0.1|the same as python3|needs:python3|Formula/python.lua
 jslang|1.0.0.1|JavaScript: the translator to Lua, a driver of the program node|Driver/jslang.lua
 jsrt|1.0.0.1|JavaScript: the run-time, a driver of the program node|Driver/jsrt.lua
 node|1.0.0.2|JavaScript (Node.js style) for this device: node FILE.js, node -e CODE, or a prompt; classes, async/await, promises, Map, Set, JSON, regular expressions (needs firmware v0.1.14)|needs:jslang jsrt relang|Formula/node.lua
-clang|1.0.0.3|C and C++: the translator to Lua, a driver of gcc and g++|Driver/clang.lua
+clang|1.0.0.4|C and C++: the translator to Lua, a driver of gcc and g++|Driver/clang.lua
 crt|1.0.0.1|C and C++: the run-time, a driver of gcc and g++|Driver/crt.lua
-gcc|1.0.0.4|C for this device: gcc FILE.c -o PROGRAM, or gcc -run FILE.c; pointers, structs, malloc, stdio, string.h, math.h (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/gcc.lua
-cc|1.0.0.4|the same as gcc|needs:clang crt|Formula/cc.lua
-g++|1.0.0.3|C++ for this device: g++ FILE.cpp -o PROGRAM, or g++ -run FILE.cpp; classes, templates, string, vector, map, iostream (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/g++.lua
-c++|1.0.0.3|the same as g++|needs:clang crt|Formula/c++.lua
+gcc|1.0.0.5|C for this device: gcc FILE.c -o PROGRAM, or gcc -run FILE.c; pointers, structs, malloc, stdio, string.h, math.h (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/gcc.lua
+cc|1.0.0.5|the same as gcc|needs:clang crt|Formula/cc.lua
+g++|1.0.0.4|C++ for this device: g++ FILE.cpp -o PROGRAM, or g++ -run FILE.cpp; classes, templates, string, vector, map, iostream (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/g++.lua
+c++|1.0.0.4|the same as g++|needs:clang crt|Formula/c++.lua
 golang|1.0.0.1|Go: the translator to Lua, a driver of the program go|Driver/golang.lua
 gort|1.0.0.1|Go: the run-time, a driver of the program go|Driver/gort.lua
 go|1.0.0.2|Go for this device: go run FILE.go, go build FILE.go; structs, interfaces, slices, maps, goroutines, channels, fmt, strings (translated to Lua, needs firmware v0.1.14)|needs:golang gort|Formula/go.lua
