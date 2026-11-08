@@ -497,6 +497,7 @@ local function compile(src, isCpp)
     end
     if tn == "bool" then return toBool(c, from) end
     if tn == "string" then
+      if from.n == "arr" then return "R.tolua(R.ptr(" .. c .. ",0))" end
       if from.n == "ptr" then return "R.tolua(" .. c .. ")" end
       if from.n == "char" then return "string.char(" .. c .. ")" end
       return c
