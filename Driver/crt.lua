@@ -26,6 +26,8 @@ function R.addr(get, set)
   return { a = setmt({}, { __index = function() return get() end, __newindex = function(_, _, v) set(v) end }), i = 0 }
 end
 function R.peq(x, y)
+  if x == 0 then x = nil end
+  if y == 0 then y = nil end
   if x == y then return true end
   if x == nil or y == nil then return false end
   if x.a == y.a and x.i == y.i then return true end
@@ -35,15 +37,26 @@ function R.peq(x, y)
   return false
 end
 function R.typed(p, zero)
-  if p == nil then return nil end
+  if p == nil or p == 0 then return nil end
   local mt = getmt(p.a)
   if zero then
-    setmt(p.a, { __index = function(t, k)
+    setmt(p.a, { typedStruct = true, __index = function(t, k)
       local v = zero()
       rawset(t, k, v)
       return v
     end })
   else setmt(p.a, nil) end
+  return p
+end
+function R.retype(p, zero)
+  if p == nil or p == 0 then return nil end
+  if next(p.a) == nil then
+    setmt(p.a, { typedStruct = true, __index = function(t, k)
+      local v = zero()
+      rawset(t, k, v)
+      return v
+    end })
+  end
   return p
 end
 function R.void() end
@@ -526,8 +539,86 @@ function R.coutput(s, x)
       if cout.left then text = text .. f:rep(pad) else text = f:rep(pad) .. text end
     end
   end
+  if s and s.isStream then
+    if s.h then s.h:write(text) else s.text = s.text .. text end
+    return s
+  end
   write(text)
   return s
+end
+function R.sfill(n, c) return string.rep(char(c & 255), n) end
+-- files and strings as streams
+local StreamMt = {}
+function R.stream(kind, path, mode)
+  local s = setmt({ isStream = true, kind = kind, text = "", pos = 1, ok = true }, StreamMt)
+  if kind == "stringstream" or kind == "istringstream" or kind == "ostringstream" then
+    if path then s.text = tolua(path) end
+    return s
+  end
+  if path then
+    R.sopen(s, path, mode)
+  end
+  return s
+end
+-- a stream of C++ closes itself when its block ends; here the files that are written are flushed before another file is opened, and at the end
+local openOut = setmt({}, { __mode = "k" })
+local function flushStreams() for st in pairs(openOut) do if st.h then st.h:flush() end end end
+R.flushStreams = flushStreams
+function R.sopen(s, path, mode)
+  flushStreams()
+  path = tolua(path)
+  mode = mode or 0
+  local writes = s.kind == "ofstream" or (s.kind == "fstream" and mode & 16 ~= 0)
+  if writes then
+    local h = io.open(path, mode & 1 ~= 0 and "a" or "w")
+    if h then s.h = h; s.open = true; openOut[s] = true else s.ok = false end
+  else
+    local h = io.open(path, "r")
+    if h then
+      s.text = h:read("a") or ""
+      h:close()
+      s.open = true
+    else s.ok = false end
+  end
+end
+function R.sgood(s) return s.ok and not s.failed end
+function R.smethod(s, n, a, b)
+  if n == "is_open" then return s.open == true
+  elseif n == "open" then return R.sopen(s, a, b)
+  elseif n == "close" then if s.h then s.h:close(); s.h = nil end s.open = false; return
+  elseif n == "good" then return s.ok and not s.failed and s.pos <= #s.text
+  elseif n == "eof" then return s.pos > #s.text
+  elseif n == "fail" or n == "bad" then return not s.ok or s.failed == true
+  elseif n == "str" then
+    if a ~= nil then s.text = tolua(a); s.pos = 1; return end
+    return s.text
+  elseif n == "clear" then s.failed = false; return
+  elseif n == "flush" then if s.h then s.h:flush() end return
+  elseif n == "seekg" then s.pos = (a or 0) + 1; s.failed = false; return
+  elseif n == "tellg" then return s.pos - 1
+  elseif n == "peek" then return s.text:byte(s.pos) or -1
+  elseif n == "get" then local c = s.text:byte(s.pos); if c then s.pos = s.pos + 1 return c end s.failed = true return -1
+  end
+  return nil
+end
+function R.getlinefrom(s, set, d)
+  if s.pos > #s.text then s.failed = true; return false end
+  local sep = d and char(d) or "\n"
+  local e = s.text:find(sep, s.pos, true)
+  if e then
+    set(s.text:sub(s.pos, e - 1))
+    s.pos = e + 1
+  else
+    set(s.text:sub(s.pos))
+    s.pos = #s.text + 1
+  end
+  return true
+end
+function R.streamtoken(s)
+  local a, b = s.text:find("%S+", s.pos)
+  if not a then s.failed = true; return nil end
+  s.pos = b + 1
+  return s.text:sub(a, b)
 end
 function R.coutmanip(s, m)
   if m == "fixed" or m == "sci" then cout.mode = m
@@ -559,6 +650,7 @@ local function readKeyLine()
     R.stdinText = e and t:sub(e + 1) or ""
     return l
   end
+  if io and io.read then return io.read("l") end
   if not key or not key.poll then return nil end
   local buf = {}
   while true do
@@ -597,6 +689,21 @@ local function token()
 end
 R.failed = false
 function R.cinread(s, kind, set)
+  if s and s.isStream then
+    if kind == "c" then
+      local a = s.text:find("%S", s.pos)
+      if not a then s.failed = true; return s end
+      set(s.text:byte(a))
+      s.pos = a + 1
+      return s
+    end
+    local t = R.streamtoken(s)
+    if t == nil then return s end
+    if kind == "s" then set(t)
+    elseif kind == "f" then local v = tonumber(t); if v then set(v + 0.0) else s.failed = true end
+    else local v = tonumber(t); if v then set(math.tointeger(v) or 0) else s.failed = true end end
+    return s
+  end
   if kind == "c" then
     local t
     while true do
@@ -656,7 +763,14 @@ local function format(fmt, args, start)
     elseif c == "c" then return sfmt(spec .. "s", char((nextArg() or 0) & 255))
     elseif c == "s" then
       local s = tolua(nextArg())
-      return sfmt(spec .. "s", s)
+      local fl, wd, pr = spec:match("^%%([%-+ #0]*)(%d*)%.?(%d*)$")
+      if not fl then return sfmt(spec .. "s", s) end
+      if pr ~= "" then s = s:sub(1, tonumber(pr)) end
+      if wd ~= "" and #s < tonumber(wd) then
+        local pad = (" "):rep(tonumber(wd) - #s)
+        s = fl:find("-", 1, true) and (s .. pad) or (pad .. s)
+      end
+      return s
     elseif c == "f" or c == "F" or c == "e" or c == "E" or c == "g" or c == "G" or c == "a" then
       local v = nextArg() or 0
       if v == math.huge then return sfmt("%" .. flags .. w .. "s", "inf") elseif v == -math.huge then return sfmt("%" .. flags .. w .. "s", "-inf") elseif v ~= v then return sfmt("%" .. flags .. w .. "s", "nan") end
@@ -680,47 +794,167 @@ function L.snprintf(b, n, f, ...)
   return #s
 end
 function L.getchar() return getc() or -1 end
-local function scanInto(tokenFn, fmt, args)
+-- scanf: a reader of bytes with one byte of look-back, and the format as in C
+local function scanFormat(peek, nextc, fmt, args)
   fmt = tolua(fmt)
-  local n, ai = 0, 1
-  for conv in fmt:gmatch("%%[%d]*[hlL]*([%a%[])") do
-    local p = args[ai]
-    ai = ai + 1
-    if conv == "c" then
-      local c = tokenFn(true)
-      if c == nil then return n > 0 and n or -1 end
-      p.a[p.i] = c
-    else
-      local t = tokenFn(false)
-      if t == nil then return n > 0 and n or -1 end
-      if conv == "s" then fromLua(t, p)
-      elseif conv == "d" or conv == "i" or conv == "u" or conv == "x" then
-        local v = tonumber(t, conv == "x" and 16 or nil)
-        if not v then return n end
-        p.a[p.i] = math.tointeger(v) or floor(v)
-      else
-        local v = tonumber(t)
-        if not v then return n end
-        p.a[p.i] = v + 0.0
-      end
+  local n, ai, consumed = 0, 1, 0
+  local i = 1
+  local function take() local c = nextc(); if c then consumed = consumed + 1 end return c end
+  local function skipSpace()
+    while true do
+      local c = peek()
+      if c and (c == 32 or (c >= 9 and c <= 13)) then take() else break end
     end
-    n = n + 1
+  end
+  while i <= #fmt do
+    local f = fmt:sub(i, i)
+    if f:find("%s") then
+      skipSpace()
+      i = i + 1
+    elseif f ~= "%" then
+      local c = peek()
+      if c == nil then return n > 0 and n or -1 end
+      if c ~= byte(f) then return n end
+      take()
+      i = i + 1
+    elseif fmt:sub(i + 1, i + 1) == "%" then
+      skipSpace()
+      if peek() ~= 37 then return n end
+      take()
+      i = i + 2
+    else
+      i = i + 1
+      local suppress = false
+      if fmt:sub(i, i) == "*" then suppress = true; i = i + 1 end
+      local w = fmt:match("^%d+", i)
+      if w then i = i + #w end
+      local width = w and tonumber(w) or math.huge
+      local m = fmt:match("^[hlLqjzt]+", i)
+      if m then i = i + #m end
+      local conv = fmt:sub(i, i)
+      i = i + 1
+      local value
+      if conv == "n" then
+        if not suppress then local p = args[ai]; ai = ai + 1; p.a[p.i] = consumed end
+        goto continue
+      elseif conv == "c" then
+        if peek() == nil then return n > 0 and n or -1 end
+        local count = w and width or 1
+        local p = not suppress and args[ai] or nil
+        for k = 0, count - 1 do
+          local c = take()
+          if c == nil then break end
+          if p then p.a[p.i + k] = c end
+        end
+        if not suppress then ai = ai + 1; n = n + 1 end
+        goto continue
+      elseif conv == "[" then
+        local neg = fmt:sub(i, i) == "^"
+        if neg then i = i + 1 end
+        local close = fmt:find("]", i + 1, true) or #fmt
+        local set = fmt:sub(i, close - 1)
+        i = close + 1
+        local members = {}
+        local k = 1
+        while k <= #set do
+          if set:sub(k + 1, k + 1) == "-" and k + 2 <= #set then
+            for b = byte(set, k), byte(set, k + 2) do members[b] = true end
+            k = k + 3
+          else
+            members[byte(set, k)] = true
+            k = k + 1
+          end
+        end
+        local t = {}
+        while #t < width do
+          local c = peek()
+          if c == nil or (members[c] or false) == neg then break end
+          t[#t + 1] = char(take())
+        end
+        if #t == 0 then return peek() == nil and n == 0 and -1 or n end
+        if not suppress then fromLua(concat(t), args[ai]); ai = ai + 1; n = n + 1 end
+        goto continue
+      end
+      skipSpace()
+      if peek() == nil then return n > 0 and n or -1 end
+      if conv == "s" then
+        local t = {}
+        while #t < width do
+          local c = peek()
+          if c == nil or c == 32 or (c >= 9 and c <= 13) then break end
+          t[#t + 1] = char(take())
+        end
+        if not suppress then fromLua(concat(t), args[ai]); ai = ai + 1; n = n + 1 end
+      elseif conv == "f" or conv == "e" or conv == "g" or conv == "a" or conv == "E" or conv == "G" then
+        local t = {}
+        while #t < width do
+          local c = peek()
+          if c == nil or not char(c):find("[%d%.eE+%-]") then break end
+          if (c == 43 or c == 45) and #t > 0 and not t[#t]:find("[eE]") then break end
+          t[#t + 1] = char(take())
+        end
+        value = tonumber(concat(t))
+        if not value then return n end
+        if not suppress then local p = args[ai]; ai = ai + 1; p.a[p.i] = value + 0.0; n = n + 1 end
+      else  -- d i u x X o p
+        local base = (conv == "x" or conv == "X" or conv == "p") and 16 or conv == "o" and 8 or conv == "i" and 0 or 10
+        local t = {}
+        local c = peek()
+        if (c == 45 or c == 43) and #t < width then t[1] = char(take()) end
+        local digits = {}
+        while #t + #digits < width do
+          c = peek()
+          if c == nil then break end
+          local ch = char(c)
+          if base == 0 then
+            if #digits == 0 and ch == "0" then
+              take()
+              digits[1] = "0"
+              local x = peek()
+              if x == 120 or x == 88 then take(); base = 16; digits = {} else base = 8 end
+              goto nextDigit
+            end
+            base = 10
+          end
+          if (base == 16 or base == 0) and #digits == 0 and ch == "0" then
+            take()
+            digits[1] = "0"
+            local x = peek()
+            if x == 120 or x == 88 then take(); digits = {} end
+            goto nextDigit
+          end
+          do
+            local d = tonumber(ch, 36)
+            if not d or d >= base then break end
+            digits[#digits + 1] = char(take())
+          end
+          ::nextDigit::
+        end
+        if #digits == 0 then return n end
+        value = tonumber(concat(digits), base) or 0
+        if t[1] == "-" then value = -value end
+        if not suppress then local p = args[ai]; ai = ai + 1; p.a[p.i] = value; n = n + 1 end
+      end
+      ::continue::
+    end
   end
   return n
 end
 function L.scanf(f, ...)
-  return scanInto(function(raw) if raw then return getc() end return token() end, f, { ... })
+  return scanFormat(function()
+    if inputPos > #inputBuf and not fill() then return nil end
+    return byte(inputBuf, inputPos)
+  end, function()
+    if inputPos > #inputBuf and not fill() then return nil end
+    local c = byte(inputBuf, inputPos)
+    inputPos = inputPos + 1
+    return c
+  end, f, { ... })
 end
 function L.sscanf(s, f, ...)
   local text = tolua(s)
   local i = 1
-  return scanInto(function(raw)
-    if raw then local c = byte(text, i); i = i + 1; return c end
-    local a, b = text:find("%S+", i)
-    if not a then return nil end
-    i = b + 1
-    return text:sub(a, b)
-  end, f, { ... })
+  return scanFormat(function() return byte(text, i) end, function() local c = byte(text, i); if c then i = i + 1 end return c end, f, { ... })
 end
 function L.fgets(b, n, f)
   local l
@@ -805,6 +1039,16 @@ function L.strtok(s, delims)
   return { a = a, i = start }
 end
 function L.memset(p, v, n)
+  local mt_ = p and getmt(p.a)
+  if mt_ and mt_.typedStruct then  -- structs in memory: they start again from zero
+    for k in pairs(p.a) do if k >= p.i then p.a[k] = nil end end
+    return p
+  end
+  if p and type_(rawget(p.a, p.i)) == "table" then
+    local v = p.a[p.i]
+    for k in pairs(v) do v[k] = nil end
+    return p
+  end
   local cnt = n
   -- the unit of a pointer is an element, not a byte: an array of ints has a fourth of the bytes
   if rawget(p.a, p.i) ~= nil and p.elemSize then cnt = n // p.elemSize end
@@ -855,8 +1099,25 @@ L.atol = L.atoi
 function L.atof(s) local v = tonumber(tolua(s):match("^%s*([+-]?%d*%.?%d*[eE]?[+-]?%d*)")); return (v or 0) + 0.0 end
 function L.strtol(s, e, base)
   local t = tolua(s)
-  local m = t:match("^%s*[+-]?%w+") or ""
-  return tonumber(m, base and base ~= 0 and base or 10) or 0
+  local sp, sign = t:match("^(%s*)([+-]?)")
+  local at = #sp + #sign + 1
+  if base == 0 or base == nil then
+    if t:sub(at, at + 1):lower() == "0x" then base = 16; at = at + 2
+    elseif t:sub(at, at) == "0" then base = 8
+    else base = 10 end
+  elseif base == 16 and t:sub(at, at + 1):lower() == "0x" then at = at + 2 end
+  local v, i = 0, at
+  while i <= #t do
+    local d = tonumber(t:sub(i, i), 36)
+    if not d or d >= base then break end
+    v = v * base + d
+    i = i + 1
+  end
+  if type_(e) == "table" then
+    if type_(s) == "string" then s = R.cstr(s) end
+    e.a[e.i] = { a = s.a, i = s.i + (i > at and i - 1 or 0) }
+  end
+  return sign == "-" and -v or v
 end
 L.strtoul = L.strtol
 L.labs = function(x) return x < 0 and -x or x end
@@ -868,8 +1129,6 @@ function L.assert(c)
   if c == 0 or c == false or c == nil then error("Assertion failed", 0) end
 end
 function L.system(c) c = tolua(c); if sys and sys.shell then return sys.shell(c, true) or 0 end return 1 end
-function L.getenv() return nil end
-function L.time() local t = sys and sys.time and sys.time(); return math.tointeger(floor(t or 0)) end
 function L.clock() return sys and sys.millis and sys.millis() or 0 end
 function L.sleep(s) if sys and sys.sleep then sys.sleep(s * 1000) end return 0 end
 function L.usleep(s) if sys and sys.sleep then sys.sleep(s // 1000) end return 0 end
@@ -890,43 +1149,699 @@ function L.hypot(a, b) return math.sqrt(a * a + b * b) end
 function L.cbrt(x) return x < 0 and -((-x) ^ (1 / 3)) or x ^ (1 / 3) end
 local function ct(p) return function(c) return (c >= 0 and c < 256 and char(c):find(p)) and 1 or 0 end end
 L.isdigit, L.isalpha, L.isalnum, L.isspace, L.isupper, L.islower, L.ispunct, L.isxdigit, L.iscntrl = ct("%d"), ct("%a"), ct("%w"), ct("%s"), ct("%u"), ct("%l"), ct("%p"), ct("%x"), ct("%c")
+function L.isprint(c) return (c >= 32 and c < 127) and 1 or 0 end
+function L.isgraph(c) return (c > 32 and c < 127) and 1 or 0 end
+function L.isblank(c) return (c == 32 or c == 9) and 1 or 0 end
+function L.isascii(c) return (c >= 0 and c < 128) and 1 or 0 end
+function L.toascii(c) return c & 127 end
 function L.toupper(c) if c >= 97 and c <= 122 then return c - 32 end return c end
 function L.tolower(c) if c >= 65 and c <= 90 then return c + 32 end return c end
 -- files
-R.stdin, R.stdout, R.stderr = { std = true }, { std = true }, { std = true }
+R.stdin, R.stdout, R.stderr = { std = true, h = io.stdin }, { std = true, h = io.stdout }, { std = true, h = io.stderr }
+local errnoBox = { a = { [0] = 0 }, i = 0 }
+function L.__errno_location() return errnoBox end
+local ERRNO = { [1] = "Operation not permitted", [2] = "No such file or directory", [5] = "Input/output error", [9] = "Bad file descriptor", [12] = "Cannot allocate memory", [13] = "Permission denied", [17] = "File exists", [20] = "Not a directory", [21] = "Is a directory", [22] = "Invalid argument", [28] = "No space left on device" }
+local function failed(code, msg)
+  errnoBox.a[0] = code or 5
+  if msg and not code then
+    for k, v in pairs(ERRNO) do if msg:find(v, 1, true) then errnoBox.a[0] = k end end
+  end
+end
+function L.strerror(n)
+  return R.cstr(ERRNO[n] or (n == 0 and "Success") or ("Unknown error " .. tostring(n)))
+end
+function L.perror(s)
+  local p = s and tolua(s)
+  local t = ERRNO[errnoBox.a[0]] or "Unknown error"
+  io.stderr:write((p and p ~= "" and (p .. ": ") or "") .. t .. "\n")
+end
 function L.fopen(p, m)
   p = tolua(p); m = tolua(m)
-  local f = { path = p, mode = m, pos = 1, data = "", buf = {} }
-  if m:find("r", 1, true) then
-    local d = fs.read(p)
-    if not d then return nil end
-    f.data = d
-  elseif m:find("w", 1, true) then fs.write(p, "") end
-  return f
+  local h, e, code = io.open(p, m)
+  if not h then failed(code or 2, e); return nil end
+  return { h = h }
 end
+function L.freopen(p, m, f)
+  if f and f.h and not f.std then f.h:close() end
+  return L.fopen(p, m)
+end
+function L.tmpfile() local h = io.tmpfile(); return h and { h = h } end
+function L.popen(c, m) local h = io.popen(tolua(c), tolua(m)); return h and { h = h, pipe = true } end
+function L.pclose(f) local a, b, c = f.h:close(); return c or (a and 0 or 1) end
 function L.fclose(f)
-  if f and #f.buf > 0 then fs.append(f.path, concat(f.buf)); f.buf = {} end
+  if f and f.h and not f.std then f.h:close() end
   return 0
 end
 function L.fprintf(f, fmt, ...)
   local s = format(fmt, { ... })
-  if f.std then write(s) else f.buf[#f.buf + 1] = s end
+  if f == R.stdout then write(s) else f.h:write(s) end
   return #s
 end
-function L.fputs(s, f) s = tolua(s); if f.std then write(s) else f.buf[#f.buf + 1] = s end return 0 end
-function L.fputc(c, f) local s = char(c); if f.std then write(s) else f.buf[#f.buf + 1] = s end return c end
+function L.fputs(s, f) s = tolua(s); if f == R.stdout then write(s) else f.h:write(s) end return 0 end
+function L.fputc(c, f) local s = char(c & 255); if f == R.stdout then write(s) else f.h:write(s) end return c end
 L.putc = L.fputc
+function L.fwrite(p, size, n, f)
+  local t = {}
+  if type_(p) == "string" then t[1] = p:sub(1, size * n)
+  else
+    for k = 0, size * n - 1 do
+      local v = p.a[p.i + k]
+      t[k + 1] = char(mtype(v) == "integer" and v & 255 or 0)
+    end
+  end
+  local s = concat(t)
+  if f == R.stdout then write(s) else f.h:write(s) end
+  return n
+end
+function L.fread(p, size, n, f)
+  local s = (f == R.stdin and io.stdin or f.h):read(size * n)
+  if not s then return 0 end
+  for k = 1, #s do p.a[p.i + k - 1] = byte(s, k) end
+  return #s // (size > 0 and size or 1)
+end
+local ungot = setmt({}, { __mode = "k" })
 function L.fgetc(f)
-  if f.std then return getc() or -1 end
-  if f.pos > #f.data then return -1 end
-  local c = byte(f.data, f.pos)
-  f.pos = f.pos + 1
-  return c
+  local u = ungot[f]
+  if u then ungot[f] = nil; return u end
+  if f == R.stdin then return getc() or -1 end
+  local s = f.h:read(1)
+  if not s then return -1 end
+  return byte(s)
 end
 L.getc = L.fgetc
-function L.feof(f) return f.pos > #f.data and 1 or 0 end
-function L.fflush() return 0 end
-function L.perror(s) write(tolua(s) .. ": error\n") end
+function L.ungetc(c, f) ungot[f] = c; return c end
+function L.feof(f)
+  if ungot[f] then return 0 end
+  if f == R.stdin then
+    if inputPos <= #inputBuf then return 0 end
+    return fill() and 0 or 1
+  end
+  local at = f.h:seek("cur")
+  local s = f.h:read(0)
+  return s == nil and 1 or 0
+end
+function L.ferror() return 0 end
+function L.clearerr() end
+function L.fflush(f) if f and f.h then f.h:flush() end return 0 end
+function L.setvbuf() return 0 end
+function L.setbuf() end
+function L.setlinebuf() end
+function L.fseek(f, off, w)
+  local r = f.h:seek(w == 1 and "cur" or w == 2 and "end" or "set", off)
+  ungot[f] = nil
+  return r and 0 or -1
+end
+L.fseeko = L.fseek
+function L.ftell(f) return f.h:seek("cur") or -1 end
+L.ftello = L.ftell
+function L.rewind(f) f.h:seek("set", 0); ungot[f] = nil end
+local function fgetsRaw(n, f)
+  if f == R.stdin then
+    if inputPos > #inputBuf and not fill() then return nil end
+    local e = inputBuf:find("\n", inputPos, true) or #inputBuf
+    local l = inputBuf:sub(inputPos, e)
+    inputPos = e + 1
+    return l
+  end
+  local u = ungot[f]
+  local l = f.h:read("L")
+  if u then ungot[f] = nil; l = char(u) .. (l or "") end
+  return l
+end
+function L.fgets(b, n, f)
+  local l = fgetsRaw(n, f or R.stdin)
+  if not l then return nil end
+  if #l > n - 1 then
+    if f and f ~= R.stdin then f.h:seek("cur", n - 1 - #l) end
+    l = l:sub(1, n - 1)
+  end
+  fromLua(l, b)
+  return b
+end
+-- getline(&line, &n, f)
+function L.getline(lp, np, f)
+  local l = fgetsRaw(0, f or R.stdin)
+  if not l then return -1 end
+  lp.a[lp.i] = { a = R.chararr(l), i = 0 }
+  if np then np.a[np.i] = #l + 1 end
+  return #l
+end
+function L.getdelim(lp, np, d, f) return L.getline(lp, np, f) end
+function L.fscanf(f, fmt, ...)
+  if f == R.stdin then return L.scanf(fmt, ...) end
+  local h = f.h
+  local look
+  return scanFormat(function()
+    if look == nil then
+      local x = h:read(1)
+      look = x and byte(x) or false
+    end
+    return look or nil
+  end, function()
+    if look == nil then local x = h:read(1); look = x and byte(x) or false end
+    local c = look
+    look = nil
+    return c or nil
+  end, fmt, { ... })
+end
+function L.remove(p) local ok, e, c = os.remove(tolua(p)); if ok then return 0 end failed(c, e); return -1 end
+function L.rename(a, b) local ok, e, c = os.rename(tolua(a), tolua(b)); if ok then return 0 end failed(c, e); return -1 end
+L.unlink = L.remove
+-- what programs ask of the system
+function L.getenv(n)
+  local v = os.getenv(tolua(n))
+  return v and R.cstr(v) or nil
+end
+function L.setenv(n, v) if os.setenv then os.setenv(tolua(n), tolua(v)) end return 0 end
+function L.isatty(fd) return 1 end
+function L.getuid() return 1000 end
+L.geteuid, L.getgid, L.getegid = L.getuid, L.getuid, L.getuid
+function L.getpid() return 1 end
+L.getppid = L.getpid
+function L.gethostname(b, n) fromLua((sys and sys.hostname and sys.hostname() or "esp"):sub(1, n - 1), b); return 0 end
+function L.getlogin() return R.cstr(sys and sys.user and sys.user() or "user") end
+function L.getpwuid()
+  local u = sys and sys.user and sys.user() or "user"
+  return { a = { [0] = { pw_name = R.cstr(u), pw_dir = R.cstr(os.getenv("HOME") or "/home/user"), pw_shell = R.cstr("/bin/sh"), pw_uid = 1000, pw_gid = 1000, pw_gecos = R.cstr(u) } }, i = 0 }
+end
+L.getpwnam = L.getpwuid
+function L.getgrgid() return { a = { [0] = { gr_name = R.cstr("user"), gr_gid = 1000 } }, i = 0 } end
+function L.setlocale() return R.cstr("C") end
+function L.bindtextdomain() return nil end
+function L.textdomain() return nil end
+function L.gettext(s) return s end
+function L.nl_langinfo() return R.cstr("UTF-8") end
+function L.signal() return nil end
+function L.raise() return 0 end
+function L.alarm() return 0 end
+function L.atexit(f) R.atExit = R.atExit or {}; table.insert(R.atExit, f); return 0 end
+function L.getcwd(b, n)
+  local d = (lfs and lfs.currentdir and lfs.currentdir()) or os.getenv("PWD") or "/"
+  if not b then return R.cstr(d) end
+  fromLua(d, b)
+  return b
+end
+function L.chdir(p) local ok, e = lfs.chdir(tolua(p)); if ok then return 0 end failed(2, e); return -1 end
+function L.mkdir(p) local ok, e = lfs.mkdir(tolua(p)); if ok then return 0 end failed(nil, e); return -1 end
+function L.rmdir(p) local ok, e = lfs.rmdir(tolua(p)); if ok then return 0 end failed(nil, e); return -1 end
+function L.access(p) local h = io.open(tolua(p), "r"); if h then h:close(); return 0 end failed(2); return -1 end
+local function fillStat(p, st)
+  local a = lfs.attributes(p)
+  if not a then failed(2); return -1 end
+  local v = st.a[st.i]
+  v.st_size = a.size or 0
+  v.st_mode = a.mode == "directory" and 16877 or 33188
+  v.st_mtime = a.modification or 0
+  v.st_atime, v.st_ctime = v.st_mtime, v.st_mtime
+  v.st_uid, v.st_gid, v.st_nlink, v.st_ino, v.st_dev = 1000, 1000, 1, 0, 0
+  v.st_blocks, v.st_blksize = (v.st_size + 511) // 512, 512
+  return 0
+end
+function L.stat(p, st) return fillStat(tolua(p), st) end
+L.lstat = L.stat
+function L.fstat() return -1 end
+function L.chmod() return 0 end
+function L.chown() return 0 end
+function L.umask() return 18 end
+function L.utime() return 0 end
+function L.sync() end
+-- folders
+function L.opendir(p)
+  p = tolua(p)
+  if not lfs.attributes(p) then failed(2); return nil end
+  local names = {}
+  for n in lfs.dir(p) do names[#names + 1] = n end
+  table.sort(names)
+  return { names = names, at = 0, path = p }
+end
+function L.readdir(d)
+  d.at = d.at + 1
+  local n = d.names[d.at]
+  if not n then return nil end
+  local a = lfs.attributes(d.path .. "/" .. n)
+  return { a = { [0] = { d_name = { a = R.chararr(n), i = 0 }, d_type = a and a.mode == "directory" and 4 or 8, d_ino = d.at } }, i = 0 }
+end
+function L.closedir() return 0 end
+function L.rewinddir(d) d.at = 0 end
+-- time
+local function tmOf(t, utc)
+  local d = os.date(utc and "!*t" or "*t", t)
+  return { tm_sec = d.sec, tm_min = d.min, tm_hour = d.hour, tm_mday = d.day, tm_mon = d.month - 1, tm_year = d.year - 1900, tm_wday = d.wday - 1, tm_yday = d.yday - 1, tm_isdst = d.isdst and 1 or 0 }
+end
+function L.time(p) local t = os.time(); if p then p.a[p.i] = t end return t end
+function L.localtime(p) return { a = { [0] = tmOf(p.a[p.i], false) }, i = 0 } end
+function L.gmtime(p) return { a = { [0] = tmOf(p.a[p.i], true) }, i = 0 } end
+L.localtime_r = function(p, r) local v = tmOf(p.a[p.i], false); for k, x in pairs(v) do r.a[r.i][k] = x end return r end
+L.gmtime_r = function(p, r) local v = tmOf(p.a[p.i], true); for k, x in pairs(v) do r.a[r.i][k] = x end return r end
+function L.mktime(p)
+  local v = p.a[p.i]
+  return os.time{ year = v.tm_year + 1900, month = v.tm_mon + 1, day = v.tm_mday, hour = v.tm_hour, min = v.tm_min, sec = v.tm_sec }
+end
+L.timegm = L.mktime
+function L.difftime(a, b) return (a - b) + 0.0 end
+function L.strftime(b, n, f, p)
+  local v = p.a[p.i]
+  local t = os.time{ year = v.tm_year + 1900, month = v.tm_mon + 1, day = v.tm_mday, hour = v.tm_hour, min = v.tm_min, sec = v.tm_sec }
+  local s = os.date(tolua(f), t):sub(1, n - 1)
+  fromLua(s, b)
+  return #s
+end
+function L.ctime(p) return R.cstr(os.date("%a %b %e %H:%M:%S %Y\n", p.a[p.i])) end
+function L.asctime(p) return R.cstr(os.date("%a %b %e %H:%M:%S %Y\n", L.mktime(p))) end
+function L.clock() return floor(os.clock() * 1000000) end
+function L.gettimeofday(p)
+  if p then local v = p.a[p.i]; v.tv_sec = os.time(); v.tv_usec = 0 end
+  return 0
+end
+function L.clock_gettime(_, p)
+  local v = p.a[p.i]; local c = os.clock()
+  v.tv_sec = floor(c); v.tv_nsec = floor((c - floor(c)) * 1e9)
+  return 0
+end
+function L.sleep(n) if sys and sys.sleep then sys.sleep(n * 1000) end return 0 end
+function L.usleep(n) if sys and sys.sleep then sys.sleep(n // 1000) end return 0 end
+function L.nanosleep(p) local v = p.a[p.i]; if sys and sys.sleep then sys.sleep(v.tv_sec * 1000 + (v.tv_nsec or 0) // 1000000) end return 0 end
+function L.ioctl(_, _, p)
+  if p then
+    local v = p.a[p.i]
+    if type_(v) == "table" then v.ws_row, v.ws_col = tonumber(os.getenv("LINES")) or 24, tonumber(os.getenv("COLUMNS")) or 80 end
+  end
+  return 0
+end
+function L.tcgetattr() return 0 end
+function L.tcsetattr() return 0 end
+function L.cfmakeraw() end
+-- file descriptors: a number for a handle of io
+local fds = { [0] = R.stdin, [1] = R.stdout, [2] = R.stderr }
+local nextFd = 3
+local function newFd(f)
+  local n = nextFd
+  nextFd = n + 1
+  fds[n] = f
+  f.fd = n
+  return n
+end
+function L.open(p, flags)
+  p = tolua(p)
+  flags = flags or 0
+  if p == "/dev/urandom" or p == "/dev/random" then return newFd({ random = true }) end
+  local mode = "rb"
+  if flags & 3 ~= 0 then
+    if flags & 1024 ~= 0 then mode = "ab"
+    elseif flags & 512 ~= 0 then mode = "wb"
+    elseif flags & 64 ~= 0 then
+      local h = io.open(p, "rb")
+      if h then h:close(); mode = "r+b" else mode = "wb" end
+    else mode = "r+b" end
+  end
+  local h, e, c = io.open(p, mode)
+  if not h then failed(c or 2, e); return -1 end
+  return newFd({ h = h })
+end
+function L.close(fd)
+  local f = fds[fd]
+  if f and f.h and not f.std then f.h:close() end
+  fds[fd] = nil
+  return f and 0 or -1
+end
+function L.write(fd, p, n)
+  local s
+  if type_(p) == "string" then s = p:sub(1, n)
+  else
+    local t = {}
+    for k = 0, n - 1 do t[k + 1] = char((p.a[p.i + k] or 0) & 255) end
+    s = concat(t)
+  end
+  if fd == 1 then write(s)
+  elseif fd == 2 then io.stderr:write(s)
+  elseif fds[fd] and fds[fd].h then fds[fd].h:write(s)
+  else failed(9); return -1 end
+  return n
+end
+function L.read(fd, p, n)
+  local f = fds[fd]
+  if not f then failed(9); return -1 end
+  if f.random then
+    for k = 0, n - 1 do p.a[p.i + k] = math.random(0, 255) end
+    return n
+  end
+  local s = (f.h or io.stdin):read(n)
+  if not s then return 0 end
+  for k = 1, #s do p.a[p.i + k - 1] = byte(s, k) end
+  return #s
+end
+function L.lseek(fd, off, w)
+  local f = fds[fd]
+  if not (f and f.h) then return -1 end
+  return f.h:seek(w == 1 and "cur" or w == 2 and "end" or "set", off) or -1
+end
+function L.mkstemp(t)
+  local s = tolua(t)
+  for _ = 1, 50 do
+    local name = s:gsub("XXXXXX$", function()
+      local o = {}
+      for k = 1, 6 do o[k] = char(math.random(97, 122)) end
+      return concat(o)
+    end)
+    local h0 = io.open(name, "rb")
+    if h0 then h0:close()
+    else
+      local h, e, c = io.open(name, "w+b")
+      if not h then failed(c or 13, e); return -1 end
+      fromLua(name, t)
+      return newFd({ h = h, path = name })
+    end
+  end
+  return -1
+end
+function L.mkdtemp(t)
+  local name = tolua(t):gsub("XXXXXX$", tostring(math.random(100000, 999999)))
+  if not lfs.mkdir(name) then return nil end
+  fromLua(name, t)
+  return t
+end
+function L.fdopen(fd) return fds[fd] end
+function L.fileno(f)
+  if f == R.stdin then return 0 elseif f == R.stdout then return 1 elseif f == R.stderr then return 2 end
+  if not f.fd then newFd(f) end
+  return f.fd
+end
+-- more of string.h and stdlib.h
+L.strcmpi, L.stricmp = L.strcasecmp, L.strcasecmp
+function L.S_ISDIR(m) return (m & 61440) == 16384 and 1 or 0 end
+function L.S_ISREG(m) return (m & 61440) == 32768 and 1 or 0 end
+function L.S_ISLNK(m) return 0 end
+function L.strncasecmp(a, b, n) a, b = tolua(a):sub(1, n):lower(), tolua(b):sub(1, n):lower(); return a < b and -1 or (a > b and 1 or 0) end
+function L.strcasestr(s, t)
+  if type_(s) == "string" then s = R.cstr(s) end
+  local a = tolua(s):lower():find(tolua(t):lower(), 1, true)
+  return a and { a = s.a, i = s.i + a - 1 } or nil
+end
+function L.strndup(s, n) return { a = R.chararr(tolua(s):sub(1, n)), i = 0 } end
+function L.strnlen(s, n) return math.min(L.strlen(s), n) end
+function L.strspn(s, set)
+  s, set = tolua(s), tolua(set)
+  local n = 0
+  while n < #s and set:find(s:sub(n + 1, n + 1), 1, true) do n = n + 1 end
+  return n
+end
+function L.strcspn(s, set)
+  s, set = tolua(s), tolua(set)
+  local n = 0
+  while n < #s and not set:find(s:sub(n + 1, n + 1), 1, true) do n = n + 1 end
+  return n
+end
+function L.strpbrk(s, set)
+  if type_(s) == "string" then s = R.cstr(s) end
+  local n = L.strcspn(s, set)
+  if s.a[s.i + n] == 0 or s.a[s.i + n] == nil then return nil end
+  return { a = s.a, i = s.i + n }
+end
+function L.strsep(sp, d)
+  local s = sp.a[sp.i]
+  if s == nil then return nil end
+  local n = L.strcspn(s, d)
+  if s.a[s.i + n] == 0 or s.a[s.i + n] == nil then sp.a[sp.i] = nil
+  else s.a[s.i + n] = 0; sp.a[sp.i] = { a = s.a, i = s.i + n + 1 } end
+  return s
+end
+function L.stpcpy(d, s) local t = tolua(s); fromLua(t, d); return { a = d.a, i = d.i + #t } end
+function L.memchr(s, c, n)
+  if type_(s) == "string" then s = R.cstr(s) end
+  for k = 0, n - 1 do if s.a[s.i + k] == c then return { a = s.a, i = s.i + k } end end
+  return nil
+end
+function L.strtod(s, e)
+  local t = tolua(s)
+  local m = t:match("^%s*[-+]?%d*%.?%d*[eE]?[-+]?%d*") or ""
+  local v = tonumber(m)
+  while not v and #m > 0 do m = m:sub(1, -2); v = tonumber(m) end
+  if e then e.a[e.i] = { a = s.a, i = s.i + #m } end
+  return (v or 0) + 0.0
+end
+L.strtof, L.strtold = L.strtod, L.strtod
+L.strtoll, L.strtoull = L.strtol, L.strtoul
+L.atoll = L.atol
+function L.abs(x) return x < 0 and -x or x end
+L.llabs = L.abs
+function L.basename(p) local s = tolua(p):gsub("/+$", ""); return R.cstr(s:match("([^/]*)$")) end
+function L.dirname(p) local s = tolua(p):gsub("/+$", ""); local d = s:match("^(.*)/[^/]*$"); return R.cstr(d == "" and "/" or d or ".") end
+function L.qsort(p, n, size, cmp)
+  local items = {}
+  for k = 1, n do items[k] = p.a[p.i + (k - 1) * (size_units and 1 or 1)] end
+  local function lt(x, y) return cmp(R.box(x), R.box(y)) < 0 end
+  local s = mergeSort(items, n, lt)
+  for k = 1, n do p.a[p.i + k - 1] = s[k] end
+end
+function L.bsearch(key, p, n, size, cmp)
+  local lo, hi = 0, n - 1
+  while lo <= hi do
+    local mid = (lo + hi) // 2
+    local c = cmp(key, { a = p.a, i = p.i + mid })
+    if c == 0 then return { a = p.a, i = p.i + mid } end
+    if c < 0 then hi = mid - 1 else lo = mid + 1 end
+  end
+  return nil
+end
+-- variable arguments
+function R.vaStart(set, ...) set({ n = select("#", ...), at = 0, ... }) end
+function R.vaArg(ap) ap.at = ap.at + 1; return ap[ap.at] end
+function R.vaCopy(set, ap)
+  local c = {}
+  for k, v in pairs(ap) do c[k] = v end
+  set(c)
+end
+local function vaRest(ap)
+  local t = {}
+  for k = ap.at + 1, ap.n do t[k - ap.at] = ap[k] end
+  return t
+end
+function L.vprintf(f, ap) local s = format(f, vaRest(ap)); write(s); return #s end
+function L.vfprintf(o, f, ap) local s = format(f, vaRest(ap)); if o == R.stdout then write(s) else o.h:write(s) end return #s end
+function L.vsprintf(b, f, ap) local s = format(f, vaRest(ap)); fromLua(s, b); return #s end
+function L.vsnprintf(b, n, f, ap)
+  local s = format(f, vaRest(ap))
+  if b and n > 0 then fromLua(s:sub(1, n - 1), b) end
+  return #s
+end
+function L.fcntl() return 0 end
+L.alloca = L.malloc
+function L.mvcur() return 0 end
+L.savetty, L.resetty, L.def_prog_mode, L.reset_prog_mode, L.def_shell_mode, L.reset_shell_mode, L.set_escdelay = L.mvcur, L.mvcur, L.mvcur, L.mvcur, L.mvcur, L.mvcur, L.mvcur
+function L.getbegyx() return 0 end
+function L.dup() return 3 end
+function L.dup2() return 0 end
+function L.pipe() return -1 end
+function L.fork() return -1 end
+function L.getpagesize() return 4096 end
+function L.sysconf() return 4096 end
+function L.wcwidth() return 1 end
+function L.mblen() return 1 end
+-- getopt and getopt_long
+local optargBox, optindBox, opterrBox, optoptBox = { a = { [0] = false }, i = 0 }, { a = { [0] = 1 }, i = 0 }, { a = { [0] = 1 }, i = 0 }, { a = { [0] = 0 }, i = 0 }
+optargBox.a[0] = nil
+function L.__optarg() return optargBox end
+function L.__optind() return optindBox end
+function L.__opterr() return opterrBox end
+function L.__optopt() return optoptBox end
+local optSub = 1
+local function getoptBase(argc, argv, spec, long, idx)
+  spec = tolua(spec)
+  local colon = spec:sub(1, 1) == ":"
+  optargBox.a[0] = nil
+  while true do
+    local ind = optindBox.a[0]
+    if ind >= argc then return -1 end
+    local a = tolua(argv.a[argv.i + ind])
+    if optSub == 1 then
+      if a == "--" then optindBox.a[0] = ind + 1; return -1 end
+      if a:sub(1, 1) ~= "-" or a == "-" then
+        -- GNU moves the other words to the end: the options after them are found too
+        local moved = false
+        for j = ind + 1, argc - 1 do
+          local w = tolua(argv.a[argv.i + j])
+          if w:sub(1, 1) == "-" and w ~= "-" then
+            local item = argv.a[argv.i + j]
+            for k = j, ind + 1, -1 do argv.a[argv.i + k] = argv.a[argv.i + k - 1] end
+            argv.a[argv.i + ind] = item
+            R.__gnuMoved = (R.__gnuMoved or 0) + 1
+            moved = true
+            break
+          end
+        end
+        if not moved then return -1 end
+        a = tolua(argv.a[argv.i + ind])
+        if a == "--" then optindBox.a[0] = ind + 1; return -1 end
+      end
+      if long and a:sub(1, 2) == "--" then
+        local name, val = a:sub(3):match("^([^=]*)=?(.*)$")
+        local hasEq = a:find("=", 1, true) ~= nil
+        local k = 0
+        while true do
+          local o = long.a[long.i + k]
+          if not o or o.name == nil or o.name == 0 then break end
+          if tolua(o.name) == name or tolua(o.name):sub(1, #name) == name then
+            optindBox.a[0] = ind + 1
+            if type_(idx) == "table" then idx.a[idx.i] = k end
+            if o.has_arg == 1 or o.has_arg == 2 then
+              if hasEq then optargBox.a[0] = { a = R.chararr(val), i = 0 }
+              elseif o.has_arg == 1 then
+                if optindBox.a[0] < argc then optargBox.a[0] = argv.a[argv.i + optindBox.a[0]]; optindBox.a[0] = optindBox.a[0] + 1
+                else
+                  if opterrBox.a[0] ~= 0 then io.stderr:write(tolua(argv.a[argv.i]) .. ": option '--" .. name .. "' requires an argument\n") end
+                  return colon and 58 or 63
+                end
+              end
+            end
+            if type_(o.flag) == "table" then o.flag.a[o.flag.i] = o.val; return 0 end
+            return o.val
+          end
+          k = k + 1
+        end
+        optindBox.a[0] = ind + 1
+        if opterrBox.a[0] ~= 0 then io.stderr:write(tolua(argv.a[argv.i]) .. ": unrecognized option '" .. a .. "'\n") end
+        return 63
+      end
+    end
+    local c = a:sub(optSub + 1, optSub + 1)
+    local at = c ~= ":" and spec:find(c, 1, true)
+    optSub = optSub + 1
+    local done = optSub >= #a
+    if not at then
+      if done then optindBox.a[0] = ind + 1; optSub = 1 end
+      optoptBox.a[0] = byte(c)
+      if opterrBox.a[0] ~= 0 and not colon then io.stderr:write(tolua(argv.a[argv.i]) .. ": invalid option -- '" .. c .. "'\n") end
+      return 63
+    end
+    if spec:sub(at + 1, at + 1) == ":" then
+      local optional = spec:sub(at + 2, at + 2) == ":"
+      if not done then optargBox.a[0] = { a = R.chararr(a:sub(optSub + 1)), i = 0 }; optindBox.a[0] = ind + 1
+      elseif optional then optindBox.a[0] = ind + 1
+      elseif ind + 1 < argc then optargBox.a[0] = argv.a[argv.i + ind + 1]; optindBox.a[0] = ind + 2
+      else
+        optindBox.a[0] = ind + 1
+        optSub = 1
+        optoptBox.a[0] = byte(c)
+        if colon then return 58 end
+        if opterrBox.a[0] ~= 0 then io.stderr:write(tolua(argv.a[argv.i]) .. ": option requires an argument -- '" .. c .. "'\n") end
+        return 63
+      end
+      optSub = 1
+    elseif done then
+      optindBox.a[0] = ind + 1
+      optSub = 1
+    end
+    return byte(c)
+  end
+end
+function L.getopt(argc, argv, spec) return getoptBase(argc, argv, spec) end
+function L.getopt_long(argc, argv, spec, long, idx) return getoptBase(argc, argv, spec, long, idx) end
+L.getopt_long_only = L.getopt_long
+-- ncurses on the text grid of the device
+local cur = { y = 0, x = 0, nodelay = false, color = "text", pairs = {}, attr = 0, wait = -1 }
+local CNAME = { [0] = "dim", "red", "green", "yellow", "blue", "magenta", "cyan", "white" }
+local function gridSize() local w, h = term.size(); return w, h end
+local linesBox, colsBox = { a = {}, i = 0 }, { a = {}, i = 0 }
+function L.__LINESP() if not linesBox.a[0] then local w, h = gridSize(); linesBox.a[0], colsBox.a[0] = h, w end return linesBox end
+function L.__COLSP() L.__LINESP(); return colsBox end
+function L.initscr() term.fullscreen(true); term.clear(); return { win = true } end
+function L.newwin() return { win = true } end
+function L.delwin() return 0 end
+function L.endwin() term.fullscreen(false); return 0 end
+function L.isendwin() return 0 end
+function L.cbreak() return 0 end
+L.nocbreak, L.raw, L.noraw, L.echo, L.noecho, L.nonl, L.nl, L.intrflush, L.leaveok, L.scrollok, L.idlok, L.clearok, L.meta, L.start_color, L.use_default_colors, L.typeahead, L.flushinp, L.beep, L.flash, L.notimeout, L.immedok, L.resizeterm, L.wnoutrefresh, L.doupdate = L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak
+function L.has_colors() return 1 end
+function L.can_change_color() return 0 end
+function L.init_pair(n, f) cur.pairs[n] = CNAME[f] or "text"; return 0 end
+function L.init_color() return 0 end
+function L.curs_set() return 1 end
+function L.keypad() return 0 end
+function L.nodelay(_, b) cur.nodelay = b ~= 0 and b ~= false; return 0 end
+function L.timeout(t) cur.wait = t; return 0 end
+function L.wtimeout(_, t) cur.wait = t; return 0 end
+function L.halfdelay(t) cur.wait = t * 100; return 0 end
+function L.napms(n) if sys and sys.sleep then sys.sleep(n) end return 0 end
+function L.COLOR_PAIR(n) return n << 8 end
+function L.PAIR_NUMBER(a) return (a >> 8) & 255 end
+function L.attrset(a) cur.attr = a; return 0 end
+function L.attron(a) cur.attr = cur.attr | a; return 0 end
+function L.attroff(a) cur.attr = cur.attr & ~a; return 0 end
+function L.standout() cur.attr = cur.attr | 65536; return 0 end
+function L.standend() cur.attr = 0; return 0 end
+function L.wattron(_, a) return L.attron(a) end
+function L.wattroff(_, a) return L.attroff(a) end
+function L.wattrset(_, a) return L.attrset(a) end
+function L.bkgd() return 0 end
+L.wbkgd = L.bkgd
+local function attrColor(extra)
+  local a = cur.attr | (extra or 0)
+  local c = cur.pairs[(a >> 8) & 255] or "text"
+  if a & 65536 ~= 0 then return c == "text" and "inverse" or ("inverse-" .. c) end
+  if a & 2097152 ~= 0 and c == "text" then return "white" end
+  return c
+end
+local function putText(s, extra)
+  local w, h = gridSize()
+  local color = attrColor(extra)
+  for k = 1, #s do
+    local c = s:sub(k, k)
+    if c == "\n" then cur.y = cur.y + 1; cur.x = 0
+    else
+      if cur.x >= w then cur.x = 0; cur.y = cur.y + 1 end
+      if cur.y < h and cur.y >= 0 and cur.x >= 0 then term.put(cur.x, cur.y, c, color) end
+      cur.x = cur.x + 1
+    end
+  end
+  return 0
+end
+function L.move(y, x) cur.y, cur.x = y, x; return 0 end
+function L.wmove(_, y, x) cur.y, cur.x = y, x; return 0 end
+function L.getcury() return cur.y end
+function L.getcurx() return cur.x end
+function L.clear() term.clear(); cur.y, cur.x = 0, 0; return 0 end
+L.erase, L.wclear, L.werase = L.clear, L.clear, L.clear
+function L.clrtoeol() local w = gridSize(); for x = cur.x, w - 1 do term.put(x, cur.y, " ") end return 0 end
+function L.clrtobot() L.clrtoeol(); local w, h = gridSize(); for y = cur.y + 1, h - 1 do for x = 0, w - 1 do term.put(x, y, " ") end end return 0 end
+function L.refresh() term.flush(); if sys and sys.yield then sys.yield() end return 0 end
+L.wrefresh = L.refresh
+function L.addch(c) return putText(char(c & 255), c & ~255) end
+function L.waddch(_, c) return L.addch(c) end
+function L.mvaddch(y, x, c) cur.y, cur.x = y, x; return L.addch(c) end
+function L.mvwaddch(_, y, x, c) return L.mvaddch(y, x, c) end
+function L.addstr(s) return putText(tolua(s)) end
+function L.addnstr(s, n) return putText(tolua(s):sub(1, n)) end
+function L.waddstr(_, s) return L.addstr(s) end
+function L.mvaddstr(y, x, s) cur.y, cur.x = y, x; return L.addstr(s) end
+function L.mvwaddstr(_, y, x, s) return L.mvaddstr(y, x, s) end
+function L.printw(f, ...) return putText(format(f, { ... })) end
+function L.wprintw(_, f, ...) return putText(format(f, { ... })) end
+function L.mvprintw(y, x, f, ...) cur.y, cur.x = y, x; return putText(format(f, { ... })) end
+function L.mvwprintw(_, y, x, f, ...) cur.y, cur.x = y, x; return putText(format(f, { ... })) end
+function L.hline(c, n) for k = 0, n - 1 do term.put(cur.x + k, cur.y, char(c & 255)) end return 0 end
+function L.vline(c, n) for k = 0, n - 1 do term.put(cur.x, cur.y + k, char(c & 255)) end return 0 end
+function L.box() local w, h = gridSize(); for x = 0, w - 1 do term.put(x, 0, "-"); term.put(x, h - 1, "-") end for y = 0, h - 1 do term.put(0, y, "|"); term.put(w - 1, y, "|") end return 0 end
+local KEYS = { up = 259, down = 258, left = 260, right = 261, backspace = 263, enter = 10, tab = 9, space = 32 }
+function L.getch()
+  term.flush()
+  local until_ = (cur.nodelay and 0) or cur.wait
+  local start = sys.millis()
+  while true do
+    local k = key.poll()
+    if k then
+      if KEYS[k] then return KEYS[k] end
+      if #k == 1 then return byte(k) end
+      local c = k:match("^ctrl%-(%a)$")
+      if c then return byte(c) & 31 end
+    end
+    if until_ >= 0 and sys.millis() - start >= until_ then return -1 end
+    sys.sleep(5)
+  end
+end
+L.wgetch = function() return L.getch() end
+function L.ungetch() return 0 end
+function L.getnstr(b, n) local l = io.read("l") or ""; fromLua(l:sub(1, n), b); return 0 end
+L.getstr = function(b) return L.getnstr(b, 1000) end
 -- the algorithms of C++: they work on iterators
 local function mergeSort(a, n, lt)
   if n < 2 then return a end
@@ -1122,9 +2037,11 @@ function R.run(text, args)
   end
   local argv = { n = #args }
   for i = 1, #args do argv[i - 1] = { a = R.chararr(args[i]), i = 0 } end
-  local ok2, code = pcall(function()
-    local arity = debug and nil
+  local ok2, code = xpcall(function()
     return mainF(#args, { a = argv, i = 0 })
+  end, function(e)
+    if type_(e) == "string" and os.getenv("C_TRACE") then return e .. "\n" .. debug.traceback() end
+    return e
   end)
   if not ok2 then
     if type_(code) == "table" and code.exit then return code.exit end
@@ -1138,6 +2055,8 @@ function R.run(text, args)
     write(tostring(code):gsub("^program:%d+: ", "") .. "\n")
     return 139
   end
+  if R.atExit then for k = #R.atExit, 1, -1 do pcall(R.atExit[k]) end end
+  pcall(flushStreams)
   return code or 0
 end
 return R

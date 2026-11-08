@@ -1302,6 +1302,7 @@ local function compile(src, chunkName)
           local as = acceptKw("as") and name()
           local local_ = as or dotted:match("^[^.]+")
           declare(local_)
+          if not as and dotted:find(".", 1, true) then emit("local _ = " .. importModule(dotted)) end
           emit(nameRef(local_) .. " = " .. importModule(as and dotted or dotted:match("^[^.]+")))
         until not acceptOp(",")
       elseif v == "from" then

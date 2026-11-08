@@ -18,8 +18,15 @@ local function parse(p)
         i = i + 2
         if d:find("[dwsDWS]") then items[#items + 1] = { cls = d }
         else
-          local map = { n = "\n", t = "\t", r = "\r" }
+          local map = { n = "\n", t = "\t", r = "\r", f = "\f", v = "\v", ["0"] = "\0", e = "\27" }
           local lit = map[d] or d
+          if d == "x" then
+            lit = string.char(tonumber(p:sub(i, i + 1), 16) or 0)
+            i = i + 2
+          elseif d == "u" then
+            lit = string.char((tonumber(p:sub(i, i + 3), 16) or 0) & 255)
+            i = i + 4
+          end
           items[#items + 1] = { lo = lit:byte(), hi = lit:byte() }
         end
       else
@@ -64,7 +71,16 @@ local function parse(p)
       if d:find("[dwsDWS]") then return { t = "set", items = { { cls = d } } } end
       if d == "b" then return { t = "wordb" } elseif d == "B" then return { t = "nwordb" } end
       if d:find("%d") then return { t = "backref", idx = tonumber(d) } end
-      local map = { n = "\n", t = "\t", r = "\r" }
+      local map = { n = "\n", t = "\t", r = "\r", f = "\f", v = "\v", ["0"] = "\0", e = "\27" }
+      if d == "x" then
+        local code = tonumber(p:sub(i, i + 1), 16) or 0
+        i = i + 2
+        return { t = "char", c = string.char(code) }
+      elseif d == "u" then
+        local code = tonumber(p:sub(i, i + 3), 16) or 0
+        i = i + 4
+        return { t = "char", c = code < 128 and string.char(code) or utf8.char(code) }
+      end
       return { t = "char", c = map[d] or d }
     end
     i = i + 1

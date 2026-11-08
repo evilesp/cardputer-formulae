@@ -1180,7 +1180,7 @@ local function compile(src)
     if head == "Ordering" then return "R.Ordering." .. last end
     if head == "Option" then return "R." .. last end
     if head == "Result" then return "R." .. last end
-    local BUILTIN = { String = 1, Vec = 1, HashMap = 1, BTreeMap = 1, HashSet = 1, BTreeSet = 1, VecDeque = 1, Box = 1, Rc = 1, Arc = 1, RefCell = 1, Cell = 1, Mutex = 1, RwLock = 1, env = 1, fs = 1, io = 1, process = 1, thread = 1, mem = 1, cmp = 1, Instant = 1, Duration = 1, iter = 1, Default = 1, fmt = 1, mpsc = 1, time = 1, BinaryHeap = 1, Weak = 1 }
+    local BUILTIN = { Path = 1, PathBuf = 1, File = 1, String = 1, Vec = 1, HashMap = 1, BTreeMap = 1, HashSet = 1, BTreeSet = 1, VecDeque = 1, Box = 1, Rc = 1, Arc = 1, RefCell = 1, Cell = 1, Mutex = 1, RwLock = 1, env = 1, fs = 1, io = 1, process = 1, thread = 1, mem = 1, cmp = 1, Instant = 1, Duration = 1, iter = 1, Default = 1, fmt = 1, mpsc = 1, time = 1, BinaryHeap = 1, Weak = 1 }
     if BUILTIN[head] and not structs[head] and not enums[head] then
       if isOp("{") then err() end
       return "R.lib." .. head .. "." .. mangle(last)
@@ -1238,6 +1238,18 @@ local function compile(src)
             if n == "collect" or n == "parse" or n == "into" or n == "sum" or n == "product" then
               local target = fish or hint
               a[#a + 1] = target and str(target) or "nil"
+            end
+            if n == "or_default" and #a == 0 then
+              -- the type of the value is not known here: what the next step does with it says what it is
+              local zero = "nil"
+              if isOp(".") then
+                local nx = peek().v
+                if nx == "push" or nx == "extend" or nx == "push_back" or nx == "len" or nx == "iter" then zero = "function() return R.vec({}) end"
+                elseif nx == "push_str" then zero = 'function() return "" end'
+                elseif nx == "insert" or nx == "entry" or nx == "contains_key" then zero = "function() return R.lib.HashMap.new() end"
+                elseif peek(2).v ~= "(" then zero = "function() return R.lazyStruct() end" end
+              elseif isOp(";") then zero = "function() return R.lazyStruct() end" end
+              a[1] = zero
             end
             local argText = #a > 0 and ("," .. table.concat(a, ",")) or ""
             if MUTATORS[n] and lv then
@@ -1760,6 +1772,7 @@ local function compile(src)
       if isOp("<") then skipGenerics() end
       skipWhere()
       local fields = {}
+      local zeros = {}
       if acceptOp("{") then
         while not isOp("}") do
           while isOp("#") do
@@ -1775,7 +1788,16 @@ local function compile(src)
           local f = name()
           fields[#fields + 1] = str(mangle(f))
           expectOp(":")
-          parseType()
+          local ft = parseType()
+          do
+            local z = ({ String = '""', str = '""', bool = "false", f64 = "0.0", f32 = "0.0", Vec = "R.vec({})", HashMap = "R.lib.HashMap.new()", BTreeMap = "R.lib.BTreeMap.new()", Option = "R.None", char = '"\\0"' })[ft]
+            if not z then
+              if ft:match("^[iu]%d+$") or ft == "usize" or ft == "isize" then z = "0"
+              elseif ft:match("^%u") then z = "G." .. ft .. ".default()"
+              else z = "0" end
+            end
+            zeros[#zeros + 1] = "[" .. str(mangle(f)) .. "]=" .. z
+          end
           if not acceptOp(",") then break end
         end
         expectOp("}")
@@ -1793,6 +1815,7 @@ local function compile(src)
         return
       else expectOp(";") end
       emit("G." .. n .. "=R.newStruct(" .. str(n) .. ",{" .. table.concat(fields, ",") .. "}," .. tostring(d.Copy or false) .. ")")
+      if d.Default then emit("G." .. n .. ".default=function() return setmetatable({" .. table.concat(zeros, ",") .. "},G." .. n .. ") end") end
       return
     end
     if isKw("enum") then

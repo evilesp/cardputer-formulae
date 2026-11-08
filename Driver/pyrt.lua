@@ -231,6 +231,15 @@ builtins.IOError = OSE
 excClass("FileNotFoundError", OSE)
 excClass("FileExistsError", OSE)
 excClass("PermissionError", OSE)
+excClass("IsADirectoryError", OSE)
+excClass("NotADirectoryError", OSE)
+excClass("InterruptedError", OSE)
+excClass("BlockingIOError", OSE)
+excClass("BrokenPipeError", OSE)
+excClass("ConnectionError", OSE)
+excClass("ConnectionRefusedError", OSE)
+excClass("ConnectionResetError", OSE)
+excClass("TimeoutError", OSE)
 excClass("TimeoutError", OSE)
 local RT = excClass("RuntimeError", Exception)
 excClass("NotImplementedError", RT)
@@ -1495,8 +1504,12 @@ function strM.rsplit(s, sep, maxn)
   for i = n - maxn + 1, n do out[#out + 1] = all[i] end
   return list(out)
 end
-function strM.splitlines(s)
+function strM.splitlines(s, keep)
   local out = {}
+  if keep and keep ~= None then
+    for line in s:gmatch("[^\n]*\n?") do if line ~= "" then out[#out + 1] = line end end
+    return list(out)
+  end
   for line in (s:sub(-1) == "\n" and s or s .. "\n"):gmatch("(.-)\r?\n") do out[#out + 1] = line end
   if s == "" then out = {} end
   return list(out)
@@ -2247,6 +2260,7 @@ local function readLine(prompt)
     if l then write(l .. "\n") end
     return l
   end
+  if io and io.read then return io.read("l") end
   if not key or not key.poll then return nil end
   local buf = {}
   while true do
@@ -2275,18 +2289,23 @@ end
 local File = newBuiltinType("TextIOWrapper")
 setmt(File, TypeMT)
 File.__class_mt = true
+local function osErr(cls, code, msg, path)
+  local e = (cls or B.OSError)("[Errno " .. tostring(code or 5) .. "] " .. tostring(msg or "error") .. (path and (": " .. repr(path)) or ""))
+  rawset(e, "errno", code or 5)
+  rawset(e, "strerror", msg)
+  rawset(e, "filename", path)
+  return e
+end
+R.osErr = osErr
+local function checkOpen(f) if f.closed then raise(B.ValueError("I/O operation on closed file.")) end end
 function File.read(f, n)
-  if not n or n == None or n < 0 then local s = f.data:sub(f.pos); f.pos = #f.data + 1; return s end
-  local s = f.data:sub(f.pos, f.pos + n - 1)
-  f.pos = f.pos + #s
-  return s
+  checkOpen(f)
+  if not n or n == None or n < 0 then return f.h:read("a") or "" end
+  return f.h:read(n) or ""
 end
 function File.readline(f)
-  if f.pos > #f.data then return "" end
-  local e = f.data:find("\n", f.pos, true) or #f.data
-  local s = f.data:sub(f.pos, e)
-  f.pos = e + 1
-  return s
+  checkOpen(f)
+  return f.h:read("L") or ""
 end
 function File.readlines(f)
   local o = {}
@@ -2297,24 +2316,15 @@ function File.readlines(f)
   end
 end
 function File.write(f, s)
-  if not f.writing then raise(B.OSError("not writable")) end
-  f.buf[#f.buf + 1] = s
+  checkOpen(f)
+  local ok, e, c = f.h:write(s)
+  if not ok then raise(osErr(B.OSError, c or 9, e or "not writable")) end
   return #s
 end
 function File.writelines(f, it) for s in iter(it) do File.write(f, s) end return None end
-function File.flush(f)
-  if f.writing and #f.buf > 0 then
-    local data = concat(f.buf)
-    f.buf = {}
-    local ok, e
-    if f.started or f.mode:find("a", 1, true) then ok, e = fs.append(f.path, data) else ok, e = fs.write(f.path, data) end
-    f.started = true
-    if ok == nil or ok == false then raise(B.OSError(tostring(e))) end
-  end
-  return None
-end
+function File.flush(f) if not f.closed then f.h:flush() end return None end
 function File.close(f)
-  if not f.closed then File.flush(f); f.closed = true end
+  if not f.closed then f.h:close(); f.closed = true end
   return None
 end
 function File.__enter__(f) return f end
@@ -2326,24 +2336,34 @@ function File.__iter__(f)
   end
 end
 File.__iterfn = File.__iter__
-function File.seek(f, p) f.pos = p + 1; return p end
-function File.tell(f) return f.pos - 1 end
+function File.seek(f, p, w)
+  checkOpen(f)
+  return f.h:seek(w == 1 and "cur" or w == 2 and "end" or "set", p)
+end
+function File.tell(f) checkOpen(f); return f.h:seek("cur") end
+function File.fileno(f) return 3 end
+function File.isatty(f) return false end
+function File.readable(f) return f.mode:find("r", 1, true) ~= nil or f.mode:find("+", 1, true) ~= nil end
+function File.writable(f) return not f.mode:find("^r") or f.mode:find("+", 1, true) ~= nil end
+function File.truncate(f) return 0 end
 function B.open(path, mode)
   local kw = R.takekw()
   mode = mode or (kw and kw.mode) or "r"
-  local f = setmt({ path = path, mode = mode, pos = 1, data = "", buf = {} }, File)
-  if mode:find("r", 1, true) then
-    local data = fs and fs.read(path)
-    if not data then raise(B.FileNotFoundError("[Errno 2] No such file or directory: " .. repr(path))) end
-    f.data = data
-    f.writing = mode:find("+", 1, true) ~= nil
-    f.started = true
-  else
-    f.writing = true
-    if mode:find("x", 1, true) and fs.exists(path) then raise(B.FileExistsError("[Errno 17] File exists: " .. repr(path))) end
-    if mode:find("w", 1, true) then fs.write(path, ""); f.started = true end
+  if type_(path) == "table" and path.__fspath__ then path = path:__fspath__() end
+  if type_(path) ~= "string" then path = B.str(path) end
+  local m = mode:gsub("[tbU]", "")
+  if m:find("x", 1, true) then
+    local x = io.open(path, "r")
+    if x then x:close(); raise(osErr(B.FileExistsError, 17, "File exists", path)) end
+    m = m:gsub("x", "w")
   end
-  return f
+  local h, e, c = io.open(path, m)
+  if not h then
+    local cls = c == 2 and B.FileNotFoundError or c == 13 and B.PermissionError or c == 21 and B.IsADirectoryError or B.OSError
+    local text = tostring(e):gsub("^.*: ", "")
+    raise(osErr(cls, c or 5, text, path))
+  end
+  return setmt({ h = h, name = path, mode = mode, closed = false }, File)
 end
 R.File = File
 
@@ -2449,18 +2469,32 @@ lazy("time", function()
   local m = module("time", {})
   local function now() if sys and sys.time then local t = sys.time(); if t then return t end end return (sys and sys.millis and sys.millis() or 0) / 1000 end
   m.time = function() return now() + 0.0 end
+  m.monotonic_ns = function() return (sys and sys.millis and sys.millis() or 0) * 1000000 end
   m.sleep = function(s) if sys and sys.sleep then sys.sleep(math.floor(s * 1000)) end return None end
   m.monotonic = function() return (sys and sys.millis and sys.millis() or 0) / 1000 end
   m.perf_counter = m.monotonic
   m.time_ns = function() return math.floor(now() * 1000000000) end
-  m.strftime = function(f) if sys and sys.date then return sys.date(f) end return "" end
+  local function tmToTime(t) return os.time{ year = t[1], month = t[2], day = t[3], hour = t[4], min = t[5], sec = t[6] } end
+  local function structTime(secs, utc)
+    local d = os.date(utc and "!*t" or "*t", math.floor(secs))
+    local v = tuple{ d.year, d.month, d.day, d.hour, d.min, d.sec, (d.wday + 5) % 7, d.yday, d.isdst and 1 or 0 }
+    return v
+  end
+  m.localtime = function(s) return structTime(s == nil and now() or s, false) end
+  m.gmtime = function(s) return structTime(s == nil and now() or s, true) end
+  m.mktime = function(t) return tmToTime(t) + 0.0 end
+  m.strftime = function(f, t) return os.date(f, t and t ~= None and tmToTime(t) or nil) end
+  m.ctime = function(s) return os.date("%a %b %e %H:%M:%S %Y", math.floor(s == nil and now() or s)) end
+  m.asctime = function(t) return os.date("%a %b %e %H:%M:%S %Y", t and tmToTime(t) or nil) end
+  m.process_time = function() return os.clock() end
+  m.timezone, m.altzone, m.daylight, m.tzname = 0, 0, 0, tuple{ "UTC", "UTC" }
   return m
 end)
 lazy("sys", function()
-  local m = module("sys", { argv = list{}, maxsize = math.maxinteger, platform = "esp32p4", version = "3.12.0 (ESP Linux, translated to Lua)", path = list{ "." }, modules = dict() })
+  local m = module("sys", { argv = list{}, maxsize = math.maxinteger, platform = "linux", byteorder = "little", executable = "/usr/local/bin/python3", prefix = "/usr/local", version = "3.12.0 (ESP Linux, translated to Lua)", path = list{ "." }, modules = dict() })
   m.exit = B.exit
-  m.stdout = setmt({ write = function(s) write(s); return #s end, flush = function() return None end }, { __module = true })
-  m.stderr = setmt({ write = function(s) write(s); return #s end, flush = function() return None end }, { __module = true })
+  m.stdout = setmt({ write = function(s) write(s); return #s end, flush = function() return None end, isatty = function() return true end, fileno = function() return 1 end, encoding = "utf-8" }, { __module = true })
+  m.stderr = setmt({ write = function(s) if io and io.stderr then io.stderr:write(s) else write(s) end return #s end, flush = function() return None end, isatty = function() return true end, fileno = function() return 2 end, encoding = "utf-8" }, { __module = true })
   m.stdin = setmt({ readline = function() local l = readLine(""); return l and (l .. "\n") or "" end, read = function() local o = {}; while true do local l = readLine(""); if not l then break end o[#o + 1] = l .. "\n" end return concat(o) end }, { __module = true })
   R.stdout, R.stderr = m.stdout, m.stderr
   m.getrecursionlimit = function() return 200 end
@@ -2472,49 +2506,208 @@ end)
 lazy("os", function()
   local m = module("os", { sep = "/", linesep = "\n", name = "posix", curdir = ".", pardir = ".." })
   m.environ = dict()
-  dset(m.environ, "HOME", "/home/user")
-  dset(m.environ, "USER", "user")
+  m.devnull = "/dev/null"
+  m.extsep, m.pathsep = ".", ":"
+  m.O_RDONLY, m.O_WRONLY, m.O_RDWR, m.O_CREAT, m.R_OK, m.W_OK, m.X_OK, m.F_OK = 0, 1, 2, 64, 4, 2, 1, 0
+  do
+    local env = sys and sys.env and sys.env()
+    if env then for k, v in pairs(env) do if not k:find("[", 1, true) then dset(m.environ, k, v) end end
+    else
+      dset(m.environ, "HOME", os.getenv("HOME") or "/home/user")
+      dset(m.environ, "USER", os.getenv("USER") or "user")
+      dset(m.environ, "PATH", os.getenv("PATH") or "/usr/bin")
+    end
+  end
   m.getenv = function(k, d) local v = dget(m.environ, k); if v ~= nil then return v end return d == nil and None or d end
+  m.putenv = function(k, v) if os.setenv then os.setenv(k, v) end dset(m.environ, k, v); return None end
+  local function fsPath(p)
+    if type_(p) == "table" and p.__fspath__ then return p:__fspath__() end
+    return p
+  end
+  m.fspath = fsPath
+  local function fail(e, p, c)
+    local t = tostring(e):gsub("^.*: ", "")
+    c = c or (t:find("No such") and 2) or (t:find("exists") and 17) or (t:find("denied") and 13) or (t:find("Not a dir") and 20) or (t:find("Is a dir") and 21) or (t:find("not empty") and 39) or 5
+    local cls = c == 2 and B.FileNotFoundError or c == 13 and B.PermissionError or c == 17 and B.FileExistsError or c == 20 and B.NotADirectoryError or c == 21 and B.IsADirectoryError or B.OSError
+    raise(R.osErr(cls, c, t, p))
+  end
   m.listdir = function(p)
-    local items = fs.list(p or ".")
-    if not items then raise(B.FileNotFoundError("[Errno 2] No such file or directory: " .. repr(p))) end
+    p = fsPath(p == nil and "." or p)
+    if not lfs.attributes(p) then fail("No such file or directory", p, 2) end
     local o = {}
-    for i, it in ipairs(items) do o[i] = type_(it) == "table" and it.name or it end
+    for n in lfs.dir(p) do if n ~= "." and n ~= ".." then o[#o + 1] = n end end
     return list(o)
   end
-  m.remove = function(p) if not fs.remove(p) then raise(B.FileNotFoundError("[Errno 2] No such file or directory: " .. repr(p))) end return None end
+  m.remove = function(p) p = fsPath(p); local ok, e, c = os.remove(p); if not ok then fail(e, p, c) end return None end
   m.unlink = m.remove
-  m.system = function(c) if sys and sys.shell then return sys.shell(c, true) or 0 end return 1 end
-  m.getcwd = function() return sys and sys.run and (sys.run("pwd") or "/"):gsub("%s+$", "") or "/" end
-  m.chdir = function(p) if sys and sys.shell then sys.shell("cd " .. p, true) end return None end
-  m.mkdir = function(p) if sys and sys.shell then sys.shell("mkdir " .. p) end return None end
-  m.makedirs = function(p) if sys and sys.shell then sys.shell("mkdir -p " .. p) end return None end
-  m.rmdir = function(p) if sys and sys.shell then sys.shell("rmdir " .. p) end return None end
-  m.rename = function(a, b) if sys and sys.shell then sys.shell("mv " .. a .. " " .. b) end return None end
+  m.system = function(c) local ok, _, code = os.execute(c); if ok == true and code == nil then return 0 end return code or 0 end
+  m.getcwd = function() return lfs.currentdir() end
+  m.chdir = function(p) p = fsPath(p); local ok, e = lfs.chdir(p); if not ok then fail(e, p) end return None end
+  m.mkdir = function(p) p = fsPath(p); if lfs.attributes(p) then fail("File exists", p, 17) end local ok, e = lfs.mkdir(p); if not ok then fail(e, p) end return None end
+  m.makedirs = function(p, _, exist)
+    local kw = R.takekw()
+    local okExist = exist or (kw and kw.exist_ok)
+    p = fsPath(p)
+    if lfs.attributes(p) then
+      if okExist then return None end
+      fail("File exists", p, 17)
+    end
+    local at = p:sub(1, 1) == "/" and "" or nil
+    for part in p:gmatch("[^/]+") do
+      at = at and (at .. "/" .. part) or part
+      if not lfs.attributes(at) then
+        local ok, e = lfs.mkdir(at)
+        if not ok then fail(e, at) end
+      end
+    end
+    return None
+  end
+  m.rmdir = function(p) p = fsPath(p); local ok, e = lfs.rmdir(p); if not ok then fail(e, p) end return None end
+  m.rename = function(a, b) a, b = fsPath(a), fsPath(b); local ok, e, c = os.rename(a, b); if not ok then fail(e, a, c) end return None end
+  m.replace = m.rename
+  m.getpid = function() return 1 end
+  m.getppid = m.getpid
+  m.getuid = function() return 1000 end
+  m.geteuid, m.getgid, m.getegid = m.getuid, m.getuid, m.getuid
+  m.getlogin = function() return sys and sys.user and sys.user() or "user" end
+  m.urandom = function(n) local o = {}; for k = 1, n do o[k] = string.char(math.random(0, 255)) end return table.concat(o) end
+  m.isatty = function() return true end
+  m.chmod = function() return None end
+  m.chown = function() return None end
+  m.utime = function() return None end
+  m.umask = function() return 18 end
+  m.kill = function() return None end
+  m.nice = function() return 0 end
+  m.sync = function() return None end
+  m.cpu_count = function() return 2 end
+  m.access = function(p) return lfs.attributes(fsPath(p)) ~= nil end
+  m.popen = function(c) local h = io.popen(c, "r"); return setmt({ h = h, name = c, mode = "r", closed = false }, R.File) end
+  m.uname = function()
+    return setmt({ sysname = "Linux", nodename = sys and sys.hostname and sys.hostname() or "esp", release = "6.8.0-esp", version = "#1 SMP", machine = "riscv32" }, { __module = true })
+  end
+  m.get_terminal_size = function()
+    local w, h = 80, 24
+    if term and term.size then w, h = term.size() end
+    return setmt({ columns = w, lines = h, [0] = w, [1] = h }, { __module = true })
+  end
+  m.terminal_size = m.get_terminal_size
+  local StatResult = {}
+  local function statOf(p)
+    p = fsPath(p)
+    local a = lfs.attributes(p)
+    if not a then fail("No such file or directory", p, 2) end
+    return setmt({ st_size = a.size or 0, st_mode = a.mode == "directory" and 16877 or 33188, st_mtime = (a.modification or 0) + 0.0, st_atime = (a.modification or 0) + 0.0, st_ctime = (a.modification or 0) + 0.0, st_uid = 1000, st_gid = 1000, st_nlink = 1, st_ino = 0, st_dev = 0 }, { __module = true })
+  end
+  m.stat = statOf
+  m.lstat = statOf
+  m.walk = function(top)
+    top = fsPath(top)
+    local out = {}
+    local function visit(d)
+      local dirs, files = {}, {}
+      local names = {}
+      for n in lfs.dir(d) do if n ~= "." and n ~= ".." then names[#names + 1] = n end end
+      table.sort(names)
+      for _, n in ipairs(names) do
+        local a = lfs.attributes(d .. "/" .. n)
+        if a and a.mode == "directory" then dirs[#dirs + 1] = n else files[#files + 1] = n end
+      end
+      out[#out + 1] = tuple{ d, list(dirs), list(files) }
+      for _, n in ipairs(dirs) do visit(d .. "/" .. n) end
+    end
+    if lfs.attributes(top) then visit(top) end
+    return list(out)
+  end
+  m.scandir = function(p)
+    p = fsPath(p == nil and "." or p)
+    local o = {}
+    for n in lfs.dir(p) do
+      if n ~= "." and n ~= ".." then
+        local full = p .. "/" .. n
+        o[#o + 1] = setmt({ name = n, path = full, is_dir = function() return (lfs.attributes(full) or {}).mode == "directory" end, is_file = function() return (lfs.attributes(full) or {}).mode == "file" end, is_symlink = function() return false end, stat = function() return statOf(full) end }, { __module = true })
+      end
+    end
+    return setmt({ __iterfn = nil }, { __index = function(_, k) if k == "__enter__" then return function(x) return x end end if k == "__exit__" then return function() return false end end end, __call = nil }) and list(o)
+  end
   m.path = setmt({
-    exists = function(p) return fs.exists(p) and true or false end,
+    exists = function(p) return lfs.attributes(fsPath(p)) ~= nil end,
+    lexists = function(p) return lfs.attributes(fsPath(p)) ~= nil end,
     join = function(...)
       local out = ""
       for _, p in ipairs{ ... } do
+        p = fsPath(p)
         if p:sub(1, 1) == "/" or out == "" then out = p
         elseif out:sub(-1) == "/" then out = out .. p
         else out = out .. "/" .. p end
       end
       return out
     end,
-    basename = function(p) return p:match("([^/]*)$") end,
-    dirname = function(p) return p:match("^(.*)/[^/]*$") or "" end,
+    basename = function(p) p = fsPath(p); return p:match("([^/]*)$") end,
+    dirname = function(p) p = fsPath(p); local d = p:match("^(.*)/[^/]*$"); if d == "" then return "/" end return d or "" end,
     splitext = function(p)
-      local a, b = p:match("^(.*)(%.[^./]*)$")
+      p = fsPath(p)
+      local a, b = p:match("^(.*[^/])(%.[^./]*)$")
       if a then return tuple{ a, b } end
       return tuple{ p, "" }
     end,
-    split = function(p) return tuple{ p:match("^(.*)/[^/]*$") or "", p:match("([^/]*)$") } end,
-    isfile = function(p) local s = fs.stat and fs.stat(p); return s ~= nil and not (type_(s) == "table" and s.isDir) end,
-    isdir = function(p) local s = fs.stat and fs.stat(p); return type_(s) == "table" and s.isDir == true end,
-    abspath = function(p) return p end,
-    getsize = function(p) local s = fs.stat(p); return type_(s) == "table" and s.size or 0 end,
+    split = function(p) p = fsPath(p); local d = p:match("^(.*)/[^/]*$"); if d == "" then d = "/" end return tuple{ d or "", p:match("([^/]*)$") } end,
+    isfile = function(p) local a = lfs.attributes(fsPath(p)); return a ~= nil and a.mode == "file" end,
+    isdir = function(p) local a = lfs.attributes(fsPath(p)); return a ~= nil and a.mode == "directory" end,
+    islink = function() return false end,
+    ismount = function(p) return fsPath(p) == "/" end,
+    isabs = function(p) return fsPath(p):sub(1, 1) == "/" end,
+    getsize = function(p) p = fsPath(p); local a = lfs.attributes(p); if not a then fail("No such file or directory", p, 2) end return a.size or 0 end,
+    getmtime = function(p) p = fsPath(p); local a = lfs.attributes(p); if not a then fail("No such file or directory", p, 2) end return (a.modification or 0) + 0.0 end,
+    normpath = function(p)
+      p = fsPath(p)
+      local abs = p:sub(1, 1) == "/"
+      local o = {}
+      for part in p:gmatch("[^/]+") do
+        if part == ".." and #o > 0 and o[#o] ~= ".." then o[#o] = nil
+        elseif part == ".." and abs then
+        elseif part ~= "." then o[#o + 1] = part end
+      end
+      local t = table.concat(o, "/")
+      if abs then return "/" .. t end
+      return t == "" and "." or t
+    end,
+    expanduser = function(p)
+      p = fsPath(p)
+      if p:sub(1, 1) == "~" then return (dget(m.environ, "HOME") or "/home/user") .. p:sub(2) end
+      return p
+    end,
+    expandvars = function(p)
+      return (fsPath(p):gsub("%${?([%w_]+)}?", function(k) return dget(m.environ, k) or nil end))
+    end,
+    commonprefix = function(l)
+      local items = {}
+      for x in iter(l) do items[#items + 1] = x end
+      if #items == 0 then return "" end
+      local s0 = items[1]
+      local n = #s0
+      for _, x in ipairs(items) do
+        local k = 0
+        while k < n and k < #x and x:byte(k + 1) == s0:byte(k + 1) do k = k + 1 end
+        n = k
+      end
+      return s0:sub(1, n)
+    end,
+    sep = "/",
+    curdir = ".",
+    pardir = "..",
   }, { __module = true })
+  m.path.abspath = function(p)
+    p = fsPath(p)
+    if p:sub(1, 1) ~= "/" then p = lfs.currentdir() .. "/" .. p end
+    return m.path.normpath(p)
+  end
+  m.path.realpath = m.path.abspath
+  m.path.relpath = function(p, start)
+    p, start = m.path.abspath(p), m.path.abspath(start == nil and "." or start)
+    if p == start then return "." end
+    if p:sub(1, #start + 1) == start .. "/" then return p:sub(#start + 2) end
+    return p
+  end
   modules["os.path"] = m.path
   return m
 end)
@@ -2545,18 +2738,20 @@ lazy("json", function()
       if #v == 0 then return "[]" end
       local p = {}
       for i = 1, #v do p[i] = enc(v[i], ind, cur + (ind or 0)) end
-      return "[" .. inner .. concat(p, ind and ("," .. inner) or ", ") .. nl .. "]"
+      return "[" .. inner .. concat(p, ind and ("," .. inner) or (R.jsonItem or ", ")) .. nl .. "]"
     end
     if mt_ == Dict then
       if v.n == 0 then return "{}" end
       local p = {}
-      for _, k in dkeys(v) do p[#p + 1] = enc(str(k), nil, 0) .. ": " .. enc(dget(v, k), ind, cur + (ind or 0)) end
-      return "{" .. inner .. concat(p, ind and ("," .. inner) or ", ") .. nl .. "}"
+      for _, k in dkeys(v) do p[#p + 1] = enc(str(k), nil, 0) .. (R.jsonKey or ": ") .. enc(dget(v, k), ind, cur + (ind or 0)) end
+      return "{" .. inner .. concat(p, ind and ("," .. inner) or (R.jsonItem or ", ")) .. nl .. "}"
     end
     raise(B.TypeError("Object of type " .. typeName(v) .. " is not JSON serializable"))
   end
   m.dumps = function(v)
     local kw = R.takekw() or {}
+    R.jsonItem, R.jsonKey = nil, nil
+    if kw.separators and kw.separators ~= None then R.jsonItem, R.jsonKey = kw.separators[1], kw.separators[2] end
     return enc(v, opt(kw.indent), 0)
   end
   local function dec(s)
@@ -2958,7 +3153,7 @@ lazy("typing", function()
   return module("typing", setmt({}, { __index = function() return object end }))
 end)
 lazy("abc", function()
-  return module("abc", { ABC = object, abstractmethod = function(f) return f end })
+  return module("abc", { ABC = object, ABCMeta = B.type, abstractmethod = function(f) return f end, abstractproperty = B.property, abstractclassmethod = B.classmethod, abstractstaticmethod = B.staticmethod })
 end)
 lazy("enum", function()
   local m = module("enum", {})
@@ -2979,14 +3174,94 @@ for _, n in ipairs{ "gfx", "term", "key", "touch", "net", "fs", "gpio", "audio",
   lazy(n, function() return _G[n] end)
 end
 lazy("esp", function() return _G.sys end)
+lazy("_lua", function()
+  -- from Python, to the libraries of Lua: several results come back as a tuple
+  local function ok(v, ...) if v == nil or v == false then return tuple{ false, ... } end return tuple{ true, v, ... } end
+  rawset(_G, "__pysock", function(what, a, b, c, d)
+    if what == "new" then return b == nil and (a == "udp" and socket.udp() or socket.tcp()) end
+    if what == "toip" then return ok(socket.dns.toip(a)) end
+    if what == "timeout" then if b == None then b = nil end a:settimeout(b); return None end
+    if what == "option" then a:setoption(b, c); return None end
+    if what == "connect" then return ok(a:connect(b, c)) end
+    if what == "bind" then return ok(a:bind(b, c)) end
+    if what == "listen" then a:listen(b); return None end
+    if what == "accept" then return ok(a:accept()) end
+    if what == "send" then return ok(a:send(b)) end
+    if what == "sendto" then return ok(a:sendto(b, c, d)) end
+    if what == "recv" then
+      local got, e, part = a:receive(1)
+      if not got then return ok(nil, e) end
+      a:settimeout(0)
+      local more, _, p2 = a:receive(math.max(b - 1, 0))
+      local rest = more or p2 or ""
+      return ok(got .. rest)
+    end
+    if what == "recvfrom" then return ok(a:receivefrom()) end
+    if what == "name" then return ok(a:getsockname()) end
+    if what == "peer" then return ok(a:getpeername()) end
+    if what == "shutdown" then a:shutdown(); return None end
+    if what == "close" then a:close(); return None end
+  end)
+  rawset(_G, "__pyhttp", function(url, method, headers, body)
+    local h = {}
+    if headers and headers ~= None then
+      for k in R.iter(headers) do h[#h + 1] = tostring(k) .. ": " .. tostring(dget(headers, k)) end
+    end
+    if body == None then body = nil end
+    if method == None then method = nil end
+    local st, data = net.request{ url = url, method = method, headers = h, body = body, maxBytes = 1048576 }
+    if st == nil then return tuple{ None, data } end
+    return tuple{ st, data }
+  end)
+  return setmt({}, { __module = true, __index = function(_, k)
+    local v = _G[k]
+    if v == nil then return None end
+    return v
+  end })
+end)
+lazy("wifi", function() return _G.wifi end)
+lazy("ble", function() return _G.ble end)
 
+local importOne
 function R.import(name)
+  local m = importOne(name)
+  -- import a.b: b is also a name in a
+  local parent, last = name:match("^(.*)%.([^.]+)$")
+  if parent then
+    local pm = R.import(parent)
+    if type_(pm) == "table" and rawget(pm, last) == nil then rawset(pm, last, m) end
+  end
+  return m
+end
+importOne = function(name)
   local m = modules[name]
   if type_(m) == "function" then
     m = m()
     if name ~= "os.path" then modules[name] = m end
   end
   if m then return m end
+  -- a module of a converted program
+  local packed = R.bundled and R.bundled[name]
+  if packed then
+    local env = R.newEnv(name)
+    modules[name] = env
+    local f, e = load(R.header() .. packed, "=" .. name, "t")
+    if not f then error({ syntax = "internal: " .. tostring(e), line = 0 }, 0) end
+    f(R, env)
+    return env
+  end
+  -- the library of Python written in Python (the driver pylib)
+  if driver and not R.pylib then
+    local ok, lib = pcall(driver.load, "pylib")
+    R.pylib = ok and lib or {}
+  end
+  if R.pylib and R.pylib[name] and R.compileText then
+    local env = R.newEnv(name)
+    modules[name] = env
+    if not R.compiler then R.compiler = driver.load("pylang").compile end
+    R.runSource(R.pylib[name], name, env)
+    return env
+  end
   -- a .py file next to the program
   for _, dir in ipairs{ R.scriptDir or ".", "/usr/local/lib/python" } do
     local path = dir .. "/" .. name:gsub("%.", "/") .. ".py"
@@ -3038,6 +3313,7 @@ local function header()
 end
 R.header = header
 
+R.header = function() return header() end
 function R.compileText(src, name)
   local ok, text = pcall(R.compiler, src, name)
   if not ok then
@@ -3053,6 +3329,18 @@ function R.runSource(src, name, env)
   local f, e = load(code, "=" .. name, "t")
   if not f then error({ syntax = "internal: " .. tostring(e), line = 0 }, 0) end
   return f(R, env)
+end
+
+-- A program translated on the computer (tools/linux2esp.py): the Lua text of __main__, argv, and R.bundled: the modules of the program, also translated
+function R.run(text, argv)
+  R.argv = list(argv)
+  R.scriptDir = "."
+  local env = R.newEnv("__main__")
+  return R.protect(function()
+    local f, e = load(header() .. text, "=" .. tostring(argv[1]), "t")
+    if not f then error({ syntax = "internal: " .. tostring(e), line = 0 }, 0) end
+    return f(R, env)
+  end, tostring(argv[1]))
 end
 
 function R.main(args, compiler)

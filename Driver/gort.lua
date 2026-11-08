@@ -89,6 +89,11 @@ function R.setAny(c, i, v)
   return R.mapSet(c, i, v)
 end
 function R.slice(s, a, b, c)
+  if type_(s) == "string" then  -- the type of the value was not known to the translator
+    b = b or #s
+    if a < 0 or b < a or b > #s then rtPanic("slice bounds out of range [" .. a .. ":" .. b .. "]") end
+    return s:sub(a + 1, b)
+  end
   if s == nil then
     if a == 0 and (b == nil or b == 0) then return nil end
     rtPanic("slice bounds out of range")
@@ -456,6 +461,7 @@ function R.runDefers(defers, res)
   local state = { active = not res[1], err = res[2] }
   if state.active and getmt(state.err) ~= PanicMt then
     if type_(state.err) == "string" and state.err:find("interrupted", 1, true) then error(state.err, 0) end
+    if os.getenv("GO_TRACE") then io.stderr:write(tostring(state.err), "\n") end
     state.err = setmt({ v = setmt({ msg = "runtime error: " .. tostring(state.err):gsub("^.-:%d+: ", "") }, R.RuntimeErr) }, PanicMt)
   end
   panicking[#panicking + 1] = state
@@ -800,14 +806,24 @@ local function newError(s, wrapped) return setmt({ s = s, wrapped = wrapped }, E
 function ErrT.Unwrap(e) return e.wrapped end
 local pkg = {}
 R.pkg = pkg
-R.stdout, R.stdin = { std = true }, { std = true }
+R.stdout, R.stdin = { std = true }, { std = true, h = io and io.stdin }
+R.stderr = { err = true, h = io and io.stderr }
 local fileWriter = function(w, s)
   if w == nil or w.std then write(s)
+  elseif w.err then w.h:write(s)
+  elseif w.h then w.h:write(s)
   elseif w.WriteString then w:WriteString(s)
   else w:Write(R.bytes(s)) end
 end
 -- input from the keyboard
+R.FileInfo = R.newType("FileInfo")
+function R.FileInfo.Name(f) return f.name:match("([^/]*)$") end
+function R.FileInfo.Size(f) return f.a.size or 0 end
+function R.FileInfo.IsDir(f) return f.a.mode == "directory" end
+function R.FileInfo.Mode(f) return f.a.mode == "directory" and 2147484141 or 420 end
+function R.FileInfo.ModTime(f) return f.a.modification or 0 end
 local function readLine()
+  if io and io.read then return io.read("l") end
   if not key or not key.poll then return nil end
   local buf = {}
   while true do
@@ -1148,9 +1164,268 @@ pkg.errors = {
     return false
   end,
 }
+-- files: a handle of the io library
+local File = R.newType("File")
+function File.Close(f) if f.h then f.h:close() end return nil end
+function File.WriteString(f, t) f.h:write(t); return #t, nil end
+function File.Write(f, b) local t = type_(b) == "string" and b or R.toString(b); f.h:write(t); return #t, nil end
+function File.Name(f) return f.name end
+function File.Sync() return nil end
+function File.Stat(f) return pkg.os.Stat(f.name) end
+function File.ReadString(f, d) local l = f.h:read("L"); if not l then return "", pkg.io.EOF end return l, nil end
+local function wrapFile(h, name) return setmt({ h = h, name = name }, File) end
+pkg.io = { EOF = newError("EOF"), ErrUnexpectedEOF = newError("unexpected EOF") }
+pkg.io.ReadAll = function(r)
+  if r.h then return R.bytes(r.h:read("a") or ""), nil end
+  return R.bytes(""), nil
+end
+pkg.io.WriteString = function(w, t) fileWriter(w, t); return #t, nil end
+pkg.ioutil = { ReadAll = pkg.io.ReadAll }
+-- bufio
+local Scanner = R.newType("Scanner")
+function Scanner.Scan(c)
+  local l
+  if c.words then
+    while not (c.buf and c.buf[c.at]) do
+      local line = c.h:read("l")
+      if not line then return false end
+      c.buf, c.at = {}, 1
+      for w in line:gmatch("%S+") do c.buf[#c.buf + 1] = w end
+    end
+    c.text = c.buf[c.at]
+    c.at = c.at + 1
+    return true
+  end
+  l = c.h:read("l")
+  if not l then return false end
+  c.text = l:gsub("\r$", "")
+  return true
+end
+function Scanner.Text(c) return c.text end
+function Scanner.Bytes(c) return R.bytes(c.text) end
+function Scanner.Err() return nil end
+function Scanner.Buffer() end
+function Scanner.Split(c, f) if f == pkg.bufio.ScanWords then c.words = true end end
+local Reader = R.newType("Reader")
+function Reader.ReadString(r)
+  local l = r.h:read("L")
+  if not l then return "", pkg.io.EOF end
+  return l, nil
+end
+function Reader.ReadLine(r) local l = r.h:read("l"); if not l then return nil, false, pkg.io.EOF end return R.bytes(l), false, nil end
+function Reader.ReadByte(r) local c = r.h:read(1); if not c then return 0, pkg.io.EOF end return c:byte(), nil end
+local Writer = R.newType("Writer")
+function Writer.WriteString(w, t) w.buf[#w.buf + 1] = t; return #t, nil end
+function Writer.Write(w, b) local t = type_(b) == "string" and b or R.toString(b); w.buf[#w.buf + 1] = t; return #t, nil end
+function Writer.WriteByte(w, c) w.buf[#w.buf + 1] = string.char(c); return nil end
+function Writer.WriteRune(w, c) w.buf[#w.buf + 1] = utf8.char(c); return 1, nil end
+function Writer.Flush(w) fileWriter(w.to, table.concat(w.buf)); w.buf = {}; return nil end
+pkg.bufio = {
+  ScanLines = "lines", ScanWords = "words",
+  NewScanner = function(r) return setmt({ h = r.h or io.stdin }, Scanner) end,
+  NewReader = function(r) return setmt({ h = r.h or io.stdin }, Reader) end,
+  NewWriter = function(w) return setmt({ to = w, buf = {} }, Writer) end,
+}
+-- flag
+local flags = {}
+local flagRest = {}
+local function addFlag(name, value, usage, kind)
+  local p = { v = value }
+  flags[name] = { p = p, kind = kind, usage = usage, def = value }
+  return p
+end
+pkg.flag = {
+  Int = function(n, d, u) return addFlag(n, d, u, "int") end,
+  Int64 = function(n, d, u) return addFlag(n, d, u, "int") end,
+  Uint = function(n, d, u) return addFlag(n, d, u, "int") end,
+  Float64 = function(n, d, u) return addFlag(n, d, u, "float") end,
+  String = function(n, d, u) return addFlag(n, d, u, "string") end,
+  Bool = function(n, d, u) return addFlag(n, d, u, "bool") end,
+  Duration = function(n, d, u) return addFlag(n, d, u, "int") end,
+  IntVar = function(p, n, d, u) p.v = d; flags[n] = { p = p, kind = "int", usage = u, def = d } end,
+  StringVar = function(p, n, d, u) p.v = d; flags[n] = { p = p, kind = "string", usage = u, def = d } end,
+  BoolVar = function(p, n, d, u) p.v = d; flags[n] = { p = p, kind = "bool", usage = u, def = d } end,
+  Float64Var = function(p, n, d, u) p.v = d; flags[n] = { p = p, kind = "float", usage = u, def = d } end,
+  PrintDefaults = function()
+    local names = {}
+    for k in pairs(flags) do names[#names + 1] = k end
+    table.sort(names)
+    for _, k in ipairs(names) do
+      local f = flags[k]
+      io.stderr:write("  -" .. k .. (f.kind ~= "bool" and (" " .. f.kind) or "") .. "\n    \t" .. tostring(f.usage) .. "\n")
+    end
+  end,
+  Parse = function()
+    local a = R.rawArgs or {}
+    flagRest = {}
+    local i = 2
+    while i <= #a do
+      local w = a[i]
+      if w == "--" then
+        for k = i + 1, #a do flagRest[#flagRest + 1] = a[k] end
+        break
+      end
+      local name, val = w:match("^%-%-?([%w_.-]+)=(.*)$")
+      if not name then name = w:match("^%-%-?([%w_.-]+)$") end
+      if not name or w == "-" then
+        for k = i, #a do flagRest[#flagRest + 1] = a[k] end
+        break
+      end
+      if name == "h" or name == "help" then
+        if pkg.flag.Usage then pkg.flag.Usage() else io.stderr:write("Usage of " .. tostring(a[1]) .. ":\n"); pkg.flag.PrintDefaults() end
+        error({ exit = 0 }, 0)
+      end
+      local f = flags[name]
+      if not f then
+        io.stderr:write("flag provided but not defined: -" .. name .. "\nUsage of " .. tostring(a[1]) .. ":\n")
+        pkg.flag.PrintDefaults()
+        error({ exit = 2 }, 0)
+      end
+      if f.kind == "bool" then
+        f.p.v = val == nil or val == "true" or val == "1"
+      else
+        if val == nil then
+          i = i + 1
+          val = a[i]
+          if val == nil then
+            io.stderr:write("flag needs an argument: -" .. name .. "\n")
+            error({ exit = 2 }, 0)
+          end
+        end
+        if f.kind == "int" then
+          local v = math.tointeger(tonumber(val))
+          if not v then
+            io.stderr:write("invalid value \"" .. val .. "\" for flag -" .. name .. "\n")
+            error({ exit = 2 }, 0)
+          end
+          f.p.v = v
+        elseif f.kind == "float" then f.p.v = (tonumber(val) or 0) + 0.0
+        else f.p.v = val end
+      end
+      i = i + 1
+    end
+  end,
+  NArg = function() return #flagRest end,
+  Arg = function(i) return flagRest[i + 1] or "" end,
+  Args = function() return R.sliceFrom(table.unpack(flagRest)) end,
+  NFlag = function() return 0 end,
+}
+-- regexp, with the engine of the other languages
+local Regexp = R.newType("Regexp")
+local reEngine
+local function reCompile(p)
+  reEngine = reEngine or driver.load("relang")
+  local tree, groups = reEngine.parse(p)
+  return setmt({ tree = tree, src = p, groups = groups or 0 }, Regexp)
+end
+local function reFind(r, t, from)
+  from = from or 1
+  for at = from, #t + 1 do
+    local e, caps = reEngine.exec(r.tree, t, at, 0)
+    if e then return at, e, caps end
+  end
+end
+function Regexp.MatchString(r, t) return reFind(r, t) ~= nil end
+function Regexp.String(r) return r.src end
+function Regexp.FindString(r, t) local a, e = reFind(r, t); if a then return t:sub(a, e - 1) end return "" end
+function Regexp.FindStringIndex(r, t) local a, e = reFind(r, t); if a then return R.sliceFrom(a - 1, e - 1) end return nil end
+function Regexp.FindStringSubmatch(r, t)
+  local a, e, caps = reFind(r, t)
+  if not a then return nil end
+  local o = { t:sub(a, e - 1) }
+  for k = 1, r.groups do
+    local c = caps and caps[k]
+    o[#o + 1] = c and t:sub(c[1], c[2]) or ""
+  end
+  return R.sliceFrom(table.unpack(o))
+end
+function Regexp.FindAllString(r, t, lim)
+  local o, at = {}, 1
+  while at <= #t + 1 and (not lim or lim < 0 or #o < lim) do
+    local a, e = reFind(r, t, at)
+    if not a then break end
+    o[#o + 1] = t:sub(a, e - 1)
+    at = e > a and e or e + 1
+  end
+  return R.sliceFrom(table.unpack(o))
+end
+function Regexp.ReplaceAllString(r, t, rep)
+  local o, at = {}, 1
+  while at <= #t + 1 do
+    local a, e = reFind(r, t, at)
+    if not a then break end
+    o[#o + 1] = t:sub(at, a - 1) .. rep
+    if e == a then o[#o + 1] = t:sub(a, a); at = a + 1 else at = e end
+  end
+  o[#o + 1] = t:sub(at)
+  return table.concat(o)
+end
+pkg.regexp = {
+  MustCompile = reCompile,
+  Compile = function(p) local ok, r = pcall(reCompile, p); if ok then return r, nil end return nil, newError("error parsing regexp: " .. tostring(r)) end,
+  MatchString = function(p, t) return Regexp.MatchString(reCompile(p), t), nil end,
+  QuoteMeta = function(t) return (t:gsub("[%^%$%(%)%.%[%]%*%+%-%?{}|\\]", "\\%0")) end,
+}
+-- paths
+pkg.filepath = {
+  Join = function(...)
+    local o = {}
+    for _, p in ipairs{ ... } do if p ~= "" then o[#o + 1] = p end end
+    return ((table.concat(o, "/"):gsub("/+", "/")))
+  end,
+  Base = function(p) p = p:gsub("/+$", ""); return p:match("([^/]*)$") end,
+  Dir = function(p) local d = p:match("^(.*)/[^/]*$"); if d == "" then return "/" end return d or "." end,
+  Ext = function(p) return p:match("(%.[^./]*)$") or "" end,
+  IsAbs = function(p) return p:sub(1, 1) == "/" end,
+  Abs = function(p) if p:sub(1, 1) == "/" then return p, nil end return lfs.currentdir() .. "/" .. p, nil end,
+  Clean = function(p) return p end,
+}
+pkg.path = pkg.filepath
 pkg.os = {
+  Stdin = R.stdin, Stdout = R.stdout, Stderr = R.stderr,
   Exit = function(c) error({ exit = c }, 0) end,
-  Getenv = function() return "" end,
+  Getenv = function(k) return os.getenv(k) or "" end,
+  Setenv = function(k, v) if os.setenv then os.setenv(k, v) end return nil end,
+  Open = function(p)
+    local h, e = io.open(p, "r")
+    if not h then return nil, newError("open " .. p .. ": no such file or directory") end
+    return wrapFile(h, p), nil
+  end,
+  Create = function(p)
+    local h, e = io.open(p, "w")
+    if not h then return nil, newError("open " .. p .. ": " .. tostring(e):gsub("^.*: ", "")) end
+    return wrapFile(h, p), nil
+  end,
+  Remove = function(p) local ok, e = os.remove(p); if ok then return nil end return newError("remove " .. p .. ": no such file or directory") end,
+  Rename = function(a, b) local ok = os.rename(a, b); if ok then return nil end return newError("rename " .. a .. ": no such file or directory") end,
+  Mkdir = function(p) local ok, e = lfs.mkdir(p); if ok then return nil end return newError("mkdir " .. p .. ": " .. tostring(e)) end,
+  MkdirAll = function(p)
+    local at = p:sub(1, 1) == "/" and "" or nil
+    for part in p:gmatch("[^/]+") do
+      at = at and (at .. "/" .. part) or part
+      if not lfs.attributes(at) then lfs.mkdir(at) end
+    end
+    return nil
+  end,
+  Getwd = function() return lfs.currentdir(), nil end,
+  Chdir = function(p) local ok = lfs.chdir(p); if ok then return nil end return newError("chdir " .. p .. ": no such file or directory") end,
+  Hostname = function() return sys and sys.hostname and sys.hostname() or "esp", nil end,
+  Getpid = function() return 1 end,
+  IsNotExist = function(e) return e ~= nil and tostring(R.callMethod(e, "Error")):find("no such", 1, true) ~= nil end,
+  Stat = function(p)
+    local a = lfs.attributes(p)
+    if not a then return nil, newError("stat " .. p .. ": no such file or directory") end
+    return setmt({ a = a, name = p }, R.FileInfo), nil
+  end,
+  ReadDir = function(p)
+    if not lfs.attributes(p) then return nil, newError("open " .. p .. ": no such file or directory") end
+    local names = {}
+    for n in lfs.dir(p) do if n ~= "." and n ~= ".." then names[#names + 1] = n end end
+    table.sort(names)
+    local o = {}
+    for i, n in ipairs(names) do o[i] = setmt({ a = lfs.attributes(p .. "/" .. n) or {}, name = n }, R.FileInfo) end
+    return R.sliceFrom(table.unpack(o)), nil
+  end,
   ReadFile = function(p)
     local s = fs.read(p)
     if not s then return nil, newError("open " .. p .. ": no such file or directory") end
@@ -1222,6 +1497,7 @@ pkg.sync = {}
 function R.run(text, args)
   local G = {}
   R.args = strSlice(args)
+  R.rawArgs = args
   local env = setmt({ R = R, G = G }, { __index = _G })
   local f, e = load(text, "=program", "t", env)
   if not f then

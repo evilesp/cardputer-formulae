@@ -296,6 +296,7 @@ cmp = function(a, b)
       if b == None then return 1 end
       return cmp(a[1], b[1])
     end
+    if m and m.__name == "Path" then return a.s < b.s and -1 or (a.s > b.s and 1 or 0) end
     if m and m.__enum and a.disc and b.disc then return a.disc - b.disc end
     if m and m.__fields then
       for _, f in ipairs(m.__fields) do
@@ -1148,7 +1149,10 @@ local function entrySlot(e, makeV)
 end
 function Entry.or_insert(e, v) return entrySlot(e, function() return v end) end
 function Entry.or_insert_with(e, f) return entrySlot(e, f) end
-function Entry.or_default(e) return entrySlot(e, function() return 0 end) end
+-- a struct made by Default::default() whose type the translator did not know: a field that was never set is a 0
+local LazyMt = { __index = function() return 0 end }
+function R.lazyStruct() return setmt({}, LazyMt) end
+function Entry.or_default(e, zero) return entrySlot(e, zero or function() return 0 end) end
 function Entry.and_modify(e, f)
   local s = e.m.h[mapKey(e.k)]
   if s then
@@ -1247,6 +1251,12 @@ function Ordering.is_eq(o) return o.ord == 0 end
 
 -- ---- String, char ----
 local S = {}
+S.to_string_lossy = function(s) return s end
+S.display = function(s) return s end
+S.to_str = function(s) return Some(s) end
+S.as_os_str = function(s) return s end
+S.is_dir = function(s) local a = lfs.attributes(s); return a ~= nil and a.mode == "directory" end
+S.is_file = function(s) local a = lfs.attributes(s); return a ~= nil and a.mode == "file" end
 function S.len(s) return #s end
 function S.is_empty(s) return s == "" end
 S.to_string, S.to_owned, S.as_str, S.as_ref, S.clone, S.into, S.borrow, S.as_bytes_ = same, same, same, same, same, same, same, same
@@ -2018,20 +2028,138 @@ lib.env = {
     for i, a in ipairs(R.progArgs or {}) do t[i] = a end
     return iterOf(iter(vecn(t, #t)))
   end,
-  var = function() return Err(R.simpleErr("environment variable not found")) end,
+  var = function(k) local v = os.getenv(k); if v then return Ok(v) end return Err(R.simpleErr("environment variable not found")) end,
+  current_dir = function() return Ok(pathOf(lfs.currentdir())) end,
 }
 local ioError = function(m) return R.simpleErr(m) end
+-- paths and folders
+local Path = { __name = "Path" }
+Path.__index = Path
+local function pathOf(p)
+  if type_(p) == "table" and getmt(p) == Path then return p end
+  return setmt({ s = tostring(p) }, Path)
+end
+local function pstr(p) if type_(p) == "table" and getmt(p) == Path then return p.s end return p end
+Path.__tostring = function(p) return p.s end
+Path.__eq = function(a, b) return a.s == b.s end
+Path.__lt = function(a, b) return a.s < b.s end
+Path.__le = function(a, b) return a.s <= b.s end
+function Path.is_dir(p) local a = lfs.attributes(p.s); return a ~= nil and a.mode == "directory" end
+function Path.is_file(p) local a = lfs.attributes(p.s); return a ~= nil and a.mode == "file" end
+function Path.exists(p) return lfs.attributes(p.s) ~= nil end
+function Path.display(p) return p.s end
+function Path.to_str(p) return Some(p.s) end
+function Path.to_string_lossy(p) return p.s end
+function Path.to_path_buf(p) return pathOf(p.s) end
+function Path.as_path(p) return p end
+function Path.clone(p) return pathOf(p.s) end
+function Path.join(p, x)
+  x = pstr(x)
+  if x:sub(1, 1) == "/" then return pathOf(x) end
+  return pathOf(p.s:gsub("/+$", "") .. "/" .. x)
+end
+function Path.push(p, x) p.s = Path.join(p, x).s; return unit end
+function Path.pop(p) local d = p.s:match("^(.*)/[^/]*$"); if d then p.s = d == "" and "/" or d; return true end return false end
+function Path.file_name(p)
+  local n = p.s:gsub("/+$", ""):match("([^/]*)$")
+  if n == "" or n == ".." then return None end
+  return Some(n)
+end
+function Path.extension(p)
+  local n = p.s:match("([^/]*)$")
+  local e = n:match("^.+%.([^.]*)$")
+  if e then return Some(e) end
+  return None
+end
+function Path.file_stem(p)
+  local n = p.s:match("([^/]*)$")
+  return Some(n:match("^(.+)%.[^.]*$") or n)
+end
+function Path.parent(p)
+  local d = p.s:match("^(.*)/[^/]*$")
+  if d == nil then return p.s == "" and None or Some(pathOf("")) end
+  return Some(pathOf(d == "" and "/" or d))
+end
+function Path.metadata(p)
+  local a = lfs.attributes(p.s)
+  if not a then return Err(R.simpleErr("No such file or directory (os error 2)")) end
+  return Ok(setmt({ a = a }, { __index = { len = function(m) return m.a.size or 0 end, is_dir = function(m) return m.a.mode == "directory" end, is_file = function(m) return m.a.mode == "file" end } }))
+end
+lib.Path = { new = pathOf }
+lib.PathBuf = { from = pathOf, new = function() return pathOf("") end }
+local DirEntry = { __name = "DirEntry" }
+DirEntry.__index = DirEntry
+function DirEntry.path(e) return pathOf(e.full) end
+function DirEntry.file_name(e) return e.name end
+function DirEntry.metadata(e) return Path.metadata(pathOf(e.full)) end
+function DirEntry.file_type(e) return Path.metadata(pathOf(e.full)) end
 lib.fs = {
+  read_dir = function(p)
+    p = pstr(p)
+    if not lfs.attributes(p) then return Err(R.simpleErr("No such file or directory (os error 2)")) end
+    local t = {}
+    for n in lfs.dir(p) do
+      if n ~= "." and n ~= ".." then t[#t + 1] = Ok(setmt({ name = n, full = p:gsub("/+$", "") .. "/" .. n }, DirEntry)) end
+    end
+    return Ok(iterOf(iter(vecn(t, #t))))
+  end,
+  metadata = function(p) return Path.metadata(pathOf(pstr(p))) end,
+  create_dir = function(p) local ok, e = lfs.mkdir(pstr(p)); if ok then return Ok(unit) end return Err(R.simpleErr(tostring(e))) end,
+  remove_dir = function(p) local ok, e = lfs.rmdir(pstr(p)); if ok then return Ok(unit) end return Err(R.simpleErr(tostring(e))) end,
+  rename = function(a, b) local ok, e = os.rename(pstr(a), pstr(b)); if ok then return Ok(unit) end return Err(R.simpleErr(tostring(e))) end,
+  copy = function(a, b)
+    local x = io.open(pstr(a), "rb")
+    if not x then return Err(R.simpleErr("No such file or directory (os error 2)")) end
+    local d = x:read("a")
+    x:close()
+    local y = io.open(pstr(b), "wb")
+    if not y then return Err(R.simpleErr("cannot write")) end
+    y:write(d)
+    y:close()
+    return Ok(#d)
+  end,
   read_to_string = function(p)
-    local s = fs.read(p)
-    if not s then return Err(ioError("No such file or directory (os error 2)")) end
+    p = pstr(p)
+    local h = io.open(p, "rb")
+    if not h then return Err(ioError("No such file or directory (os error 2)")) end
+    local s = h:read("a")
+    h:close()
     return Ok(s)
   end,
-  write = function(p, s) fs.write(p, R.disp(s)); return Ok(unit) end,
-  remove_file = function(p) fs.remove(p); return Ok(unit) end,
-  create_dir_all = function(p) if sys and sys.shell then sys.shell("mkdir -p " .. p) end return Ok(unit) end,
+  read = function(p)
+    p = pstr(p)
+    local h = io.open(p, "rb")
+    if not h then return Err(ioError("No such file or directory (os error 2)")) end
+    local s = h:read("a")
+    h:close()
+    local t = {}
+    for k = 1, #s do t[k] = s:byte(k) end
+    return Ok(vecn(t, #t))
+  end,
+  write = function(p, s)
+    local h = io.open(pstr(p), "wb")
+    if not h then return Err(ioError("Permission denied (os error 13)")) end
+    h:write(R.disp(s))
+    h:close()
+    return Ok(unit)
+  end,
+  remove_file = function(p)
+    local ok = os.remove(pstr(p))
+    if ok then return Ok(unit) end
+    return Err(ioError("No such file or directory (os error 2)"))
+  end,
+  create_dir_all = function(p)
+    p = pstr(p)
+    local at = p:sub(1, 1) == "/" and "" or nil
+    for part in p:gmatch("[^/]+") do
+      at = at and (at .. "/" .. part) or part
+      if not lfs.attributes(at) then lfs.mkdir(at) end
+    end
+    return Ok(unit)
+  end,
 }
 local function readLine()
+  if io and io.read then return io.read("l") end
   if not key or not key.poll then return nil end
   local buf = {}
   while true do

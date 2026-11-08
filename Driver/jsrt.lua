@@ -2020,6 +2020,7 @@ method(G.performance, "now", function() return (sys and sys.millis and sys.milli
 
 local function readLineKeys(prompt)
   if prompt then write(prompt) end
+  if io and io.read then return io.read("l") end
   if not key or not key.poll then return nil end
   local buf = {}
   while true do
@@ -2204,6 +2205,32 @@ function R.protect(f, name)
   write("Uncaught " .. inspect(v, 1) .. "\n")
   return 1
 end
+-- A program translated on the computer (tools/linux2esp.py)
+function R.run(text, argv)
+  R.reEngine = driver.load("relang")
+  local av = { "node", argv[1] }
+  for i = 2, #argv do av[#av + 1] = argv[i] end
+  set(process, "argv", array(av, #av))
+  R.scriptDir = "."
+  local mod = newObject()
+  local exports = newObject()
+  set(mod, "exports", exports)
+  local name = tostring(argv[1])
+  return R.protect(function()
+    local env = setmt({ module = mod, exports = exports, __filename = name, __dirname = "." }, { __index = function(_, k)
+      local v = G[k]
+      if v ~= nil then return v end
+      if k == "_ENV" then return nil end
+      if _G[k] ~= nil and (k == "gfx" or k == "term" or k == "key" or k == "touch" or k == "net" or k == "fs" or k == "gpio" or k == "audio") then return _G[k] end
+      error(setmt({ v = R.new(G.ReferenceError, tostr(k) .. " is not defined") }, Thrown), 0)
+    end })
+    local f, e = load(header() .. text, "=" .. name, "t")
+    if not f then error({ syntax = "internal: " .. tostring(e), line = 0 }, 0) end
+    f(R, env)
+    while R.runOne() do end
+  end, name)
+end
+
 function R.main(args, compiler)
   R.compiler = compiler
   R.reEngine = driver.load("relang")

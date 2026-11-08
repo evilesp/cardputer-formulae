@@ -6,8 +6,9 @@
 -- pointer to another type, int to pointer, bit layouts of a union), function-like macros with odd uses, exceptions across C code, the rest of the STL.
 local C = {}
 local TYPEWORDS = { int = 1, char = 1, short = 1, long = 1, float = 1, double = 1, void = 1, bool = 1, signed = 1, unsigned = 1, _Bool = 1, size_t = 1, string = 1, auto = 1,
-  int8_t = 1, int16_t = 1, int32_t = 1, int64_t = 1, uint8_t = 1, uint16_t = 1, uint32_t = 1, uint64_t = 1, ssize_t = 1, ostream = 1, istream = 1, FILE = 1, time_t = 1, clock_t = 1 }
+  int8_t = 1, int16_t = 1, int32_t = 1, int64_t = 1, uint8_t = 1, uint16_t = 1, uint32_t = 1, uint64_t = 1, ssize_t = 1, ostream = 1, istream = 1, FILE = 1, time_t = 1, clock_t = 1, va_list = 1, ifstream = 1, ofstream = 1, fstream = 1, stringstream = 1, istringstream = 1, ostringstream = 1 }
 local CONTAINERS = { vector = "vector", deque = "vector", list = "vector", stack = "stack", queue = "queue", priority_queue = "pqueue", map = "map", unordered_map = "umap", multimap = "map", set = "set", unordered_set = "uset", multiset = "set", pair = "pair", tuple = "tuple", array = "vector", ["function"] = "fn", initializer_list = "vector", shared_ptr = "sptr", unique_ptr = "sptr", optional = "auto" }
+local CPPONLY = { ifstream = 1, ofstream = 1, fstream = 1, stringstream = 1, istringstream = 1, ostringstream = 1, string = 1, auto = 1, ostream = 1, istream = 1, bool = false }
 local QUALS = { const = 1, static = 1, inline = 1, extern = 1, volatile = 1, register = 1, constexpr = 1, virtual = 1, explicit = 1, friend = 1, mutable = 1, restrict = 1, override = 1, final = 1, noexcept = 1 }
 local LUAKW = {}
 for w in ("and elseif end function in local nil not or repeat then until self print type pairs ipairs string math table select error pcall R_ G"):gmatch("%S+") do LUAKW[w] = true end
@@ -34,7 +35,7 @@ local RET = {
   sqrt = DOUBLE, pow = DOUBLE, sin = DOUBLE, cos = DOUBLE, tan = DOUBLE, asin = DOUBLE, acos = DOUBLE, atan = DOUBLE, atan2 = DOUBLE, exp = DOUBLE, log = DOUBLE, log2 = DOUBLE, log10 = DOUBLE, floor = DOUBLE, ceil = DOUBLE, fabs = DOUBLE, fmod = DOUBLE, round = DOUBLE, trunc = DOUBLE, hypot = DOUBLE, atof = DOUBLE, stod = DOUBLE, stof = DOUBLE, cbrt = DOUBLE,
   malloc = VOIDP, calloc = VOIDP, realloc = VOIDP, memset = VOIDP, memcpy = VOIDP, memmove = VOIDP, strcpy = ptrTo(CHAR), strncpy = ptrTo(CHAR), strcat = ptrTo(CHAR), strncat = ptrTo(CHAR), strchr = ptrTo(CHAR), strrchr = ptrTo(CHAR), strstr = ptrTo(CHAR), strdup = ptrTo(CHAR), fgets = ptrTo(CHAR), gets = ptrTo(CHAR), strtok = ptrTo(CHAR), to_string = STRING, fopen = VOIDP, setw = base("manip"), setprecision = base("manip"), setfill = base("manip"), getenv = ptrTo(CHAR),
 }
-local CONSTS = { NULL = { "nil", VOIDP }, nullptr = { "nil", VOIDP }, EOF = { "-1", INT }, RAND_MAX = { "2147483647", INT }, INT_MAX = { "2147483647", INT }, INT_MIN = { "(-2147483648)", INT }, UINT_MAX = { "4294967295", LONG }, LONG_MAX = { "math.maxinteger", LONG }, LONG_MIN = { "math.mininteger", LONG }, LLONG_MAX = { "math.maxinteger", LONG }, LLONG_MIN = { "math.mininteger", LONG }, CHAR_MAX = { "127", INT }, DBL_MAX = { "1.7976931348623157e308", DOUBLE }, DBL_MIN = { "2.2250738585072014e-308", DOUBLE }, FLT_MAX = { "3.4028234663852886e38", DOUBLE }, M_PI = { "math.pi", DOUBLE }, M_E = { "2.718281828459045", DOUBLE }, EXIT_SUCCESS = { "0", INT }, EXIT_FAILURE = { "1", INT }, stdin = { "R.stdin", VOIDP }, stdout = { "R.stdout", VOIDP }, stderr = { "R.stderr", VOIDP }, CLOCKS_PER_SEC = { "1000", LONG }, BUFSIZ = { "1024", INT }, ["true"] = { "true", BOOL }, ["false"] = { "false", BOOL }, npos = { "-1", LONG }, cout = { "R.cout", OSTREAM }, cerr = { "R.cout", OSTREAM }, clog = { "R.cout", OSTREAM }, cin = { "R.cin", ISTREAM }, endl = { '"\\n"', CSTR } }
+local CONSTS = { SEEK_SET = { "0", INT }, SEEK_CUR = { "1", INT }, SEEK_END = { "2", INT }, BUFSIZ = { "8192", INT }, EXIT_SUCCESS = { "0", INT }, EXIT_FAILURE = { "1", INT }, PATH_MAX = { "4096", INT }, STDIN_FILENO = { "0", INT }, STDOUT_FILENO = { "1", INT }, STDERR_FILENO = { "2", INT }, ENOENT = { "2", INT }, EACCES = { "13", INT }, EEXIST = { "17", INT }, EINVAL = { "22", INT }, S_IFMT = { "61440", INT }, S_IFDIR = { "16384", INT }, S_IFREG = { "32768", INT }, DT_DIR = { "4", INT }, DT_REG = { "8", INT }, O_RDONLY = { "0", INT }, O_WRONLY = { "1", INT }, O_RDWR = { "2", INT }, O_CREAT = { "64", INT }, O_TRUNC = { "512", INT }, O_APPEND = { "1024", INT }, CLOCKS_PER_SEC = { "1000000", INT }, NULL = { "nil", VOIDP }, nullptr = { "nil", VOIDP }, EOF = { "-1", INT }, RAND_MAX = { "2147483647", INT }, INT_MAX = { "2147483647", INT }, INT_MIN = { "(-2147483648)", INT }, UINT_MAX = { "4294967295", LONG }, LONG_MAX = { "math.maxinteger", LONG }, LONG_MIN = { "math.mininteger", LONG }, LLONG_MAX = { "math.maxinteger", LONG }, LLONG_MIN = { "math.mininteger", LONG }, CHAR_MAX = { "127", INT }, DBL_MAX = { "1.7976931348623157e308", DOUBLE }, DBL_MIN = { "2.2250738585072014e-308", DOUBLE }, FLT_MAX = { "3.4028234663852886e38", DOUBLE }, M_PI = { "math.pi", DOUBLE }, M_E = { "2.718281828459045", DOUBLE }, EXIT_SUCCESS = { "0", INT }, EXIT_FAILURE = { "1", INT }, stdin = { "R.stdin", VOIDP }, stdout = { "R.stdout", VOIDP }, stderr = { "R.stderr", VOIDP }, CLOCKS_PER_SEC = { "1000", LONG }, BUFSIZ = { "1024", INT }, ["true"] = { "true", BOOL }, ["false"] = { "false", BOOL }, npos = { "-1", LONG }, cout = { "R.cout", OSTREAM }, cerr = { "R.cout", OSTREAM }, clog = { "R.cout", OSTREAM }, cin = { "R.cin", ISTREAM }, endl = { '"\\n"', CSTR } }
 
 -- ---- lexer with a small preprocessor ----
 local OPS = { "<<=", ">>=", "...", "->*", "==", "!=", "<=", ">=", "&&", "||", "++", "--", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "->", "::" }
@@ -178,6 +179,13 @@ end
 local function compile(src, isCpp)
   local toks = lex(src).list
   toks[#toks + 1] = { t = "eof", line = (toks[#toks] or { line = 1 }).line }
+  if not isCpp then  -- words of C++ are plain names in C
+    local CPPWORDS = { new = 1, delete = 1, class = 1, this = 1, template = 1, namespace = 1, operator = 1, typename = 1, using = 1, virtual = 1, public = 1, private = 1, protected = 1, friend = 1, explicit = 1, mutable = 1, try = 1, catch = 1, throw = 1, nullptr = 1 }
+    for _, x in ipairs(toks) do
+      if x.t == "name" and CPPWORDS[x.v] then x.v = x.v .. "_c" end
+    end
+  end
+  local protoEmpty = {}  -- int f(); : the arguments are not told (C)
   local pos, tok = 1, toks[1]
   local out = {}
   local tmpN, labelN = 0, 0
@@ -242,14 +250,14 @@ local function compile(src, isCpp)
   local function isTypeStart()
     if tok.t ~= "name" then return false end
     local v = tok.v
-    if TYPEWORDS[v] or typedefs[v] or structs[v] or enums[v] or templateT[v] or v == "struct" or v == "union" or v == "enum" or v == "class" or v == "typename" or QUALS[v] then
+    if (TYPEWORDS[v] and (isCpp or not CPPONLY[v])) or typedefs[v] or (structs[v] and isCpp) or enums[v] or templateT[v] or v == "struct" or v == "union" or v == "enum" or v == "class" or v == "typename" or QUALS[v] then
       if not lookup(v) or TYPEWORDS[v] then return true end
     end
     if v == "std" and peek().v == "::" then
       local nx = peek(2)
       return TYPEWORDS[nx.v] ~= nil or CONTAINERS[nx.v] ~= nil
     end
-    if CONTAINERS[v] and not lookup(v) then return true end
+    if isCpp and CONTAINERS[v] and not lookup(v) then return true end
     return false
   end
   local function templateArgs()
@@ -365,7 +373,9 @@ local function compile(src, isCpp)
       elseif all:find(" bool ") or all:find(" _Bool ") then t = BOOL
       elseif all:find(" string ") then t = STRING
       elseif all:find(" auto ") then t = AUTO
-      elseif all:find(" FILE ") then t = VOID
+      elseif all:find("stream ") and not all:find(" ostream ") and not all:find(" istream ") then
+        t = { n = "stream", kind = all:match("(%a+stream) ") }
+      elseif all:find(" FILE ") or all:find(" va_list ") then t = VOID
       elseif all:find(" long ") or all:find(" int64_t ") or all:find(" time_t ") or all:find(" clock_t ") or all:find(" ssize_t ") then t = LONG
       elseif all:find(" unsigned ") then t = UINT
       else t = INT end
@@ -374,6 +384,7 @@ local function compile(src, isCpp)
     return t
   end
   -- pointers, a name and array sizes: returns name, type, isRef
+  local placeSet
   parseDeclarator = function(t, noName)
     local isRef = false
     while true do
@@ -407,14 +418,19 @@ local function compile(src, isCpp)
     return name, t, isRef
   end
 
-  local HANDLE = { vector = 1, map = 1, umap = 1, set = 1, uset = 1, stack = 1, queue = 1, pair = 1, arr = 1, pqueue = 1, ostream = 1, istream = 1, tuple = 1, ["this"] = 1 }
+  local HANDLE = { stream = 1, vector = 1, map = 1, umap = 1, set = 1, uset = 1, stack = 1, queue = 1, pair = 1, arr = 1, pqueue = 1, ostream = 1, istream = 1, tuple = 1, ["this"] = 1 }
   local function byHandle(t) return isStruct(t) or HANDLE[t.n] end
 
   -- ---- conversions ----
   local function toBool(c, t)
     if t.n == "bool" then return c end
-    if isPtr(t) or t.n == "arr" or t.n == "cstr" then return "(" .. c .. "~=nil)" end
+    if isPtr(t) then  -- a pointer from memset or calloc is 0, not nil
+      if c:find("^[%w_]+$") then return "(" .. c .. "~=nil and " .. c .. "~=0)" end
+      return "R.truth(" .. c .. ")"
+    end
+    if t.n == "arr" or t.n == "cstr" then return "(" .. c .. "~=nil)" end
     if t.n == "auto" then return "R.truth(" .. c .. ")" end
+    if t.n == "stream" then return "R.sgood(" .. c .. ")" end
     if t.n == "string" or isStruct(t) then return "true" end
     return "(" .. c .. "~=0)"
   end
@@ -429,6 +445,7 @@ local function compile(src, isCpp)
   end
   local function zeroOf(t)
     local n = t.n
+    if n == "stream" then return "R.stream(" .. str(t.kind) .. ")" end
     if isInt(t) then return "0" end
     if n == "double" then return "0.0" end
     if n == "bool" then return "false" end
@@ -485,6 +502,7 @@ local function compile(src, isCpp)
       return c
     end
     if tn == "ptr" then
+      if c == "0" or c == "(0)" then return "nil" end  -- the null pointer of C
       if from.n == "arr" or from.n == "cstr" then return (decay(c, from)) end
       if from.n == "ptr" and from.to == VOID and to.to ~= VOID then
         if isStruct(to.to) then return "R.typed(" .. c .. ",G." .. to.to.name .. "_zero)" end
@@ -511,7 +529,7 @@ local function compile(src, isCpp)
     local proxy
     local o, i = c:match("^(.+)%[([^%[%]]*)%]$")
     if t.n == "arr" then return "R.ptr(" .. c .. ",0)" end
-    if c:sub(1, 2) == "R." and c:find("^R%.load%(") then
+    if c:sub(1, 2) == "R." and c:find("^R%.load%b()$") then
       return c:match("^R%.load%((.*)%)$")
     end
     return "R.addr(function() return " .. c .. " end,function(_v) " .. c .. "=_v end)"
@@ -569,7 +587,9 @@ local function compile(src, isCpp)
       if p then
         if p.ref and p.mut and not byHandle(p.t) then
           code = addressOf(x.c, x.t)
-        elseif p.ref then code = x.c
+        elseif p.ref then
+          code = x.c
+          if p.t.n == "string" and (x.t.n == "ptr" or x.t.n == "cstr" or x.t.n == "arr") then code = convert(x.c, x.t, p.t, false) end
         else code = convert(x.c, x.t, p.t, x.lv) end
       else
         code = plainArg(x)
@@ -769,6 +789,12 @@ local function compile(src, isCpp)
     return nil
   end
 
+  -- x = v, as a statement; *p = v goes through the pointer
+  placeSet = function(a, v)
+    local inner = a:match("^R%.load(%b())$")
+    if inner then return "R.store(" .. inner:sub(2, -2) .. "," .. v .. ")" end
+    return a .. "=" .. v
+  end
   local function primary()
     local t = tok
     if t.t == "int" then adv(); return tostring(t.v), t.long and LONG or (math.abs(t.v) > 2147483647 and LONG or INT)
@@ -780,6 +806,7 @@ local function compile(src, isCpp)
         adv()
         local c, ty, lv = expression()
         expectOp(")")
+        if lv then return c, ty, lv end  -- (x) = 1 and (*p)++ : a place stays a place
         return "(" .. c .. ")", ty, lv
       elseif t.v == "[" then
         -- a lambda
@@ -914,7 +941,7 @@ local function compile(src, isCpp)
         return "R.box(" .. (a[1] and a[1].c or "nil") .. ")", ptrTo(ty)
       end
       -- a type used as a constructor or a cast: int(x), string("a"), Point(1, 2), vector<int>(3, 0)
-      if not lookup(v) and (TYPEWORDS[v] or typedefs[v] or structs[v] or CONTAINERS[v]) and (peek().v == "(" or peek().v == "{" or peek().v == "<") then
+      if not lookup(v) and ((TYPEWORDS[v] and (isCpp or not CPPONLY[v])) or typedefs[v] or (structs[v] and isCpp) or (isCpp and CONTAINERS[v])) and (peek().v == "(" or peek().v == "{" or peek().v == "<") then
         do
           local ty = parseType()
           if isOp("{") then return braceInit(ty), ty end
@@ -928,6 +955,7 @@ local function compile(src, isCpp)
             local fill = a[2] and convert(a[2].c, a[2].t, ty.to, a[2].lv) or zeroOf(ty.to)
             return "R.vecn(" .. a[1].c .. ",function() return " .. fill .. " end)", ty
           end
+          if ty.n == "string" and #a == 2 and isInt(a[1].t) and (a[2].t.n == "char" or isInt(a[2].t)) then return "R.sfill(" .. a[1].c .. "," .. a[2].c .. ")", ty end
           if a[1] then return convert(a[1].c, a[1].t, ty, a[1].lv), ty end
           return zeroOf(ty), ty
         end
@@ -994,15 +1022,52 @@ local function compile(src, isCpp)
         end
       end
       if CONSTS[v] then return CONSTS[v][1], CONSTS[v][2] end
+      if v == "ios" and isOp("::") then
+        adv()
+        local flag = tok.v
+        adv()
+        return ({ app = "1", ate = "2", binary = "4", ["in"] = "8", out = "16", trunc = "32", beg = "0", cur = "1", ["end"] = "2" })[flag] or "0", INT
+      end
+      if v == "errno" then return 'R.load(R.lib("__errno_location")())', INT, true end
+      if v == "optarg" then return 'R.load(R.lib("__optarg")())', ptrTo(CHAR), true end
+      if v == "optind" or v == "opterr" or v == "optopt" then return 'R.load(R.lib("__' .. v .. '")())', INT, true end
       if isOp("(") or isOp("<") and funcs[v] then
         if isOp("<") then templateArgs() end
         expectOp("(")
+        if v == "va_start" or v == "va_copy" or v == "va_arg" or v == "va_end" then
+          local c1 = assignExpr()
+          local r
+          if v == "va_arg" then
+            expectOp(",")
+            local ty = parseType()
+            local _, full = parseDeclarator(ty, true)
+            expectOp(")")
+            return "R.vaArg(" .. c1 .. ")", full or ty
+          elseif v == "va_copy" then
+            expectOp(",")
+            local c2 = assignExpr()
+            expectOp(")")
+            return "R.vaCopy(function(_v) " .. c1 .. "=_v end," .. c2 .. ")", VOID
+          elseif v == "va_start" then
+            if acceptOp(",") then assignExpr() end
+            expectOp(")")
+            return "R.vaStart(function(_v) " .. c1 .. "=_v end,...)", VOID
+          end
+          expectOp(")")
+          return "R.void()", VOID
+        end
         local a = argsOf()
         local f = funcs[v]
         if f then
           local sig = findOverload(f, #a)
           if sig then return "G." .. mangle(v) .. "_" .. sig.arity .. "(" .. callWith(sig, a) .. ")", sig.ret end
-          err("too many arguments to function '" .. v .. "'")
+          if isCpp then err("too many arguments to function '" .. v .. "'") end
+        end
+        if not isCpp and (f or protoEmpty[v]) then  -- the old C: the arguments of a function are not checked
+          local parts = {}
+          for i, x in ipairs(a) do parts[i] = plainArg(x) end
+          local ret = protoEmpty[v] or (f and f[next(f)] and f[next(f)].ret) or INT
+          return "(G." .. mangle(v) .. "_" .. #a .. " or R.lib(" .. str(v) .. "))(" .. table.concat(parts, ",") .. ")", ret
         end
         -- swap, min, max and such need the places or the types
         if v == "swap" then
@@ -1017,7 +1082,11 @@ local function compile(src, isCpp)
         if v == "abs" then
           return "R.abs(" .. a[1].c .. ")", a[1].t.n == "double" and DOUBLE or a[1].t
         end
-        if v == "getline" then
+        if v == "getline" and a[1] and a[1].t.n == "stream" then
+          local x = a[2]
+          return "R.getlinefrom(" .. a[1].c .. ",function(_v) " .. x.c .. "=_v end" .. (a[3] and ("," .. a[3].c) or "") .. ")", BOOL
+        end
+        if v == "getline" and isCpp and #a >= 2 then
           local x = a[2]
           return "R.getlineinto(function(_v) " .. x.c .. "=_v end)", BOOL
         end
@@ -1119,6 +1188,12 @@ local function compile(src, isCpp)
               t = sig.ret
             end
             lv = false
+          elseif objT.n == "stream" then
+            local parts = {}
+            for i, x in ipairs(a) do parts[i] = plainArg(x) end
+            c = "R.smethod(" .. obj .. "," .. str(n) .. (#parts > 0 and "," or "") .. table.concat(parts, ",") .. ")"
+            t = n == "str" and STRING or (n == "is_open" or n == "good" or n == "eof" or n == "fail") and BOOL or AUTO
+            lv = false
           elseif objT.n == "ostream" or objT.n == "istream" then
             local parts = {}
             for i, x in ipairs(a) do parts[i] = plainArg(x) end
@@ -1152,7 +1227,7 @@ local function compile(src, isCpp)
         else
           local nv = "_o" .. s .. "1"
           if WRAP[t.n] then nv = "(" .. nv .. ")&" .. WRAP[t.n] end
-          c = "(function() local _o=" .. c .. " " .. c .. "=" .. nv .. " return _o end)()"
+          c = "(function() local _o=" .. c .. " " .. placeSet(c, nv) .. " return _o end)()"
         end
         lv = false
       else break end
@@ -1164,7 +1239,7 @@ local function compile(src, isCpp)
     if t.n == "ptr" then return c .. "=R.padd(" .. c .. "," .. d .. ")" end
     local nv = c .. (d == 1 and "+1" or "-1")
     if WRAP[t.n] then nv = "(" .. nv .. ")&" .. WRAP[t.n] end
-    return c .. "=" .. nv
+    return placeSet(c, nv)
   end
 
   castOrUnary = function()
@@ -1179,7 +1254,12 @@ local function compile(src, isCpp)
           if isOp("{") then return braceInit(full), full end
           local c, from, lv = castOrUnary()
           if isInt(full) and from.n == "double" then return convert(c, from, full), full end
-          if full.n == "ptr" and from.n == "ptr" and from.to ~= VOID then return c, full end
+          if full.n == "ptr" and from.n == "ptr" and from.to ~= VOID then
+            if isStruct(full.to) and not (isStruct(from.to) and from.to.name == full.to.name) then
+              return "R.retype(" .. c .. ",G." .. full.to.name .. "_zero)", full  -- (node *)my_malloc(n): new memory takes the type
+            end
+            return c, full
+          end
           if full.n == "void" then return "R.void(" .. c .. ")", VOID end
           return convert(c, from, full, lv), full
         end
@@ -1329,14 +1409,14 @@ local function compile(src, isCpp)
       local op = tok.v
       adv()
       local b, tb, blv = addExpr()
-      if ta.n == "ostream" then
+      if ta.n == "ostream" or (ta.n == "stream" and op == "<<") then
         if isStruct(tb) then
           local f = funcs.op_shl
           if not f then err("no match for operator<<") end
           a = "G.op_shl_2(" .. a .. "," .. b .. ")"
         elseif tb.n == "manip" then a = "R.coutmanip(" .. a .. "," .. b .. ")"
         else a = "R.coutput(" .. a .. "," .. outputOf(b, tb) .. ")" end
-      elseif ta.n == "istream" then
+      elseif ta.n == "istream" or ta.n == "stream" then
         if tb.n == "double" then a = "R.cinread(" .. a .. ',"f",function(_v) ' .. b .. "=_v end)"
         elseif tb.n == "string" then a = "R.cinread(" .. a .. ',"s",function(_v) ' .. b .. "=_v end)"
         elseif tb.n == "char" then a = "R.cinread(" .. a .. ',"c",function(_v) ' .. b .. "=_v end)"
@@ -1363,6 +1443,8 @@ local function compile(src, isCpp)
     if (ta.n == "ptr" or ta.n == "arr" or ta.n == "iter") or (tb.n == "ptr" or tb.n == "arr") then
       -- with a string literal it is the text of a char* only for strings
       local pa, pb = (decay(a, ta)), (decay(b, tb))
+      if pa == "0" or pa == "(0)" then pa = "nil" end
+      if pb == "0" or pb == "(0)" then pb = "nil" end
       if op == "==" then return "R.peq(" .. pa .. "," .. pb .. ")", BOOL end
       if op == "!=" then return "(not R.peq(" .. pa .. "," .. pb .. "))", BOOL end
       return "(R.pdiff(" .. pa .. "," .. pb .. ")" .. LUA[op] .. "0)", BOOL
@@ -1476,8 +1558,9 @@ local function compile(src, isCpp)
         end
         local value = convert(v, tv, ta, vlv)
         local s = a .. "=" .. value
-        if a:find("^R%.load%(") then
-          s = "R.store(" .. a:match("^R%.load%((.*)%)$") .. "," .. value .. ")"
+        local inner = a:match("^R%.load(%b())$")
+        if inner then
+          s = "R.store(" .. inner:sub(2, -2) .. "," .. value .. ")"
           return s, ta, false, s
         end
         return "(function() " .. s .. " return " .. a .. " end)()", ta, false, s
@@ -1509,7 +1592,7 @@ local function compile(src, isCpp)
           local ex, ex_t = arith(bop, a, ta, v, tv)
           nv = convert(ex, ex_t, ta)
         end
-        local s = a .. "=" .. nv
+        local s = placeSet(a, nv)
         return "(function() " .. s .. " return " .. a .. " end)()", ta, false, s
       end
     end
@@ -1519,14 +1602,14 @@ local function compile(src, isCpp)
     local a, ta, lv, st = assignExpr()
     if isOp(",") then
       local stmts = { st or ("local _=" .. a) }
-      local last, lastT
+      local last, lastT, lastSt
       while acceptOp(",") do
+        if last then stmts[#stmts + 1] = lastSt or ("local _=" .. last) end
         local b, tb, _, st2 = assignExpr()
-        stmts[#stmts + 1] = st2 or ("local _=" .. b)
-        last, lastT = b, tb
+        last, lastT, lastSt = b, tb, st2
       end
-      local all = table.concat(stmts, " ")
-      return "(function() " .. all:gsub("local _=([^\n]*)$", "return %1") .. " end)()", lastT, false, all
+      local before = table.concat(stmts, " ")
+      return "(function() " .. before .. " return " .. last .. " end)()", lastT, false, before .. " " .. (lastSt or ("local _=" .. last))
     end
     return a, ta, lv, st
   end
@@ -1574,6 +1657,15 @@ local function compile(src, isCpp)
       end
       do
         local n, t, isRef = parseDeclarator(bt)
+        if not isCpp and isOp("(") and n and (peek().v == ")" or (peek().t == "name" and (TYPEWORDS[peek().v] or typedefs[peek().v] or QUALS[peek().v] or peek().v == "struct"))) then
+          -- a prototype inside a function: nothing to do
+          local d = 0
+          repeat
+            if isOp("(") then d = d + 1 elseif isOp(")") then d = d - 1 end
+            adv()
+          until d == 0
+          goto nextName
+        end
         if not n then err() end
         local m = mangle(n)
         if isRef then
@@ -1623,6 +1715,13 @@ local function compile(src, isCpp)
           elseif isOp("{") then
             emit("local " .. m .. "=" .. braceInit(t))
             bind(n, m, t)
+          elseif t.n == "stream" and isOp("(") then
+            adv()
+            local a = argsOf()
+            local parts = { str(t.kind) }
+            for _, x in ipairs(a) do parts[#parts + 1] = plainArg(x) end
+            emit("local " .. m .. "=R.stream(" .. table.concat(parts, ",") .. ")")
+            bind(n, m, t)
           elseif isOp("(") and (isStruct(t) or t.n == "vector" or t.n == "string" or isNum(t) or t.n == "pair" or t.n == "map") then
             adv()
             local a = argsOf()
@@ -1652,7 +1751,8 @@ local function compile(src, isCpp)
         end
       end
       ::continue::
-    until not acceptOp(",")
+    ::nextName::
+      until not acceptOp(",")
     expectOp(";")
   end
 
@@ -1764,12 +1864,14 @@ local function compile(src, isCpp)
         -- a range for?
         local isRange = false
         do
-          local d, p = 0, pos
+          local d, p, q = 0, pos, 0
           while true do
             local x = toks[p]
             if x.t == "eof" then break end
             if x.t == "op" then
-              if x.v == "(" or x.v == "[" or x.v == "{" then d = d + 1
+              if x.v == "?" then q = q + 1
+              elseif x.v == ":" and q > 0 then q = q - 1
+              elseif x.v == "(" or x.v == "[" or x.v == "{" then d = d + 1
               elseif x.v == ")" or x.v == "]" or x.v == "}" then
                 if d == 0 then break end
                 d = d - 1
@@ -2022,6 +2124,27 @@ local function compile(src, isCpp)
     expectOp("(")
     local params = {}
     if isName("void") and peek().v == ")" then adv() end
+    -- the old form: f(a, b) char *a; int b; { ... }
+    if tok.t == "name" and not isTypeStart() and (peek().v == "," or peek().v == ")") then
+      local names, byName = {}, {}
+      while tok.t == "name" do
+        names[#names + 1] = tok.v
+        adv()
+        if not acceptOp(",") then break end
+      end
+      expectOp(")")
+      while not isOp("{") and not isOp(";") and tok.t ~= "eof" do
+        local bt = parseType()
+        repeat
+          local n, ty = parseDeclarator(bt)
+          if ty.n == "arr" then ty = ptrTo(ty.to) end
+          byName[n] = ty
+        until not acceptOp(",")
+        expectOp(";")
+      end
+      for i, n in ipairs(names) do params[i] = { name = n, t = byName[n] or INT } end
+      return params
+    end
     while not isOp(")") do
       if acceptOp("...") then params.variadic = true; break end
       local isConst = isName("const")
@@ -2510,8 +2633,14 @@ local function compile(src, isCpp)
       local n, ty, isRef = parseDeclarator(bt)
       if not n then err() end
       if isOp("(") then
+        local noneTold = peek().v == ")"
         local params = parseParams()
         while tok.t == "name" and QUALS[tok.v] do adv() end
+        if not isCpp and noneTold and isOp(";") and not funcs[n] then
+          protoEmpty[n] = ty
+          adv()
+          return
+        end
         funcs[n] = funcs[n] or {}
         local existing = funcs[n][#params]
         local sig = existing
@@ -2529,7 +2658,7 @@ local function compile(src, isCpp)
         return
       end
       -- a global variable
-      local gn = "G." .. mangle(n)
+      local gn = "G." .. (isCpp and "" or "v_") .. mangle(n)
       if ty.n == "arr" and isOp("=") and peek().t == "str" then
         adv()
         local c = assignExpr()

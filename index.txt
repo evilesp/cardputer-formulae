@@ -190,29 +190,37 @@ natanlocal|1.0.0.0|the three small models of natan on this device (intent, comma
 natan-local-pl|1.0.0.0|natan-local-pl QUESTION: the same as natan, only with the models of this device, in Polish or English|needs:json natanlocal|Formula/natan-local-pl.lua
 desktop|1.0.0.12|graphical desktop with touch: home screen with pinned apps and a dock (launcher, terminal, files, settings), windows, task bar, quick panel, themes and wallpapers as text packages; desktop enable/disable at boot, desktop install NAME (beta, needs touch.read from the firmware)|needs:fonts|Formula/desktop.lua
 touchcal|1.0.0.0|calibrates the touch screen: touch four crosses, it saves the shift and scale in /etc/touch.cal (needs firmware v0.1.5)|Formula/touchcal.lua
-relang|1.0|regular expressions for the language packages: a driver|Driver/relang.lua
-pylang|1.0|Python: the translator to Lua, a driver of the program python3|Driver/pylang.lua
-pyrt|1.0|Python: the run-time, a driver of the program python3|Driver/pyrt.lua
-python3|1.0|Python 3 for this device: python3 FILE.py, python3 -c CODE, or a prompt; classes, generators, f-strings, exceptions, math, json, re, collections (needs firmware v0.1.14)|needs:pylang pyrt relang|Formula/python3.lua
-python|1.0|the same as python3|needs:python3|Formula/python.lua
-jslang|1.0|JavaScript: the translator to Lua, a driver of the program node|Driver/jslang.lua
-jsrt|1.0|JavaScript: the run-time, a driver of the program node|Driver/jsrt.lua
-node|1.0|JavaScript (Node.js style) for this device: node FILE.js, node -e CODE, or a prompt; classes, async/await, promises, Map, Set, JSON, regular expressions (needs firmware v0.1.14)|needs:jslang jsrt relang|Formula/node.lua
-clang|1.0|C and C++: the translator to Lua, a driver of gcc and g++|Driver/clang.lua
-crt|1.0|C and C++: the run-time, a driver of gcc and g++|Driver/crt.lua
-gcc|1.0|C for this device: gcc FILE.c -o PROGRAM, or gcc -run FILE.c; pointers, structs, malloc, stdio, string.h, math.h (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/gcc.lua
-cc|1.0|the same as gcc|needs:clang crt|Formula/cc.lua
-g++|1.0|C++ for this device: g++ FILE.cpp -o PROGRAM, or g++ -run FILE.cpp; classes, templates, string, vector, map, iostream (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/g++.lua
-c++|1.0|the same as g++|needs:clang crt|Formula/c++.lua
-golang|1.0|Go: the translator to Lua, a driver of the program go|Driver/golang.lua
-gort|1.0|Go: the run-time, a driver of the program go|Driver/gort.lua
-go|1.0|Go for this device: go run FILE.go, go build FILE.go; structs, interfaces, slices, maps, goroutines, channels, fmt, strings (translated to Lua, needs firmware v0.1.14)|needs:golang gort|Formula/go.lua
-rustlang|1.0|Rust: the translator to Lua, a driver of the program rustc|Driver/rustlang.lua
-rustrt|1.0|Rust: the run-time, a driver of the program rustc|Driver/rustrt.lua
-rustc|1.0|Rust for this device: rustc FILE.rs -o PROGRAM, or rustc -run FILE.rs; structs, enums, traits, iterators, Vec, HashMap, Option, Result (translated to Lua, no borrow checker, needs firmware v0.1.14)|needs:rustlang rustrt|Formula/rustc.lua
+relang|1.0.0.1|regular expressions for the language packages: a driver|Driver/relang.lua
+pylang|1.0.0.1|Python: the translator to Lua, a driver of the program python3|Driver/pylang.lua
+pyrt|1.0.0.1|Python: the run-time, a driver of the program python3|Driver/pyrt.lua
+python3|1.0.0.1|Python 3 for this device: python3 FILE.py, python3 -c CODE, or a prompt; classes, generators, f-strings, exceptions, math, json, re, collections (needs firmware v0.1.14)|needs:pylang pyrt pylib relang|Formula/python3.lua
+python|1.0.0.1|the same as python3|needs:python3|Formula/python.lua
+jslang|1.0.0.1|JavaScript: the translator to Lua, a driver of the program node|Driver/jslang.lua
+jsrt|1.0.0.1|JavaScript: the run-time, a driver of the program node|Driver/jsrt.lua
+node|1.0.0.1|JavaScript (Node.js style) for this device: node FILE.js, node -e CODE, or a prompt; classes, async/await, promises, Map, Set, JSON, regular expressions (needs firmware v0.1.14)|needs:jslang jsrt relang|Formula/node.lua
+clang|1.0.0.1|C and C++: the translator to Lua, a driver of gcc and g++|Driver/clang.lua
+crt|1.0.0.1|C and C++: the run-time, a driver of gcc and g++|Driver/crt.lua
+gcc|1.0.0.1|C for this device: gcc FILE.c -o PROGRAM, or gcc -run FILE.c; pointers, structs, malloc, stdio, string.h, math.h (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/gcc.lua
+cc|1.0.0.1|the same as gcc|needs:clang crt|Formula/cc.lua
+g++|1.0.0.1|C++ for this device: g++ FILE.cpp -o PROGRAM, or g++ -run FILE.cpp; classes, templates, string, vector, map, iostream (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/g++.lua
+c++|1.0.0.1|the same as g++|needs:clang crt|Formula/c++.lua
+golang|1.0.0.1|Go: the translator to Lua, a driver of the program go|Driver/golang.lua
+gort|1.0.0.1|Go: the run-time, a driver of the program go|Driver/gort.lua
+go|1.0.0.1|Go for this device: go run FILE.go, go build FILE.go; structs, interfaces, slices, maps, goroutines, channels, fmt, strings (translated to Lua, needs firmware v0.1.14)|needs:golang gort|Formula/go.lua
+rustlang|1.0.0.1|Rust: the translator to Lua, a driver of the program rustc|Driver/rustlang.lua
+rustrt|1.0.0.1|Rust: the run-time, a driver of the program rustc|Driver/rustrt.lua
+rustc|1.0.0.1|Rust for this device: rustc FILE.rs -o PROGRAM, or rustc -run FILE.rs; structs, enums, traits, iterators, Vec, HashMap, Option, Result (translated to Lua, no borrow checker, needs firmware v0.1.14)|needs:rustlang rustrt|Formula/rustc.lua
 wordfreq|1.0|the most frequent words of a text file: a program in Python|needs:python3|Formula/wordfreq.py
 jscalc|1.0|a calculator: jscalc "2*(3+4)^2", a program in JavaScript|needs:node|Formula/jscalc.js
 sieve|1.0|the primes up to N and the time it took, a program in C|needs:gcc|Formula/sieve.c
 matrixcalc|1.0|Fibonacci numbers by powers of a matrix, a program in C++|needs:g++|Formula/matrixcalc.cpp
 lifers|1.0|generations of the game of life as text, a program in Rust|needs:rustc|Formula/lifers.rs
 pingpong|1.0|two goroutines pass a ball over channels, a program in Go|needs:go|Formula/pingpong.go
+jsonq|1.0|read, filter and format JSON like a small jq: jsonq '.a[0]' FILE|needs:python3|Formula/jsonq.py
+mdview|1.0|show a Markdown file in colours: mdview FILE.md|needs:node|Formula/mdview.js
+hxd|1.0|hex dump, find and patch bytes of a file: hxd FILE|needs:gcc|Formula/hxd.c
+budget|1.0|your money in a text file: budget add 12.5 food lunch, list, report|needs:g++|Formula/budget.cpp
+loc|1.0|count lines of code per language in a folder|needs:rustc|Formula/loc.rs
+logstat|1.0|levels, hours and the most frequent messages of a log file|needs:go|Formula/logstat.go
+sysreport|1.0|a report of memory, disk, network and what is wrong: sysreport [-s FILE]|Formula/sysreport.sh
+pylib|1.0|Python: the library of Python written in Python, a driver of python3|Driver/pylib.lua

@@ -721,7 +721,8 @@ local function compile(src)
         local cst = PKG_CONST[key]
         if cst then return cst[1], cst[2] end
         if key == "os.Args" then return "R.args", { k = "slice", el = STRING } end
-        if key == "os.Stdout" or key == "os.Stderr" then return "R.stdout", ANY end
+        if key == "os.Stdout" then return "R.stdout", ANY end
+        if key == "os.Stderr" then return "R.stderr", ANY end
         if key == "os.Stdin" then return "R.stdin", ANY end
         return "R.pkg." .. n .. "." .. m, { k = "func", pkgRet = PKG_RET[key] }
       end
