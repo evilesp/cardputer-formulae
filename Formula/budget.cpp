@@ -1,3 +1,4 @@
+#!g++ -run
 // budget: your money in a text file. Each line of the file is DATE;CATEGORY;AMOUNT;NOTE.
 //   budget add 12.50 food "lunch" [2026-11-08]
 //   budget list [CATEGORY]

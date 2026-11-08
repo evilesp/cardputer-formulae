@@ -1,3 +1,4 @@
+#!gcc -run
 /* hxd: a hex dump and patch tool, in the manner of xxd.
  *   hxd [-c COLS] [-s SKIP] [-l LEN] [-u] [-p] FILE     the bytes in hex and text
  *   hxd -r TEXTFILE OUT                                  makes the bytes again from the dump

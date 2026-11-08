@@ -1,3 +1,4 @@
+#!rustc -run
 // loc: counts the lines of code in a folder, per language: code, comments and blank lines.
 //   loc [PATH...]
 use std::collections::HashMap;

@@ -1,3 +1,4 @@
+#!go -run
 // logstat: reads a log file and shows what is in it: the lines per level, per hour and the most frequent messages.
 //   logstat [-n TOP] [-level WORD] FILE    or a pipe
 package main
