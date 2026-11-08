@@ -7,7 +7,16 @@ local function write(s) term.write(s) end
 
 -- ---- pointers: {a = a table, i = a key} ----
 function R.ptr(a, i) return { a = a, i = i } end
-function R.padd(p, n) return { a = p.a, i = p.i + n } end
+function R.padd(p, n)
+  local a, i = p.a, p.i + n
+  local rn = a.__rn
+  if rn and (i >= rn or i < 0) then  -- past the end of a row: the next row of the same array
+    local flat = a.__ri * rn + i
+    local row = a.__pr[flat // rn]
+    if row then return { a = row, i = flat % rn } end
+  end
+  return { a = a, i = i }
+end
 function R.pdiff(p, q)
   if p == nil or q == nil then return (p == nil and 0 or 1) - (q == nil and 0 or 1) end
   return p.i - q.i
@@ -120,10 +129,22 @@ function R.arr(n, z)
   for i = 0, n - 1 do t[i] = z end
   return t
 end
+-- the rows of a two-dimensional array know their place, so that a pointer to the first element can run over the whole array (int *p = &a[0][0]; p[k])
+local function linkRows(t, n)
+  for k = 0, n - 1 do
+    local row = t[k]
+    if type_(row) == "table" and getmt(row) == nil and row[0] ~= nil and type_(row[0]) ~= "table" then
+      local rn = 0
+      while row[rn] ~= nil do rn = rn + 1 end
+      row.__pr, row.__ri, row.__rn = t, k, rn
+    end
+  end
+  return t
+end
 function R.arrf(n, f)
   local t = {}
   for i = 0, n - 1 do t[i] = f() end
-  return t
+  return linkRows(t, n)
 end
 function R.arrinit(n, z, vals)
   for i = 0, n - 1 do if vals[i] == nil then vals[i] = z end end
@@ -131,7 +152,7 @@ function R.arrinit(n, z, vals)
 end
 function R.arrinitf(n, f, vals)
   for i = 0, n - 1 do if vals[i] == nil then vals[i] = f() end end
-  return vals
+  return linkRows(vals, n)
 end
 function R.chararr(s, n)
   local t = {}
@@ -671,7 +692,53 @@ local function fill()
   inputPos = 1
   return true
 end
+-- signals and timers: a handler of SIGALRM runs while the program waits (getch, sleep, select), as it would run on Linux
+local handlers, timer = {}, nil
+local function timerTick()
+  if timer and sys.millis() >= timer.next then
+    local h = handlers[14]
+    if timer.interval > 0 then timer.next = timer.next + timer.interval else timer = nil end
+    if h and h ~= 0 and h ~= 1 and type_(h) == "function" then h(14) end
+  end
+end
+R.timerTick = timerTick
+local function sleepMs(ms)
+  local t0 = sys.millis()
+  repeat
+    timerTick()
+    local left = ms - (sys.millis() - t0)
+    if left > 0 then sys.sleep(left > 8 and 8 or left) end
+  until sys.millis() - t0 >= ms
+end
+-- the keys as bytes, for the programs that put the terminal in raw mode (tcsetattr without ICANON): arrows come as ESC [ A ...
+local rawKeys, rawMin, rawTime = false, 1, 0
+local rawQueue = {}
+local KEYSEQ = { up = "\27[A", down = "\27[B", right = "\27[C", left = "\27[D", enter = "\r", backspace = "\127", tab = "\t", space = " ", pgup = "\27[5~", pgdn = "\27[6~", home = "\27[H", ["end"] = "\27[F", delete = "\27[3~" }
+local function pollRaw(wait)
+  if #rawQueue > 0 then return table.remove(rawQueue, 1) end
+  local start = sys.millis()
+  while true do
+    local k = key and key.poll and key.poll()
+    if k then
+      local seq = KEYSEQ[k]
+      if not seq then
+        local c = k:match("^ctrl%-(%a)$")
+        if c then seq = string.char(byte(c) & 31) elseif #k == 1 then seq = k else seq = "" end
+      end
+      for j = 1, #seq do rawQueue[#rawQueue + 1] = byte(seq, j) end
+      if #rawQueue > 0 then return table.remove(rawQueue, 1) end
+    end
+    timerTick()
+    if wait >= 0 and sys.millis() - start >= wait then return nil end
+    sys.sleep(4)
+  end
+end
+R.pollRaw = pollRaw
 local function getc()
+  if rawKeys and not R.stdinText then
+    local c = pollRaw(rawMin == 0 and rawTime * 100 or -1)
+    return c
+  end
   if inputPos > #inputBuf then if not fill() then return nil end end
   local c = byte(inputBuf, inputPos)
   inputPos = inputPos + 1
@@ -1123,6 +1190,15 @@ L.strtoul = L.strtol
 L.labs = function(x) return x < 0 and -x or x end
 function L.rand() return math.random(0, 2147483647) end
 function L.srand(s) math.randomseed(s) end
+L.random = L.rand
+L.srandom = L.srand
+function L.lrand48() return math.random(0, 2147483647) end
+L.mrand48 = L.lrand48
+function L.drand48() return math.random() end
+function L.srand48(s) math.randomseed(s) end
+function L.rand_r() return math.random(0, 2147483647) end
+function L.arc4random() return math.random(0, 4294967295) end
+function L.arc4random_uniform(n) return math.random(0, n - 1) end
 function L.exit(c) error({ exit = c or 0 }, 0) end
 function L.abort() error("Aborted", 0) end
 function L.assert(c)
@@ -1182,6 +1258,7 @@ function L.fopen(p, m)
   return { h = h }
 end
 function L.freopen(p, m, f)
+  if tolua(p) == "/dev/tty" or tolua(p) == "/dev/stdin" then return R.stdin end
   if f and f.h and not f.std then f.h:close() end
   return L.fopen(p, m)
 end
@@ -1331,9 +1408,25 @@ function L.bindtextdomain() return nil end
 function L.textdomain() return nil end
 function L.gettext(s) return s end
 function L.nl_langinfo() return R.cstr("UTF-8") end
-function L.signal() return nil end
+function L.signal(sig, h) handlers[sig] = h; return nil end
+function L.sigaction(sig, act)
+  if act then handlers[sig] = act.a[act.i].sa_handler end
+  return 0
+end
+function L.sigemptyset() return 0 end
+L.sigfillset, L.sigaddset, L.sigdelset, L.sigprocmask, L.pthread_sigmask = L.sigemptyset, L.sigemptyset, L.sigemptyset, L.sigemptyset, L.sigemptyset
+function L.setitimer(which, new)
+  local v = new and new.a[new.i]
+  if type_(v) ~= "table" then return 0 end
+  local function ms(t) return t and ((t.tv_sec or 0) * 1000 + (t.tv_usec or 0) // 1000) or 0 end
+  local value, interval = ms(v.it_value), ms(v.it_interval)
+  if value == 0 and interval == 0 then timer = nil else timer = { next = sys.millis() + (value > 0 and value or interval), interval = interval } end
+  return 0
+end
+function L.getitimer() return 0 end
+function L.pause() sys.sleep(50) return -1 end
 function L.raise() return 0 end
-function L.alarm() return 0 end
+function L.alarm(n) if n > 0 then timer = { next = sys.millis() + n * 1000, interval = 0 } else timer = nil end return 0 end
 function L.atexit(f) R.atExit = R.atExit or {}; table.insert(R.atExit, f); return 0 end
 function L.getcwd(b, n)
   local d = (lfs and lfs.currentdir and lfs.currentdir()) or os.getenv("PWD") or "/"
@@ -1418,19 +1511,132 @@ function L.clock_gettime(_, p)
   v.tv_sec = floor(c); v.tv_nsec = floor((c - floor(c)) * 1e9)
   return 0
 end
-function L.sleep(n) if sys and sys.sleep then sys.sleep(n * 1000) end return 0 end
-function L.usleep(n) if sys and sys.sleep then sys.sleep(n // 1000) end return 0 end
+function L.sleep(n) sleepMs(n * 1000); return 0 end
+function L.usleep(n) sleepMs(n // 1000); return 0 end
 function L.nanosleep(p) local v = p.a[p.i]; if sys and sys.sleep then sys.sleep(v.tv_sec * 1000 + (v.tv_nsec or 0) // 1000000) end return 0 end
-function L.ioctl(_, _, p)
+function L.ioctl(_, req, p)
+  if req == 21531 then  -- FIONREAD: how many bytes wait on stdin
+    if not R.stdinText then
+      if rawKeys then
+        if p then p.a[p.i] = (#rawQueue > 0) and #rawQueue or 0 end
+        return 0
+      end
+      local all = io and io.stdin and io.stdin:read("a")
+      if all then R.stdinText = all end
+    end
+    if p then p.a[p.i] = #(R.stdinText or "") end
+    return 0
+  end
   if p then
     local v = p.a[p.i]
-    if type_(v) == "table" then v.ws_row, v.ws_col = tonumber(os.getenv("LINES")) or 24, tonumber(os.getenv("COLUMNS")) or 80 end
+    if type_(v) == "table" then
+      local w, h = 80, 24
+      if term and term.size then w, h = term.size() end
+      v.ws_row, v.ws_col = h, w
+    end
   end
   return 0
 end
-function L.tcgetattr() return 0 end
-function L.tcsetattr() return 0 end
-function L.cfmakeraw() end
+function L.tcgetattr(fd, p)
+  if p then
+    local v = p.a[p.i]
+    if type_(v) == "table" then
+      v.c_iflag, v.c_oflag, v.c_cflag, v.c_lflag = 0, 0, 0, rawKeys and 0 or 10
+      v.c_cc = R.arr and R.arr(32, 0) or {}
+      v.c_cc[6], v.c_cc[5] = rawMin, rawTime
+    end
+  end
+  return 0
+end
+function L.tcsetattr(fd, when, p)
+  local v = p and p.a[p.i]
+  if type_(v) == "table" then
+    rawKeys = ((v.c_lflag or 10) & 2) == 0
+    local cc = v.c_cc
+    if type_(cc) == "table" then rawMin, rawTime = cc[6] or 1, cc[5] or 0 end
+  end
+  return 0
+end
+function L.cfmakeraw(p)
+  local v = p and p.a[p.i]
+  if type_(v) == "table" then v.c_lflag = 0 end
+end
+function L.tcflush() return 0 end
+function L.tcdrain() return 0 end
+-- select on the keyboard: ready when a key waits
+local selReady = false
+function L.select(n, r, w, e, tv)
+  local wait = -1
+  if type_(tv) == "table" then
+    local t = tv.a[tv.i]
+    wait = ((t.tv_sec or 0) * 1000) + ((t.tv_usec or 0) // 1000)
+  end
+  selReady = false
+  if #rawQueue > 0 or (rawKeys and key and key.poll) then
+    local c = pollRaw(wait)
+    if c then table.insert(rawQueue, 1, c); selReady = true; return 1 end
+    return 0
+  end
+  if inputPos <= #inputBuf or (sys.piped and sys.piped()) then selReady = true; return 1 end
+  if wait > 0 and sys and sys.sleep then sys.sleep(wait) end
+  return 0
+end
+function L.__fd_isset() return selReady and 1 or 0 end
+-- the network interfaces of the device: the radio as wlan0 and the loopback, with the data of the wifi module
+local function ipInt(ip)
+  local a, b, c, d = tostring(ip or "0.0.0.0"):match("(%d+)%.(%d+)%.(%d+)%.(%d+)")
+  return (tonumber(a) or 0) | ((tonumber(b) or 0) << 8) | ((tonumber(c) or 0) << 16) | ((tonumber(d) or 0) << 24)
+end
+local function ifaces()
+  local st = wifi and wifi.status and wifi.status() or {}
+  local list = { { name = "lo", ip = "127.0.0.1", mask = "255.0.0.0", flags = 0x49, index = 1, mac = "00:00:00:00:00:00" } }
+  list[2] = { name = "wlan0", ip = st.ip or "0.0.0.0", mask = st.netmask or "255.255.255.0", flags = st.connected and 0x1043 or 0x1002, index = 2, mac = st.mac or "00:00:00:00:00:00" }
+  return list
+end
+local function sockaddrIn(ip) return { a = { [0] = { sa_family = 2, sin_family = 2, sin_port = 0, sin_addr = { s_addr = ipInt(ip) } } }, i = 0 } end
+function L.getifaddrs(pp)
+  local first, prev
+  for _, f in ipairs(ifaces()) do
+    local node = { ifa_name = R.cstr(f.name), ifa_flags = f.flags, ifa_addr = sockaddrIn(f.ip), ifa_netmask = sockaddrIn(f.mask), ifa_broadaddr = nil, ifa_next = nil }
+    local p = { a = { [0] = node }, i = 0 }
+    if prev then prev.a[0].ifa_next = p else first = p end
+    prev = p
+  end
+  pp.a[pp.i] = first
+  return 0
+end
+function L.freeifaddrs() end
+function L.if_nametoindex(n) n = tolua(n); for _, f in ipairs(ifaces()) do if f.name == n then return f.index end end failed(19) return 0 end
+function L.if_indextoname(i, b) for _, f in ipairs(ifaces()) do if f.index == i then fromLua(f.name, b) return b end end return nil end
+local IFREQ = { [35093] = "ip", [35099] = "mask", [35091] = "flags", [35123] = "index", [35111] = "mac" }
+local ioctlOld = L.ioctl
+function L.ioctl(fd, req, p)
+  local what = IFREQ[req]
+  if what and p then
+    local v = p.a[p.i]
+    local name = v and v.ifr_name and tolua(v.ifr_name)
+    for _, f in ipairs(ifaces()) do
+      if f.name == name then
+        if what == "ip" or what == "mask" then v.ifr_addr = sockaddrIn(what == "ip" and f.ip or f.mask).a[0]
+        elseif what == "flags" then v.ifr_flags = f.flags
+        elseif what == "index" then v.ifr_ifindex = f.index
+        else local h = { sa_family = 1 }; local k = 0; for hx in f.mac:gmatch("%x%x") do h[k] = tonumber(hx, 16); k = k + 1 end v.ifr_hwaddr = h end
+        return 0
+      end
+    end
+    failed(19)
+    return -1
+  end
+  return ioctlOld(fd, req, p)
+end
+-- the loader of libraries: there is none, so a program that wants a plugin hears that it is not there
+function L.dlopen() return nil end
+function L.dlsym() return nil end
+function L.dlclose() return 0 end
+function L.dlerror() return R.cstr("dynamic libraries are not supported on this device") end
+function L.setjmp() return 0 end
+function L.longjmp() error("longjmp is not supported", 0) end
+L.sigsetjmp, L.siglongjmp, L._setjmp = L.setjmp, L.longjmp, L.setjmp
 -- file descriptors: a number for a handle of io
 local fds = { [0] = R.stdin, [1] = R.stdout, [2] = R.stderr }
 local nextFd = 3
@@ -1479,6 +1685,20 @@ function L.write(fd, p, n)
   return n
 end
 function L.read(fd, p, n)
+  if fd == 0 and R.stdinText then
+    local t = R.stdinText
+    if t == "" then return 0 end
+    local chunk = t:sub(1, n)
+    R.stdinText = t:sub(#chunk + 1)
+    for k = 1, #chunk do p.a[p.i + k - 1] = byte(chunk, k) end
+    return #chunk
+  end
+  if fd == 0 and rawKeys and not R.stdinText then
+    local c = pollRaw(rawMin == 0 and rawTime * 100 or -1)
+    if not c then return 0 end
+    p.a[p.i] = c
+    return 1
+  end
   local f = fds[fd]
   if not f then failed(9); return -1 end
   if f.random then
@@ -1636,6 +1856,19 @@ function L.fork() return -1 end
 function L.getpagesize() return 4096 end
 function L.sysconf() return 4096 end
 function L.wcwidth() return 1 end
+function L.mbrtowc(pwc, s, n, ps)
+  local c = s and s.a[s.i]
+  if c == nil or c == 0 then if pwc then pwc.a[pwc.i] = 0 end return 0 end
+  if pwc then pwc.a[pwc.i] = c end
+  return 1
+end
+function L.mbstowcs(d, s, n) local t = tolua(s); if d then for k = 1, math.min(#t, n) do d.a[d.i + k - 1] = byte(t, k) end d.a[d.i + #t] = 0 end return #t end
+function L.wcstombs(d, s, n) local o = {}; local k = 0; while s.a[s.i + k] ~= 0 and s.a[s.i + k] ~= nil do o[#o + 1] = char(s.a[s.i + k] & 255); k = k + 1 end if d then fromLua(concat(o), d) end return k end
+function L.wcslen(s) local k = 0; while s.a[s.i + k] ~= 0 and s.a[s.i + k] ~= nil do k = k + 1 end return k end
+function L.towupper(c) return L.toupper(c) end
+function L.towlower(c) return L.tolower(c) end
+L.iswalpha, L.iswdigit, L.iswspace, L.iswprint = L.isalpha, L.isdigit, L.isspace, L.isprint
+function L.mbsinit() return 1 end
 function L.mblen() return 1 end
 -- getopt and getopt_long
 local optargBox, optindBox, opterrBox, optoptBox = { a = { [0] = false }, i = 0 }, { a = { [0] = 1 }, i = 0 }, { a = { [0] = 1 }, i = 0 }, { a = { [0] = 0 }, i = 0 }
@@ -1737,94 +1970,205 @@ end
 function L.getopt(argc, argv, spec) return getoptBase(argc, argv, spec) end
 function L.getopt_long(argc, argv, spec, long, idx) return getoptBase(argc, argv, spec, long, idx) end
 L.getopt_long_only = L.getopt_long
--- ncurses on the text grid of the device
-local cur = { y = 0, x = 0, nodelay = false, color = "text", pairs = {}, attr = 0, wait = -1 }
+-- ncurses on the text grid of the device: windows, panels, colours, keys (the picture is made with term.*)
+local pairsT = {}
 local CNAME = { [0] = "dim", "red", "green", "yellow", "blue", "magenta", "cyan", "white" }
 local function gridSize() local w, h = term.size(); return w, h end
+local stdscr
+local function newWindow(h, w, y, x)
+  return { win = true, h = h, w = w, oy = y, ox = x, y = 0, x = 0, attr = 0, delay = -1, bkgd = 32 }
+end
+local function std()
+  if not stdscr then local w, h = gridSize(); stdscr = newWindow(h, w, 0, 0) end
+  return stdscr
+end
 local linesBox, colsBox = { a = {}, i = 0 }, { a = {}, i = 0 }
-function L.__LINESP() if not linesBox.a[0] then local w, h = gridSize(); linesBox.a[0], colsBox.a[0] = h, w end return linesBox end
+function L.__LINESP() local s = std(); linesBox.a[0], colsBox.a[0] = s.h, s.w; return linesBox end
 function L.__COLSP() L.__LINESP(); return colsBox end
-function L.initscr() term.fullscreen(true); term.clear(); return { win = true } end
-function L.newwin() return { win = true } end
-function L.delwin() return 0 end
+function L.initscr() term.fullscreen(true); term.clear(); stdscr = nil; return std() end
+function L.newterm() return L.initscr() end
+function L.set_term(s) return s end
+function L.delscreen() return nil end
 function L.endwin() term.fullscreen(false); return 0 end
 function L.isendwin() return 0 end
-function L.cbreak() return 0 end
-L.nocbreak, L.raw, L.noraw, L.echo, L.noecho, L.nonl, L.nl, L.intrflush, L.leaveok, L.scrollok, L.idlok, L.clearok, L.meta, L.start_color, L.use_default_colors, L.typeahead, L.flushinp, L.beep, L.flash, L.notimeout, L.immedok, L.resizeterm, L.wnoutrefresh, L.doupdate = L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak, L.cbreak
+local function ok() return 0 end
+for _, n in ipairs{ "cbreak", "nocbreak", "raw", "noraw", "echo", "noecho", "nonl", "nl", "intrflush", "leaveok", "scrollok", "idlok", "clearok", "meta", "start_color", "use_default_colors", "typeahead", "flushinp", "beep", "flash", "notimeout", "immedok", "resizeterm", "doupdate", "keypad", "wnoutrefresh", "touchwin", "redrawwin", "wtouchln", "wsetscrreg", "setscrreg", "def_prog_mode", "reset_prog_mode", "def_shell_mode", "reset_shell_mode", "savetty", "resetty", "set_escdelay", "mvcur", "assume_default_colors", "cbreak", "slk_init", "wredrawln", "idcok", "syncok", "is_term_resized", "update_panels", "top_panel", "bottom_panel", "show_panel", "hide_panel", "ungetch", "move_panel_noop" } do L[n] = ok end
+function L.doupdate() term.flush(); return 0 end
 function L.has_colors() return 1 end
 function L.can_change_color() return 0 end
-function L.init_pair(n, f) cur.pairs[n] = CNAME[f] or "text"; return 0 end
+function L.init_pair(n, f, b) pairsT[n] = { fg = CNAME[f] or "text", bg = (b and b ~= 0 and b ~= -1) and CNAME[b] or nil }; return 0 end
 function L.init_color() return 0 end
 function L.curs_set() return 1 end
-function L.keypad() return 0 end
-function L.nodelay(_, b) cur.nodelay = b ~= 0 and b ~= false; return 0 end
-function L.timeout(t) cur.wait = t; return 0 end
-function L.wtimeout(_, t) cur.wait = t; return 0 end
-function L.halfdelay(t) cur.wait = t * 100; return 0 end
-function L.napms(n) if sys and sys.sleep then sys.sleep(n) end return 0 end
+function L.napms(n) sleepMs(n); return 0 end
+function L.halfdelay(t) std().delay = t * 100; return 0 end
 function L.COLOR_PAIR(n) return n << 8 end
 function L.PAIR_NUMBER(a) return (a >> 8) & 255 end
-function L.attrset(a) cur.attr = a; return 0 end
-function L.attron(a) cur.attr = cur.attr | a; return 0 end
-function L.attroff(a) cur.attr = cur.attr & ~a; return 0 end
-function L.standout() cur.attr = cur.attr | 65536; return 0 end
-function L.standend() cur.attr = 0; return 0 end
-function L.wattron(_, a) return L.attron(a) end
-function L.wattroff(_, a) return L.attroff(a) end
-function L.wattrset(_, a) return L.attrset(a) end
-function L.bkgd() return 0 end
-L.wbkgd = L.bkgd
-local function attrColor(extra)
-  local a = cur.attr | (extra or 0)
-  local c = cur.pairs[(a >> 8) & 255] or "text"
+local function wrapWin(f) return function(win, ...) return f(win or std(), ...) end end
+local function attrColor(win, extra)
+  local a = win.attr | (extra or 0)
+  if (a & 0xFF00) == 0 then a = a | (win.bkgdAttr or 0) end
+  local pr = pairsT[(a >> 8) & 255]
+  local c = pr and pr.fg or "text"
+  if pr and pr.bg then
+    if a & 2097152 ~= 0 then c = "white" end
+    return "inverse-" .. pr.bg  -- the block of the background colour; the letter on it is dark
+  end
   if a & 65536 ~= 0 then return c == "text" and "inverse" or ("inverse-" .. c) end
   if a & 2097152 ~= 0 and c == "text" then return "white" end
   return c
 end
-local function putText(s, extra)
-  local w, h = gridSize()
-  local color = attrColor(extra)
+local function cell(win, y, x, ch, color)
+  if y < 0 or x < 0 or y >= win.h or x >= win.w then return end
+  local bc = win.bc
+  if not bc then bc = {}; win.bc = bc; win.bk = {} end
+  bc[y * win.w + x] = ch
+  win.bk[y * win.w + x] = color
+  if not win.pad then term.put(win.ox + x, win.oy + y, ch, color) end
+end
+local function putText(win, s, extra)
+  local color = attrColor(win, extra)
   for k = 1, #s do
     local c = s:sub(k, k)
-    if c == "\n" then cur.y = cur.y + 1; cur.x = 0
+    if c == "\n" then
+      for x = win.x, win.w - 1 do cell(win, win.y, x, " ", color) end
+      win.y = win.y + 1; win.x = 0
+    elseif c == "\t" then
+      local n = 8 - win.x % 8
+      for _ = 1, n do cell(win, win.y, win.x, " ", color); win.x = win.x + 1 end
     else
-      if cur.x >= w then cur.x = 0; cur.y = cur.y + 1 end
-      if cur.y < h and cur.y >= 0 and cur.x >= 0 then term.put(cur.x, cur.y, c, color) end
-      cur.x = cur.x + 1
+      if win.x >= win.w then win.x = 0; win.y = win.y + 1 end
+      cell(win, win.y, win.x, c, color)
+      win.x = win.x + 1
     end
   end
   return 0
 end
-function L.move(y, x) cur.y, cur.x = y, x; return 0 end
-function L.wmove(_, y, x) cur.y, cur.x = y, x; return 0 end
-function L.getcury() return cur.y end
-function L.getcurx() return cur.x end
-function L.clear() term.clear(); cur.y, cur.x = 0, 0; return 0 end
-L.erase, L.wclear, L.werase = L.clear, L.clear, L.clear
-function L.clrtoeol() local w = gridSize(); for x = cur.x, w - 1 do term.put(x, cur.y, " ") end return 0 end
-function L.clrtobot() L.clrtoeol(); local w, h = gridSize(); for y = cur.y + 1, h - 1 do for x = 0, w - 1 do term.put(x, y, " ") end end return 0 end
-function L.refresh() term.flush(); if sys and sys.yield then sys.yield() end return 0 end
-L.wrefresh = L.refresh
-function L.addch(c) return putText(char(c & 255), c & ~255) end
-function L.waddch(_, c) return L.addch(c) end
-function L.mvaddch(y, x, c) cur.y, cur.x = y, x; return L.addch(c) end
-function L.mvwaddch(_, y, x, c) return L.mvaddch(y, x, c) end
-function L.addstr(s) return putText(tolua(s)) end
-function L.addnstr(s, n) return putText(tolua(s):sub(1, n)) end
-function L.waddstr(_, s) return L.addstr(s) end
-function L.mvaddstr(y, x, s) cur.y, cur.x = y, x; return L.addstr(s) end
-function L.mvwaddstr(_, y, x, s) return L.mvaddstr(y, x, s) end
-function L.printw(f, ...) return putText(format(f, { ... })) end
-function L.wprintw(_, f, ...) return putText(format(f, { ... })) end
-function L.mvprintw(y, x, f, ...) cur.y, cur.x = y, x; return putText(format(f, { ... })) end
-function L.mvwprintw(_, y, x, f, ...) cur.y, cur.x = y, x; return putText(format(f, { ... })) end
-function L.hline(c, n) for k = 0, n - 1 do term.put(cur.x + k, cur.y, char(c & 255)) end return 0 end
-function L.vline(c, n) for k = 0, n - 1 do term.put(cur.x, cur.y + k, char(c & 255)) end return 0 end
-function L.box() local w, h = gridSize(); for x = 0, w - 1 do term.put(x, 0, "-"); term.put(x, h - 1, "-") end for y = 0, h - 1 do term.put(0, y, "|"); term.put(w - 1, y, "|") end return 0 end
-local KEYS = { up = 259, down = 258, left = 260, right = 261, backspace = 263, enter = 10, tab = 9, space = 32 }
-function L.getch()
+function L.newwin(h, w, y, x)
+  local s = std()
+  if h == 0 then h = s.h - y end
+  if w == 0 then w = s.w - x end
+  return newWindow(h, w, y, x)
+end
+function L.newpad(h, w) local p = newWindow(h, w, 0, 0); p.pad = true; return p end
+function L.subpad(parent, h, w, y, x) local p = newWindow(h, w, 0, 0); p.pad = true; return p end
+function L.prefresh(pad, pr, pc, sr, sc, er, ec)
+  for r = sr, er do
+    for c = sc, ec do
+      local i = (pr + r - sr) * pad.w + (pc + c - sc)
+      if pad.bc and pr + r - sr < pad.h and pc + c - sc < pad.w then term.put(c, r, pad.bc[i] or " ", pad.bk[i] or "text") end
+    end
+  end
   term.flush()
-  local until_ = (cur.nodelay and 0) or cur.wait
+  return 0
+end
+L.pnoutrefresh = L.prefresh
+function L.copywin(src, dst, sr, sc, dr, dc, er, ec, overlay)
+  for r = dr, er do
+    for c = dc, ec do
+      local sy, sx = sr + (r - dr), sc + (c - dc)
+      local i = sy * src.w + sx
+      local ch = src.bc and src.bc[i] or " "
+      if sy < src.h and sx < src.w and not (overlay ~= 0 and ch == " ") then cell(dst, r, c, ch, src.bk and src.bk[i] or "text") end
+    end
+  end
+  return 0
+end
+function L.overwrite(src, dst) return L.copywin(src, dst, 0, 0, 0, 0, math.min(src.h, dst.h) - 1, math.min(src.w, dst.w) - 1, 0) end
+function L.overlay(src, dst) return L.copywin(src, dst, 0, 0, 0, 0, math.min(src.h, dst.h) - 1, math.min(src.w, dst.w) - 1, 1) end
+function L.subwin(parent, h, w, y, x) return newWindow(h, w, y, x) end
+function L.derwin(parent, h, w, y, x) return newWindow(h, w, parent.oy + y, parent.ox + x) end
+function L.delwin() return 0 end
+function L.mvwin(win, y, x) win.oy, win.ox = y, x; return 0 end
+function L.wresize(win, h, w) win.h, win.w = h, w; return 0 end
+L.resize = L.wresize
+function L.getmaxy(win) return (win or std()).h end
+function L.getmaxx(win) return (win or std()).w end
+function L.getcury(win) return (win or std()).y end
+function L.getcurx(win) return (win or std()).x end
+function L.getbegy(win) return (win or std()).oy end
+function L.getbegx(win) return (win or std()).ox end
+L.getbegyx = ok
+function L.wmove(win, y, x) win = win or std(); win.y, win.x = y, x; return 0 end
+function L.move(y, x) return L.wmove(nil, y, x) end
+function L.mvwmove(win, y, x) return L.wmove(win, y, x) end
+function L.wattron(win, a) win = win or std(); win.attr = win.attr | a; return 0 end
+function L.wattroff(win, a) win = win or std(); win.attr = win.attr & ~a; return 0 end
+function L.wattrset(win, a) win = win or std(); win.attr = a; return 0 end
+function L.wcolor_set(win, n) win = win or std(); win.attr = (win.attr & ~0xFF00) | (n << 8); return 0 end
+function L.attron(a) return L.wattron(nil, a) end
+function L.attroff(a) return L.wattroff(nil, a) end
+function L.attrset(a) return L.wattrset(nil, a) end
+function L.color_set(n) return L.wcolor_set(nil, n) end
+function L.standout() return L.wattron(nil, 65536) end
+function L.standend() return L.wattrset(nil, 0) end
+L.wstandout, L.wstandend = L.standout, L.standend
+function L.wbkgd(win, c) win = win or std(); win.bkgd = (c & 255) == 0 and 32 or (c & 255); win.bkgdAttr = c & ~255; return 0 end
+L.bkgd, L.bkgdset, L.wbkgdset = function(c) return L.wbkgd(nil, c) end, function(c) return L.wbkgd(nil, c) end, L.wbkgd
+function L.wclear(win)
+  win = win or std()
+  local color = "text"
+  for y = 0, win.h - 1 do for x = 0, win.w - 1 do cell(win, y, x, string.char(win.bkgd), color) end end
+  win.y, win.x = 0, 0
+  return 0
+end
+L.werase = L.wclear
+function L.clear() return L.wclear(nil) end
+L.erase = L.clear
+function L.wclrtoeol(win) win = win or std(); for x = win.x, win.w - 1 do cell(win, win.y, x, " ", "text") end return 0 end
+function L.clrtoeol() return L.wclrtoeol(nil) end
+function L.wclrtobot(win)
+  win = win or std()
+  L.wclrtoeol(win)
+  for y = win.y + 1, win.h - 1 do for x = 0, win.w - 1 do cell(win, y, x, " ", "text") end end
+  return 0
+end
+function L.clrtobot() return L.wclrtobot(nil) end
+function L.wrefresh() term.flush(); if sys and sys.yield then sys.yield() end return 0 end
+function L.refresh() return L.wrefresh() end
+function L.waddch(win, c) win = win or std(); return putText(win, string.char(c & 255), c & ~255) end
+function L.addch(c) return L.waddch(nil, c) end
+function L.mvaddch(y, x, c) L.wmove(nil, y, x); return L.waddch(nil, c) end
+function L.mvwaddch(win, y, x, c) L.wmove(win, y, x); return L.waddch(win, c) end
+function L.echochar(c) return L.waddch(nil, c) end
+function L.waddstr(win, s) return putText(win or std(), tolua(s)) end
+function L.addstr(s) return L.waddstr(nil, s) end
+function L.waddnstr(win, s, n) return putText(win or std(), tolua(s):sub(1, n < 0 and #tolua(s) or n)) end
+function L.addnstr(s, n) return L.waddnstr(nil, s, n) end
+function L.mvaddstr(y, x, s) L.wmove(nil, y, x); return L.waddstr(nil, s) end
+function L.mvwaddstr(win, y, x, s) L.wmove(win, y, x); return L.waddstr(win, s) end
+function L.mvaddnstr(y, x, s, n) L.wmove(nil, y, x); return L.waddnstr(nil, s, n) end
+function L.wprintw(win, f, ...) return putText(win or std(), format(f, { ... })) end
+function L.printw(f, ...) return L.wprintw(nil, f, ...) end
+function L.mvprintw(y, x, f, ...) L.wmove(nil, y, x); return L.wprintw(nil, f, ...) end
+function L.mvwprintw(win, y, x, f, ...) L.wmove(win, y, x); return L.wprintw(win, f, ...) end
+function L.whline(win, c, n) win = win or std(); for k = 0, n - 1 do cell(win, win.y, win.x + k, string.char((c == 0 and 45 or c) & 255), attrColor(win)) end return 0 end
+function L.wvline(win, c, n) win = win or std(); for k = 0, n - 1 do cell(win, win.y + k, win.x, string.char((c == 0 and 124 or c) & 255), attrColor(win)) end return 0 end
+function L.hline(c, n) return L.whline(nil, c, n) end
+function L.vline(c, n) return L.wvline(nil, c, n) end
+function L.mvhline(y, x, c, n) L.wmove(nil, y, x); return L.whline(nil, c, n) end
+function L.mvvline(y, x, c, n) L.wmove(nil, y, x); return L.wvline(nil, c, n) end
+function L.mvwhline(win, y, x, c, n) L.wmove(win, y, x); return L.whline(win, c, n) end
+function L.mvwvline(win, y, x, c, n) L.wmove(win, y, x); return L.wvline(win, c, n) end
+function L.wborder(win, ls, rs, ts, bs, tl, tr, bl, br)
+  win = win or std()
+  local function ch(c, d) return string.char((c and c ~= 0 and c or d) & 255) end
+  local col = attrColor(win)
+  for x = 1, win.w - 2 do cell(win, 0, x, ch(ts, 45), col); cell(win, win.h - 1, x, ch(bs, 45), col) end
+  for y = 1, win.h - 2 do cell(win, y, 0, ch(ls, 124), col); cell(win, y, win.w - 1, ch(rs, 124), col) end
+  cell(win, 0, 0, ch(tl, 43), col); cell(win, 0, win.w - 1, ch(tr, 43), col)
+  cell(win, win.h - 1, 0, ch(bl, 43), col); cell(win, win.h - 1, win.w - 1, ch(br, 43), col)
+  return 0
+end
+function L.box(win, v, h) return L.wborder(win, v, v, h, h) end
+function L.border(...) return L.wborder(nil, ...) end
+function L.nodelay(win, b) (win or std()).delay = (b ~= 0 and b ~= false) and 0 or -1; return 0 end
+function L.timeout(t) std().delay = t; return 0 end
+function L.wtimeout(win, t) (win or std()).delay = t; return 0 end
+local KEYS = { up = 259, down = 258, left = 260, right = 261, backspace = 263, enter = 10, tab = 9, space = 32, pgup = 339, pgdn = 338 }
+function L.wgetch(win)
+  win = win or std()
+  term.flush()
+  local limit = win.delay
   local start = sys.millis()
   while true do
     local k = key.poll()
@@ -1834,14 +2178,40 @@ function L.getch()
       local c = k:match("^ctrl%-(%a)$")
       if c then return byte(c) & 31 end
     end
-    if until_ >= 0 and sys.millis() - start >= until_ then return -1 end
+    timerTick()
+    if limit >= 0 and sys.millis() - start >= limit then return -1 end
     sys.sleep(5)
   end
 end
-L.wgetch = function() return L.getch() end
-function L.ungetch() return 0 end
-function L.getnstr(b, n) local l = io.read("l") or ""; fromLua(l:sub(1, n), b); return 0 end
-L.getstr = function(b) return L.getnstr(b, 1000) end
+function L.getch() return L.wgetch(nil) end
+function L.mvgetch(y, x) L.wmove(nil, y, x); return L.wgetch(nil) end
+function L.mvwgetch(win, y, x) L.wmove(win, y, x); return L.wgetch(win) end
+function L.wgetnstr(win, b, n) local l = io.read("l") or ""; fromLua(l:sub(1, n), b); return 0 end
+function L.getnstr(b, n) return L.wgetnstr(nil, b, n) end
+function L.getstr(b) return L.wgetnstr(nil, b, 1000) end
+L.wgetstr = function(win, b) return L.wgetnstr(win, b, 1000) end
+function L.winch(win) return 32 end
+function L.mvwin_wch(win, y, x, p) if p then local v = p.a[p.i]; v.attr = 0; v.chars = { [0] = 32 } end return 0 end
+L.win_wch = function(win, p) return L.mvwin_wch(win, 0, 0, p) end
+function L.mvin_wch(y, x, p) return L.mvwin_wch(nil, y, x, p) end
+function L.wadd_wch(win, p) local v = p.a[p.i]; return L.waddch(win, (v.chars and v.chars[0] or 32) & 255) end
+function L.add_wch(p) return L.wadd_wch(nil, p) end
+function L.mvwadd_wch(win, y, x, p) L.wmove(win, y, x); return L.wadd_wch(win, p) end
+function L.mvadd_wch(y, x, p) return L.mvwadd_wch(nil, y, x, p) end
+L.inch = function() return 32 end
+L.mvinch = function() return 32 end
+-- panels
+function L.new_panel(win) return { panel = true, win = win } end
+function L.panel_window(p) return p.win end
+function L.del_panel() return 0 end
+function L.move_panel(p, y, x) p.win.oy, p.win.ox = y, x; return 0 end
+function L.panel_hidden() return 0 end
+function L.set_panel_userptr(p, u) p.user = u; return 0 end
+function L.panel_userptr(p) return p.user end
+function L.panel_above() return nil end
+function L.panel_below() return nil end
+function L.replace_panel(p, w) p.win = w; return 0 end
+function L.hide_panel(p) if p and p.win then L.wclear(p.win) end return 0 end
 -- the algorithms of C++: they work on iterators
 local function mergeSort(a, n, lt)
   if n < 2 then return a end
@@ -1951,6 +2321,7 @@ function L.setw(n) return { setw = n } end
 function L.setprecision(n) return { setprecision = n } end
 function L.setfill(c) return { setfill = c } end
 function L.pow10(x) return 10.0 ^ x end
+function R.libOpt(n) return L[n] or function() error("undefined reference to `" .. n .. "'", 0) end end
 function R.lib(n)
   local f = L[n]
   if not f then error("undefined reference to `" .. n .. "'", 0) end

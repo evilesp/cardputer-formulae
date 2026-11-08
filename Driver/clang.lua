@@ -186,6 +186,7 @@ local function compile(src, isCpp)
     end
   end
   local protoEmpty = {}  -- int f(); : the arguments are not told (C)
+  local protoNames, bodyNames = {}, {}  -- a function that is only declared is one of the library (select, ioctl ...)
   local pos, tok = 1, toks[1]
   local out = {}
   local tmpN, labelN = 0, 0
@@ -288,6 +289,14 @@ local function compile(src, isCpp)
     return args
   end
   parseType = function()
+    if isName("typename") then  -- typename T::value_type: the type is not known here
+      adv()
+      if tok.t == "name" then adv() end
+      while isOp("::") do adv(); if tok.t == "name" then adv() end end
+      if isOp("<") then templateArgs() end
+      while isOp("*") or isOp("&") do adv() end
+      return AUTO
+    end
     local words = {}
     local t
     while tok.t == "name" do
@@ -479,6 +488,7 @@ local function compile(src, isCpp)
   -- makes value c of type from fit in a place of type to
   local function convert(c, from, to, isLv)
     local tn = to.n
+    if tn == "arr" and to.to and to.to.n == "char" and from.n == "cstr" then return "R.chararr(" .. c .. "," .. (to.len or "nil") .. ")" end
     if tn == "double" then
       if isInt(from) then
         if tonumber(c) then return c .. ".0" end
@@ -1022,7 +1032,7 @@ local function compile(src, isCpp)
           end
         end
       end
-      if CONSTS[v] then return CONSTS[v][1], CONSTS[v][2] end
+      if CONSTS[v] then return CONSTS[v][1], CONSTS[v][2], (v == "stdin" or v == "stdout" or v == "stderr") end
       if v == "ios" and isOp("::") then
         adv()
         local flag = tok.v
@@ -1062,7 +1072,6 @@ local function compile(src, isCpp)
         if f then
           local sig = findOverload(f, #a)
           if sig then return "G." .. mangle(v) .. "_" .. sig.arity .. "(" .. callWith(sig, a) .. ")", sig.ret end
-          if isCpp then err("too many arguments to function '" .. v .. "'") end
         end
         if not isCpp and (f or protoEmpty[v]) then  -- the old C: the arguments of a function are not checked
           local parts = {}
@@ -2373,6 +2382,9 @@ local function compile(src, isCpp)
                 until d == 0
               end
               break
+            elseif not n then
+              while not isOp(";") and tok.t ~= "eof" do adv() end  -- an unnamed member (a union or struct inside): nothing to keep
+              break
             else
               local f = { name = n, t = ty, static = isStatic, owner = name }
               if acceptOp("=") then
@@ -2509,6 +2521,16 @@ local function compile(src, isCpp)
       while not isOp(";") do adv() end
       adv()
       return
+    end
+    if isName("extern") and peek().t == "str" then  -- extern "C" { ... } or extern "C" int f();
+      adv(); adv()
+      if isOp("{") then
+        adv()
+        while not isOp("}") and tok.t ~= "eof" do topLevel() end
+        adv()
+        return
+      end
+      return topLevel()
     end
     if isName("namespace") then
       adv()
@@ -2657,8 +2679,10 @@ local function compile(src, isCpp)
           sig.params = params
         end
         if isOp("{") then
+          bodyNames[mangle(n) .. "_" .. sig.arity] = true
           emit("G." .. mangle(n) .. "_" .. sig.arity .. "=" .. functionBodyText(params, ty, false))
         else
+          protoNames[mangle(n) .. "_" .. sig.arity] = n
           expectOp(";")
         end
         return
@@ -2689,6 +2713,11 @@ local function compile(src, isCpp)
   if not mainF then syntaxError("undefined reference to `main'", 0) end
   local sig = mainF[0] or mainF[2] or mainF[next(mainF)]
   emit("return G.main_" .. sig.arity)
+  local at = #out + 1
+  if out[#out] and out[#out]:find("^return ") then at = #out end  -- before the final return of the program
+  for key, name in pairs(protoNames) do
+    if not bodyNames[key] then table.insert(out, at, "G." .. key .. "=G." .. key .. " or R.libOpt(" .. str(name) .. ")"); at = at + 1 end
+  end
   return C.optimize(table.concat(out, "\n"))
 end
 
