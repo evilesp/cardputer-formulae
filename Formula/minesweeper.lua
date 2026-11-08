@@ -152,7 +152,7 @@ local ok, problem = pcall(function()
   newGame()
   while true do
     draw()
-    local tc, tr, outside = ui.tap(OX, OY, CELL, CELL, COLS, ROWS)
+    local tc, tr, outside = (ui.tap or function() end)(OX, OY, CELL, CELL, COLS, ROWS)
     if tc then cr, cc = tr, tc end
     local k = tc and "enter" or ((outside and state ~= "playing") and "n") or key.poll()
     while k do

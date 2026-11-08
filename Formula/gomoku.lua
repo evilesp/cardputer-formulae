@@ -341,7 +341,7 @@ local ok, problem = pcall(function()
       put(r, c)
     end
     draw()
-    local tc, tr, outside = ui.tap(OX, OY, CELL, CELL, N, N)
+    local tc, tr, outside = (ui.tap or function() end)(OX, OY, CELL, CELL, N, N)
     if tc then cur.r, cur.c = tr, tc end
     local k = tc and "enter" or ((outside and over) and "n") or key.poll()
     while k do
