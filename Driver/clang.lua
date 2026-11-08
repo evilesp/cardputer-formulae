@@ -1071,12 +1071,12 @@ local function compile(src, isCpp)
           return "(G." .. mangle(v) .. "_" .. #a .. " or R.lib(" .. str(v) .. "))(" .. table.concat(parts, ",") .. ")", ret
         end
         -- swap, min, max and such need the places or the types
-        if v == "swap" then
+        if v == "swap" and isCpp then
           local x, y = a[1], a[2]
           return "(function() " .. x.c .. "," .. y.c .. "=" .. y.c .. "," .. x.c .. " end)()", VOID
         end
-        if v == "move" or v == "forward" then return a[1].c, a[1].t, false end
-        if v == "min" or v == "max" then
+        if (v == "move" or v == "forward") and isCpp then return a[1].c, a[1].t, false end
+        if (v == "min" or v == "max") and isCpp then
           local rt = isFloat(a[1].t) and DOUBLE or a[1].t
           return "R." .. v .. "(" .. a[1].c .. "," .. a[2].c .. (a[3] and ("," .. a[3].c) or "") .. ")", rt
         end
