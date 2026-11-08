@@ -152,7 +152,9 @@ local ok, problem = pcall(function()
   newGame()
   while true do
     draw()
-    local k = key.poll()
+    local tc, tr, outside = ui.tap(OX, OY, CELL, CELL, COLS, ROWS)
+    if tc then cr, cc = tr, tc end
+    local k = tc and "enter" or ((outside and state ~= "playing") and "n") or key.poll()
     while k do
       if k == "ctrl-q" then return end
       if k == "n" then newGame()
@@ -161,9 +163,9 @@ local ok, problem = pcall(function()
         elseif k == "s" then cr = math.min(ROWS, cr + 1)
         elseif k == "a" then cc = math.max(1, cc - 1)
         elseif k == "d" then cc = math.min(COLS, cc + 1)
-        elseif k == "f" then
+        elseif k == "f" or k == " " then
           if not board[cr][cc].open then board[cr][cc].flag = not board[cr][cc].flag end
-        elseif k == " " or k == "enter" then
+        elseif k == "enter" then
           if not board[cr][cc].flag then
             if board[cr][cc].mine then
               board[cr][cc].open = true

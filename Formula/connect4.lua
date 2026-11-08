@@ -288,7 +288,9 @@ local ok, problem = pcall(function()
       play(botMove(board, YELLOW, level))
     end
     draw()
-    local k = key.poll()
+    local tc, tr, outside = ui.tap(BX, BY, CELL, CELL, COLS_N, ROWS_N or 6)
+    if tc then cursor = tc end
+    local k = tc and "enter" or ((outside and won) and "n") or key.poll()
     while k do
       if k == "ctrl-q" then return end
       if #k == 1 then k = k:lower() end

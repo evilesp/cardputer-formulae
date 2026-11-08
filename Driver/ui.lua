@@ -172,6 +172,17 @@ end
 
 -- A menu in a window. Returns the number chosen, or nil when the user backs out. opts.background (a function) draws
 -- behind the window each frame; opts.selected is the first choice; opts.y puts the window higher or lower.
+-- A finger on a board of cols x rows cells, its top-left corner at x, y: a finished tap on a cell gives col, row (from 1); a tap beside the board gives nil, nil, true.
+-- From the first call on, a tap is not sent as Enter to this program any more; drags stay arrow keys. On a firmware without touch.tap it always gives nil.
+function ui.tap(x, y, cw, ch, cols, rows)
+  if not (touch and touch.tap) then return nil end
+  local tx, ty = touch.tap()
+  if not tx then return nil end
+  local c, r = math.floor((tx - x) / cw) + 1, math.floor((ty - y) / ch) + 1
+  if c >= 1 and c <= cols and r >= 1 and r <= rows then return c, r end
+  return nil, nil, true
+end
+
 function ui.choose(title, items, opts)
   opts = opts or {}
   local sel = opts.selected or 1
@@ -187,6 +198,8 @@ function ui.choose(title, items, opts)
     ui.panel(x, y, wide, high, title)
     ui.list(x + 2, y + 15, wide - 4, items, sel)
     gfx.flush()
+    local tc, tr = ui.tap(x, y + 15, wide, 12, 1, #items)
+    if tr then return tr end
     local k = key.poll()
     while k do
       local a = ui.keyAction(k)
@@ -213,6 +226,8 @@ function ui.message(title, lines, opts)
     if opts.background then opts.background() end
     ui.dialog(title, lines, { "OK" }, 1)
     gfx.flush()
+    local tc, _, outside = ui.tap(0, 0, 1000, 1000, 1, 1)
+    if tc or outside then return end
     local k = key.poll()
     while k do
       local a = ui.keyAction(k)

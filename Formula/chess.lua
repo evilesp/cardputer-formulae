@@ -341,6 +341,11 @@ if not w then
 end
 local ok, problem = pcall(function()
   while true do
+    local tc, tr = ui.tap(OX, OY, CELL, CELL, 8, 8)
+    if tc then
+      cur.r, cur.c = tr, tc
+      handle("enter")
+    end
     local k = key.poll()
     while k do
       if not handle(k) then return end

@@ -436,8 +436,52 @@ local running = true
 local drag = nil            -- { kind = "move"|"resize"|"scroll"|"slider", ... }
 local now = 0
 
-local function text(x, y, s, c, size) gfx.text(math.floor(x), math.floor(y), s, c, size or K) end
-local function tw(s, size) return #s * 6 * (size or K) end
+-- The text of the desktop: the smooth Lato fonts when they are on the card (fonts.ensure brings them the first time), the bitmap font otherwise.
+-- Sizes follow the bitmap ones: size K is the normal text, 2*K a big one. mono() is for what must stay in columns.
+local smooth, currentFont = false, nil
+local function useFont(name)
+  if currentFont == name then return end
+  currentFont = name
+  local fonts = smooth
+  if name == "" then gfx.font("") else gfx.font(fonts.path(name)) end
+end
+local function fontFor(size)
+  if not smooth then return "" end
+  if size == "bold" then return "lato-bold-16" end
+  if size and size >= (K or 1) * 2 then return "lato-bold-24" end
+  return "lato-16"
+end
+local function text(x, y, s, c, size)
+  if smooth and size ~= 1 then
+    useFont(fontFor(size))
+    gfx.text(math.floor(x), math.floor(y) - 1, s, c)
+  else
+    useFont("")
+    gfx.text(math.floor(x), math.floor(y), s, c, size == "bold" and K or size or K)
+  end
+end
+local function tw(s, size)
+  if smooth and size ~= 1 then
+    useFont(fontFor(size))
+    return gfx.textWidth(s)
+  end
+  return #s * 6 * (type(size) == "number" and size or K)
+end
+-- a text cut so that it stays inside maxW pixels
+local function fitW(s, maxW, size)
+  if maxW <= 0 then return "" end
+  if tw(s, size) <= maxW then return s end
+  local n = #s
+  while n > 0 do
+    n = n - 1
+    local cut = s:sub(1, n)
+    -- not in the middle of a UTF-8 letter
+    if not cut:find("[\192-\255][\128-\191]*$") or utf8.len(cut) then
+      if tw(cut .. "..", size) <= maxW then return cut .. ".." end
+    end
+  end
+  return ""
+end
 local function showToast(s) toast, toastUntil = s, now + 2200 end
 
 local function setHidden(list)
@@ -818,13 +862,19 @@ local function drawWindowContent(win, x, y, w, h)
         local j = i
         while j < #txt and j < maxCols and cols:byte(j + 1) == col do j = j + 1 end
         local piece = txt:sub(i, j)
-        if piece:find("%S") then text(x + 2 * K + (i - 1) * 6 * K, ry, piece, termPalette[col] or 0xd7d7d7) end
+        if piece:find("%S") then
+          useFont("")
+          gfx.text(x + 2 * K + (i - 1) * 6 * K, ry, piece, termPalette[col] or 0xd7d7d7, K)
+        end
         i = j + 1
       end
       if cr == r and cc and cc <= maxCols and win.id == focusId and (now // 500) % 2 == 0 then
         gfx.fill(x + 2 * K + (cc - 1) * 6 * K, ry, 6 * K, 8 * K, 0xd7d7d7)
         local ch = txt:sub(cc, cc)
-        if ch ~= "" and ch ~= " " then text(x + 2 * K + (cc - 1) * 6 * K, ry, ch, 0x0c0c0c) end
+        if ch ~= "" and ch ~= " " then
+          useFont("")
+          gfx.text(x + 2 * K + (cc - 1) * 6 * K, ry, ch, 0x0c0c0c, K)
+        end
       end
     end
     hit(x, y, w, h, "tscroll", win)
@@ -906,19 +956,28 @@ local function drawWindow(win)
   local tb = TB
   local bw = tb + 4 * K          -- a button is as wide as the bar is high, a little more: easy to hit with a finger
   local focused = win.id == focusId
-  gfx.fill(x, y, w, tb, focused and theme.title or theme.bar)
-  text(x + 4 * K, y + (tb - 8 * K) // 2, fit(win.title, (w - 3 * bw - 6 * K) // (6 * K)), theme.text)
-  -- close, maximize, minimize
-  gfx.fill(x + w - bw, y, bw, tb, theme.danger)
-  text(x + w - bw // 2 - 3 * K, y + (tb - 8 * K) // 2, "x", 0xffffff)
+  if not win.max then gfx.alpha(x + 3, y + 5, w, h, 0x000000, 80) end
+  gfx.round(x, y, w, tb + 8, win.max and 0 or 9, focused and theme.title or mix(theme.title, theme.bar, 0.6))
+  text(x + 5 * K, y + (tb - 8 * K) // 2, fitW(win.title, w - 3 * bw - 8 * K, "bold"), theme.text, "bold")
+  -- close, maximize, minimize: round buttons, in zones wider than they look
   local mid = y + tb // 2
-  gfx.rect(x + w - bw * 2 + bw // 2 - 4 * K, mid - 4 * K, 8 * K, 8 * K, theme.text)
-  gfx.hline(x + w - bw * 3 + bw // 2 - 4 * K, x + w - bw * 3 + bw // 2 + 4 * K, mid + 3 * K, theme.text)
+  local rb = math.min(tb // 2 - 3, 13)
+  local cxClose, cxMax, cxMin = x + w - bw // 2, x + w - bw - bw // 2, x + w - 2 * bw - bw // 2
+  gfx.disc(cxClose, mid, rb, theme.danger)
+  gfx.line(cxClose - 4, mid - 4, cxClose + 4, mid + 4, 0xffffff)
+  gfx.line(cxClose - 4, mid + 4, cxClose + 4, mid - 4, 0xffffff)
+  local soft = mix(theme.title, 0xffffff, 0.22)
+  gfx.disc(cxMax, mid, rb, soft)
+  gfx.rect(cxMax - 4, mid - 4, 9, 9, 0xffffff)
+  gfx.disc(cxMin, mid, rb, soft)
+  gfx.fill(cxMin - 4, mid + 2, 9, 2, 0xffffff)
   hit(x + w - bw, y, bw, tb, "close", win)
   hit(x + w - bw * 2, y, bw, tb, "maximize", win)
   hit(x + w - bw * 3, y, bw, tb, "minimize", win)
   hit(x, y, w - bw * 3, tb, "title", win)
+  gfx.clip(x, y + tb, w, h - tb)   -- nothing of a window draws outside it
   drawWindowContent(win, x, y + tb, w, h - tb)
+  gfx.clip()
   if not win.max then
     gfx.triangle(x + w - 1, y + h - 8 * K, x + w - 1, y + h - 1, x + w - 8 * K, y + h - 1, theme.dim)  -- the resize grip
     hit(x + w - 16 * K, y + h - 16 * K, 16 * K, 16 * K, "grip", win)
@@ -934,17 +993,57 @@ local function layoutIcons(bottomReserve)
   return cell, cols, rows, top
 end
 
+-- the pictures of the system apps, drawn from shapes; the others show their first letter
+local GLYPHS = {
+  terminal = function(x, y, s)
+    gfx.round(x + s * 0.16, y + s * 0.22, s * 0.68, s * 0.56, s * 0.07, 0x12161c)
+    local w = 0x7ee787
+    gfx.line(x + s * 0.27, y + s * 0.36, x + s * 0.40, y + s * 0.47, w)
+    gfx.line(x + s * 0.27, y + s * 0.37, x + s * 0.40, y + s * 0.48, w)
+    gfx.line(x + s * 0.40, y + s * 0.47, x + s * 0.27, y + s * 0.58, w)
+    gfx.line(x + s * 0.40, y + s * 0.48, x + s * 0.27, y + s * 0.59, w)
+    gfx.fill(x + s * 0.46, y + s * 0.58, s * 0.2, s * 0.04, 0xffffff)
+  end,
+  files = function(x, y, s)
+    gfx.round(x + s * 0.16, y + s * 0.26, s * 0.3, s * 0.2, s * 0.04, 0xffe08a)
+    gfx.round(x + s * 0.16, y + s * 0.34, s * 0.68, s * 0.42, s * 0.05, 0xffffff)
+  end,
+  settings = function(x, y, s)
+    local cx, cy = x + s / 2, y + s / 2
+    for i = 0, 7 do
+      local a = i * math.pi / 4
+      gfx.disc(cx + math.cos(a) * s * 0.27, cy + math.sin(a) * s * 0.27, s * 0.075, 0xffffff)
+    end
+    gfx.disc(cx, cy, s * 0.25, 0xffffff)
+    gfx.disc(cx, cy, s * 0.1, 0x6b7280)
+  end,
+  monitor = function(x, y, s)
+    for i, h in ipairs({ 0.2, 0.42, 0.3, 0.52 }) do
+      gfx.round(x + s * (0.1 + i * 0.15), y + s * (0.78 - h), s * 0.1, s * h, s * 0.03, 0xffffff)
+    end
+  end,
+  about = function(x, y, s)
+    gfx.disc(x + s / 2, y + s * 0.28, s * 0.07, 0xffffff)
+    gfx.round(x + s * 0.44, y + s * 0.42, s * 0.12, s * 0.36, s * 0.04, 0xffffff)
+  end,
+}
 local function drawIcon(x, y, size, app, highlight)
   local c = app.color or iconColor(app.name)
-  gfx.fill(x + 2 * K, y, size - 4 * K, size, c)
-  gfx.fill(x, y + 2 * K, size, size - 4 * K, c)
-  gfx.disc(x + 3 * K, y + 3 * K, 3 * K, c)
-  gfx.disc(x + size - 3 * K - 1, y + 3 * K, 3 * K, c)
-  gfx.disc(x + 3 * K, y + size - 3 * K - 1, 3 * K, c)
-  gfx.disc(x + size - 3 * K - 1, y + size - 3 * K - 1, 3 * K, c)
+  local r = size // 5
+  gfx.alpha(x + 1, y + 3, size, size, 0x000000, 70)
+  gfx.round(x, y, size, size, r, c)
+  gfx.round(x + 2, y + 1, size - 4, size // 2, r, mix(c, 0xffffff, 0.14))
+  gfx.round(x, y + size // 3, size, size - size // 3, r, c)
   if highlight then gfx.rect(x - 1, y - 1, size + 2, size + 2, 0xffffff) end
-  local label = app.icon or app.name:sub(1, 2)
-  text(x + (size - tw(label, K * 2)) // 2, y + (size - 8 * K * 2) // 2, label, 0xffffff, K * 2)
+  local draw = GLYPHS[app.id]
+  if draw then
+    draw(x, y, size)
+  else
+    local label = (app.name:sub(1, 1) or "?"):upper()
+    if app.icon and #app.icon > 0 then label = app.icon end
+    local big = K * 2
+    text(x + (size - tw(label, big)) // 2, y + (size - (smooth and 30 or 8 * big)) // 2, label, 0xffffff, big)
+  end
 end
 
 -- the four fixed places of the dock: the launcher (a grid of dots) and three apps
@@ -957,7 +1056,8 @@ local function drawDock()
   local bw = n * size + (n - 1) * gap + 16 * K
   local bh = DOCK_H - 4 * K
   local bx, by = (W - bw) // 2, H - TASK_H - DOCK_H + 2 * K
-  gfx.round(bx, by, bw, bh, 8 * K, mix(theme.bar, 0x000000, 0.25))
+  gfx.alpha(bx, by, bw, bh, 0x000000, 95)
+  gfx.rect(bx, by, bw, bh, mix(theme.border, 0xffffff, 0.2))
   local x = bx + 8 * K
   local y = by + (bh - size) // 2
   -- the launcher button: nine dots
@@ -979,8 +1079,10 @@ end
 
 local function drawDesktop()
   -- the wallpaper: a vertical gradient in bands
-  local band = math.max(2, H // 40)
-  for y = 0, H - 1, band do gfx.fill(0, y, W, band, mix(wallTop, wallBottom, y / H)) end
+  gfx.gradient(0, 0, W, H, wallTop, wallBottom)
+  gfx.disc(W * 0.82, H * 0.18, H * 0.34, mix(wallTop, theme.accent, 0.16))
+  gfx.disc(W * 0.12, H * 0.92, H * 0.42, mix(wallBottom, theme.accent, 0.12))
+  gfx.disc(W * 0.46, H * 1.1, H * 0.34, mix(wallBottom, 0xffffff, 0.05))
   -- the home screen: the apps pinned to it (the launcher lists all the others)
   local list = pinnedApps()
   local cell, cols, rows, top = layoutIcons(DOCK_H)
@@ -994,8 +1096,7 @@ local function drawDesktop()
     local col, row = (n - 1) % cols, (n - 1) // cols
     local x, y = xPad + col * cell + (cell - 28 * K) // 2, top + row * (cell + 2 * K)
     drawIcon(x, y, 28 * K, app)
-    local chars = cell // (6 * K)
-    local label = fit(app.name, chars)
+    local label = fitW(app.name, cell - 4)
     text(xPad + col * cell + (cell - tw(label)) // 2, y + 30 * K, label, 0xffffff)
     hit(xPad + col * cell, y, cell, cell, "icon", app)
   end
@@ -1016,25 +1117,38 @@ end
 
 local function drawBars()
   refreshInfo()
-  gfx.fill(0, 0, W, BAR_H, theme.bar)
-  text(4 * K, (BAR_H - 8 * K) // 2, "Activities", theme.text)
+  gfx.alpha(0, 0, W, BAR_H, 0x000000, 130)
+  local midY = (BAR_H - 8 * K) // 2
+  text(6 * K, midY, "Activities", theme.text, "bold")
   hit(0, 0, 60 * K, BAR_H, "menu")
   local c = clockText()
-  text((W - tw(c)) // 2, (BAR_H - 8 * K) // 2, c, theme.text)
-  local right = (sysInfo.bat and (tostring(sysInfo.bat) .. "%") or "") .. (sysInfo.wifi ~= "off" and " wifi" or "")
-  text(W - tw(right) - 4 * K, (BAR_H - 8 * K) // 2, right, theme.dim)
+  text((W - tw(c, "bold")) // 2, midY, c, theme.text, "bold")
+  -- the battery and the Wi-Fi as pictures
+  local bx = W - 34
+  local by = (BAR_H - 12) // 2
+  gfx.rect(bx, by, 24, 12, theme.text)
+  gfx.fill(bx + 24, by + 3, 2, 6, theme.text)
+  local pct = clamp(tonumber(sysInfo.bat) or 0, 0, 100)
+  gfx.fill(bx + 2, by + 2, 20 * pct // 100, 8, pct < 20 and theme.danger or theme.text)
+  local pctText = tostring(pct) .. "%"
+  local tx = bx - tw(pctText) - 6
+  text(tx, midY, pctText, theme.text)
+  if sysInfo.wifi ~= "off" then
+    local wx = tx - 26
+    for i = 1, 4 do gfx.fill(wx + (i - 1) * 5, by + 12 - i * 3, 3, i * 3, theme.text) end
+  end
   hit(W // 2, 0, W // 2, BAR_H, "quick")
   -- the task bar
-  gfx.fill(0, H - TASK_H, W, TASK_H, theme.bar)
-  gfx.fill(2 * K, H - TASK_H + 2 * K, 30 * K, TASK_H - 4 * K, menuOpen and theme.accent or theme.title)
-  text(5 * K, H - TASK_H + (TASK_H - 8 * K) // 2, "Apps", 0xffffff)
+  gfx.alpha(0, H - TASK_H, W, TASK_H, 0x000000, 130)
+  gfx.round(2 * K, H - TASK_H + 3, 30 * K, TASK_H - 6, 6, menuOpen and theme.accent or mix(theme.title, 0xffffff, 0.08))
+  text(2 * K + (30 * K - tw("Apps")) // 2, H - TASK_H + (TASK_H - 8 * K) // 2, "Apps", 0xffffff)
   hit(0, H - TASK_H, 34 * K, TASK_H, "menu")
   local x = 36 * K
   local tabW = math.min(48 * K, math.max(20 * K, (W - x - 4 * K) // math.max(1, #windows)))
   for _, win in ipairs(windows) do
     local on = win.id == focusId and not win.min
-    gfx.fill(x, H - TASK_H + 2 * K, tabW - 2 * K, TASK_H - 4 * K, on and theme.accent or theme.panel)
-    text(x + 2 * K, H - TASK_H + (TASK_H - 8 * K) // 2, fit(win.title, (tabW - 6 * K) // (6 * K)), on and 0xffffff or theme.text)
+    gfx.round(x, H - TASK_H + 3, tabW - 2 * K, TASK_H - 6, 6, on and theme.accent or theme.panel)
+    text(x + 3 * K, H - TASK_H + (TASK_H - 8 * K) // 2, fitW(win.title, tabW - 8 * K), on and 0xffffff or theme.text)
     hit(x, H - TASK_H, tabW, TASK_H, "tab", win)
     x = x + tabW
   end
@@ -1052,7 +1166,7 @@ end
 local function drawMenu()
   local list = visibleApps()
   local cell, cols, rows, top = launcherLayout()
-  gfx.fill(0, BAR_H, W, H - BAR_H - TASK_H, mix(theme.bar, theme.bg, 0.5))
+  gfx.alpha(0, BAR_H, W, H - BAR_H - TASK_H, 0x000000, 175)
   hit(0, BAR_H, W, H - BAR_H - TASK_H, "menuscroll")  -- first: the icons are tested before it
   text(8 * K, BAR_H + 4 * K, "All apps (" .. #list .. ")", theme.text)
   local totalRows = math.ceil(#list / cols)
@@ -1065,7 +1179,7 @@ local function drawMenu()
         local x, y = xPad + c * cell + (cell - 28 * K) // 2, top + r * cell
         drawIcon(x, y, 28 * K, app)
         if isPinned(app.id) then gfx.disc(x + 28 * K - 2 * K, y + 2 * K, 3 * K, 0xffffff) end
-        local label = fit(app.name, cell // (6 * K))
+        local label = fitW(app.name, cell - 4)
         text(xPad + c * cell + (cell - tw(label)) // 2, y + 30 * K, label, theme.text)
         hit(xPad + c * cell, y, cell, cell, "menuitem", app)
       end
@@ -1082,8 +1196,8 @@ end
 local function drawQuick()
   local qw, qh = math.min(W, 150 * K), 76 * K
   local qx, qy = W - qw, BAR_H
-  gfx.fill(qx, qy, qw, qh, theme.panel)
-  gfx.rect(qx, qy, qw, qh, theme.border)
+  gfx.alpha(qx + 2, qy + 4, qw - 2, qh, 0x000000, 90)
+  gfx.round(qx + 4, qy + 2, qw - 8, qh, 10, theme.panel)
   local bright = tonumber(sys.setting and sys.setting("brightness") or "") or 128
   local vol = tonumber(sys.setting and sys.setting("volume") or "") or 50
   text(qx + 4 * K, qy + 3 * K, "Brightness", theme.dim)
@@ -1096,7 +1210,7 @@ local function drawQuick()
   local labels = { { "Text", "exit" }, { "Reboot", "reboot" }, { "Off", "poweroff" } }
   for i, l in ipairs(labels) do
     local bx = qx + 4 * K + (i - 1) * (bw + 2 * K)
-    gfx.fill(bx, qy + 54 * K, bw, 16 * K, i == 3 and theme.danger or theme.title)
+    gfx.round(bx, qy + 54 * K, bw, 16 * K, 6, i == 3 and theme.danger or theme.title)
     text(bx + (bw - tw(l[1])) // 2, qy + 58 * K, l[1], 0xffffff)
     hit(bx, qy + 54 * K, bw, 16 * K, "power", l[2])
   end
@@ -1107,8 +1221,8 @@ local function drawPopup()
   local p = popup
   local pw, ph = 64 * K, 39 * K
   local px, py = clamp(p.x, 0, W - pw), clamp(p.y, BAR_H, H - TASK_H - ph)
-  gfx.fill(px, py, pw, ph, theme.panel)
-  gfx.rect(px, py, pw, ph, theme.border)
+  gfx.alpha(px + 2, py + 3, pw, ph, 0x000000, 90)
+  gfx.round(px, py, pw, ph, 8, theme.panel)
   hit(0, 0, W, H, "popclose")
   text(px + 4 * K, py + 3 * K, "Open", theme.text)
   hit(px, py, pw, 13 * K, "popopen", p.app)
@@ -1120,6 +1234,7 @@ end
 
 local function render()
   hitCount = 0
+  currentFont = nil  -- a program that ran in the terminal window may have left another font
   hit(0, BAR_H, W, H - BAR_H - TASK_H, "desktop")  -- first, so everything drawn later is tested before it
   drawDesktop()
   -- the hit list is searched from the end, so what is drawn later (on top) is tested first
@@ -1129,10 +1244,12 @@ local function render()
   if quickOpen then drawQuick() end
   if popup then drawPopup() end
   if toast and now < toastUntil then
-    local tx = (W - tw(toast)) // 2
-    gfx.fill(tx - 4 * K, H - TASK_H - 16 * K, tw(toast) + 8 * K, 12 * K, 0x000000)
-    text(tx, H - TASK_H - 14 * K, toast, 0xffffff)
+    local shown = fitW(toast, W - 24 * K)
+    local tx = (W - tw(shown)) // 2
+    gfx.round(tx - 6 * K, H - TASK_H - 18 * K, tw(shown) + 12 * K, 14 * K, 7, 0x202020)
+    text(tx, H - TASK_H - 15 * K, shown, 0xffffff)
   end
+  useFont(smooth and "lato-16" or "")
   if pointer.keyboard then
     local px, py = math.floor(pointer.x), math.floor(pointer.y)
     gfx.triangle(px, py, px + 6 * K, py + 4 * K, px + 3 * K, py + 7 * K, 0xffffff)
@@ -1240,11 +1357,12 @@ local function handleEvent(ev)
     if not drag then return end
     if drag.kind == "slider" then setSlider(drag.a, x)
     elseif drag.kind == "move" and not drag.win.max then
-      drag.win.x = clamp(drag.win.x + gesture.dx, -drag.win.w + 24 * K, W - 24 * K)
-      drag.win.y = clamp(drag.win.y + gesture.dy, BAR_H, H - TASK_H - 12 * K)
+      -- the title bar stays where a finger can reach it, with its buttons on the screen
+      drag.win.x = clamp(drag.win.x + gesture.dx, 0, math.max(0, W - drag.win.w))
+      drag.win.y = clamp(drag.win.y + gesture.dy, BAR_H, math.max(BAR_H, H - TASK_H - TB))
     elseif drag.kind == "resize" then
-      drag.win.w = clamp(drag.win.w + gesture.dx, 70 * K, W - drag.win.x)
-      drag.win.h = clamp(drag.win.h + gesture.dy, 40 * K, H - TASK_H - drag.win.y)
+      drag.win.w = clamp(drag.win.w + gesture.dx, math.min(120 * K, W - drag.win.x), W - drag.win.x)
+      drag.win.h = clamp(drag.win.h + gesture.dy, math.min(40 * K, H - TASK_H - drag.win.y), H - TASK_H - drag.win.y)
     elseif drag.kind == "menu" then
       drag.acc = drag.acc - gesture.dy
       local step = 52 * K
@@ -1326,6 +1444,18 @@ local function main()
   TB = math.max(12 * K, 40)    -- the title bar of a window: at least 40 pixels, a finger is wider than a pixel
   DOCK_H = 36 * K
   gesture = Gesture.new(8 * K)
+  -- the smooth fonts; the first start fetches them when there is a network, and without them the bitmap font stays
+  do
+    local okF, fonts = pcall(function() return driver and driver.load("fonts") end)
+    if okF and type(fonts) == "table" then
+      local want = { "lato-16", "lato-bold-16", "lato-bold-24" }
+      local have = true
+      for _, n in ipairs(want) do if not fonts.have(n) then have = false end end
+      if not have and net and net.connected and net.connected() then have = pcall(fonts.ensure, want) and true end
+      for _, n in ipairs(want) do if not fonts.have(n) then have = false end end
+      if have then smooth = fonts end
+    end
+  end
   setHidden(conf.hidden)
   pinned = idList(conf.pinned or DEFAULT_PINNED)
   loadApps()

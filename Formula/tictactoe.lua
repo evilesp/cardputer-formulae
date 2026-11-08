@@ -214,7 +214,9 @@ local ok, problem = pcall(function()
   newGame()
   while true do
     draw()
-    local k = key.poll()
+    local tc, tr, outside = ui.tap(OX, OY, CELL, CELL, 3, 3)
+    if tc then cr, cc = tr, tc end
+    local k = tc and "enter" or ((outside and over) and "n") or key.poll()
     while k do
       if k == "ctrl-q" then return end
       local sq = (cr - 1) * 3 + cc

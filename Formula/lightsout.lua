@@ -119,7 +119,9 @@ local ok, problem = pcall(function()
   newGame()
   while true do
     draw()
-    local k = key.poll()
+    local tc, tr, outside = ui.tap(OX, OY, CELL, CELL, N, N)
+    if tc then cr, cc = tr, tc end
+    local k = tc and "enter" or ((outside and allOff(grid, N)) and "n") or key.poll()
     while k do
       if k == "ctrl-q" then return end
       if k == "n" then newGame()

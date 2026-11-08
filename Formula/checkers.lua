@@ -446,7 +446,9 @@ local ok, problem = pcall(function()
       if m then play(m) end
     end
     draw()
-    local k = key.poll()
+    local tc, tr, outside = ui.tap(OX, OY, CELL, CELL, N, N)
+    if tc then cur.r, cur.c = tr, tc end
+    local k = tc and "enter" or ((outside and over) and "n") or key.poll()
     while k do
       if k == "ctrl-q" then return end
       if #k == 1 then k = k:lower() end

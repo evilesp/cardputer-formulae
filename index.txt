@@ -57,7 +57,7 @@ passgen|1.0|random passwords: passgen [LENGTH] [-s], -s adds symbols|Formula/pas
 iss|1.0.0.1|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
 rtc|1.0.0.1|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua
 doom|0.1.1.4|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; hold w s a d , / q e to move and turn, letter keys only, no Fn (sound from firmware v0.1.0.17; x turns it off; needs firmware v0.1.0.14)|needs:doomgame|Formula/doom.lua
-ui|1.0.0.1|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
+ui|1.0.0.2|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
 fonts|1.0.0.1|smooth Lato fonts (VLW files loaded from the tap): an app loads it with driver.load("fonts") (needs firmware v0.1.1)|Driver/fonts.lua
 uidemo|1.0.0.2|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs firmware v0.1.0.13)|needs:ui|Formula/uidemo.lua
 doomlevel|1.0.0.2|the level of doom: the map, the look of the walls and monsters, and the ray caster geometry (a driver for doom)|Driver/doomlevel.lua
@@ -68,7 +68,7 @@ flappy|1.0.0.1|fly the bird through the gaps in the pipes, space flaps (needs fi
 2048|1.0.0.1|the 2048 puzzle with w a s d (needs firmware v0.1.0.13)|needs:ui|Formula/game2048.lua
 maze|1.0.0.3|a random maze to get out of, with a hint key (needs firmware v0.1.0.13)|needs:ui|Formula/maze.lua
 sudoku|1.0.0.3|sudoku puzzles with a checker (needs firmware v0.1.0.13)|needs:ui|Formula/sudoku.lua
-chess|1.0.0.1|chess against a simple computer; no castling and no en passant (needs firmware v0.1.0.13)|needs:ui|Formula/chess.lua
+chess|1.0.0.2|chess against a simple computer; no castling and no en passant (needs firmware v0.1.0.13)|needs:ui|Formula/chess.lua
 paint|1.0.0.1|draw pictures on the screen and save them to the SD card (needs firmware v0.1.0.13)|needs:ui|Formula/paint.lua
 screensaver|1.0.0.1|stars, rain and a lava lamp for a screen that stays on (needs firmware v0.1.0.13)|needs:ui|Formula/screensaver.lua
 filer|1.0.0.1|file manager for the SD card: browse, read text, copy; it cannot delete (needs firmware v0.1.0.13)|needs:ui|Formula/filer.lua
@@ -92,9 +92,9 @@ tiltmaze|1.0.0.3|ball maze: arrow keys or tilt the board to roll the ball to the
 spectrum|1.0|sound from the microphone as 16 bars with note and peaks (firmware v0.1.0.18, audio.listen)|needs:ui|Formula/spectrum.lua
 sequencer|1.0|drum machine: 8 tracks of 16 steps, tempo, save and load the beat on the SD card (firmware v0.1.0.18 for the sound)|needs:ui|Formula/sequencer.lua
 morse|1.0|Morse code with sound: send a text, or learn to hear letters and digits (firmware v0.1.0.18 for the tones)|needs:ui|Formula/morse.lua
-minesweeper|1.0|find the mines: flags, numbers and opening of empty squares|needs:ui|Formula/minesweeper.lua
+minesweeper|1.0.0.1|find the mines: flags, numbers and opening of empty squares|needs:ui|Formula/minesweeper.lua
 sokoban|1.0.0.1|push the boxes onto the targets: 27 levels, undo, move counter and best scores|needs:ui|Formula/sokoban.lua
-lightsout|1.0|switch every light off: presses change a square and its neighbours|needs:ui|Formula/lightsout.lua
+lightsout|1.0.0.1|switch every light off: presses change a square and its neighbours|needs:ui|Formula/lightsout.lua
 mastermind|1.0|crack the four-colour code in ten tries, with black and white marks|needs:ui|Formula/mastermind.lua
 pacmaze|1.0.0.1|eat the dots and avoid two ghosts in a maze: three lives|needs:ui|Formula/pacmaze.lua
 asteroids|1.0|shoot the rocks: turn, thrust and fire, the rocks break into smaller ones (hold keys on firmware v0.1.0.18)|needs:ui|Formula/asteroids.lua
@@ -117,8 +117,8 @@ quiz|1.0.0.3|104 questions in 7 categories to choose from (A-D), rounds of 10, b
 json|1.0.0.1|a small JSON reader for the apps: driver.load("json") gives json.decode(text) (a driver)|Driver/json.lua
 earthquakes|1.0|the latest earthquakes in the world from USGS (no key), with details (needs WiFi, q quits)|Formula/earthquakes.lua
 crypto|1.0|prices of popular cryptocurrencies from CoinGecko in PLN, USD or EUR with the 24 h change (no key)|Formula/crypto.lua
-connect4|1.0.0.1|four in a row against a bot (3 levels) or a friend, with falling discs|needs:ui|Formula/connect4.lua
-reversi|1.0|reversi (Othello) against a bot (3 levels) or a friend, with move hints|needs:ui|Formula/reversi.lua
+connect4|1.0.0.2|four in a row against a bot (3 levels) or a friend, with falling discs|needs:ui|Formula/connect4.lua
+reversi|1.0.0.1|reversi (Othello) against a bot (3 levels) or a friend, with move hints|needs:ui|Formula/reversi.lua
 units|1.0|unit converter: length, mass, temperature, speed, area, volume, time, data, energy (units 10 km mi)|Formula/units.lua
 joke|1.0|a random clean joke from JokeAPI (no key, in English)|Formula/joke.lua
 sunrise|1.0.0.1|sunrise, sunset, solar noon and day length for any place, worked out offline|Formula/sunrise.lua
@@ -136,8 +136,8 @@ waves|1.0.0.3|animation: a sunset over the sea with a glittering path of light, 
 memory|1.0.0.1|find the pairs alone, against a fair bot (easy, normal, hard: it forgets) or with a friend; three table sizes|needs:ui|Formula/memory.lua
 fifteen|1.0|the sliding puzzle in 3x3, 4x4 and 5x5, always solvable, best results kept|needs:ui|Formula/fifteen.lua
 battleship|1.0|sink the enemy fleet on a 10x10 sea against a bot that hunts and follows a hit|needs:ui|Formula/battleship.lua
-checkers|1.0.0.2|English draughts against a bot (3 levels) or a friend: forced jumps, kings, take back|needs:ui|Formula/checkers.lua
-gomoku|1.0.0.1|five in a row on a wooden 15x15 board with shaded stones, against a bot (3 levels) or a friend|needs:ui|Formula/gomoku.lua
+checkers|1.0.0.3|English draughts against a bot (3 levels) or a friend: forced jumps, kings, take back|needs:ui|Formula/checkers.lua
+gomoku|1.0.0.2|five in a row on a wooden 15x15 board with shaded stones, against a bot (3 levels) or a friend|needs:ui|Formula/gomoku.lua
 components|1.0.0.1|read parts: resistor colour bands (3-6 bands, both ways), SMD resistor, capacitor and inductor codes, inductor bands|needs:ui eng|Formula/components.lua
 ohm|1.0.0.1|Ohm's law and power: set any two of V, I, R, P and get the other two|needs:ui eng|Formula/ohm.lua
 divider|1.0.0.1|voltage divider: Vout, the R2 for a Vout, the best pair of E12/E24/E96 values|needs:ui eng|Formula/divider.lua
@@ -156,7 +156,7 @@ reaction|1.0|reaction-time test: wait for green and press space, false starts co
 blackjack|1.0|card game against the dealer, bank of 100 chips: w s bet, space deals, h hits, s stands, d doubles (ctrl-q quits)|needs:ui|Formula/blackjack.lua
 hanoi|1.0|the Tower of Hanoi: move the disks to the right peg with a s d, 3 to 6 disks; z lets the computer solve it (needs firmware v0.1.0.13)|needs:ui|Formula/hanoi.lua
 wordle|1.0|guess the hidden five-letter word in six tries, with green, yellow and grey marks (type letters, enter)|needs:ui|Formula/wordle.lua
-tictactoe|1.0|noughts and crosses against a bot that never loses: you are X and start; w a s d move, enter places, n new game|needs:ui|Formula/tictactoe.lua
+tictactoe|1.0.0.1|noughts and crosses against a bot that never loses: you are X and start; w a s d move, enter places, n new game|needs:ui|Formula/tictactoe.lua
 primes|1.0|prime numbers up to 1000 and the prime factors of a number: primes 50, primes factor 360|Formula/primes.lua
 bmi|1.0|body mass index with the WHO category and the healthy weight range: bmi 70 175 (kg and cm or m)|Formula/bmi.lua
 wc|1.0|counts lines, words and bytes of a text or an SD card file: wc TEXT... or wc -f FILE|Formula/wc.lua
@@ -188,7 +188,7 @@ cube|1.0|a spinning 3D wireframe cube drawn with perspective: a d size, w s spee
 natan|1.0.0.1|ask the device in plain words: natan ile mam miejsca na karcie sd. The small models of the device answer (pulled by themselves the first time); natan /set local, natan /set ollama HOST:PORT or natan /set api HOST:PORT KEY change who answers|needs:json natanlocal|Formula/natan.lua
 natanlocal|1.0.0.0|the three small models of natan on this device (intent, command, reply): driver.load("natanlocal"); needs firmware v0.1.1|needs:json|Driver/natanlocal.lua
 natan-local-pl|1.0.0.0|natan-local-pl QUESTION: the same as natan, only with the models of this device, in Polish or English|needs:json natanlocal|Formula/natan-local-pl.lua
-desktop|1.0.0.10|graphical desktop with touch: home screen with pinned apps and a dock (launcher, terminal, files, settings), windows, task bar, quick panel, themes and wallpapers as text packages; desktop enable/disable at boot, desktop install NAME (beta, needs touch.read from the firmware)|Formula/desktop.lua
+desktop|1.0.0.11|graphical desktop with touch: home screen with pinned apps and a dock (launcher, terminal, files, settings), windows, task bar, quick panel, themes and wallpapers as text packages; desktop enable/disable at boot, desktop install NAME (beta, needs touch.read from the firmware)|needs:fonts|Formula/desktop.lua
 touchcal|1.0.0.0|calibrates the touch screen: touch four crosses, it saves the shift and scale in /etc/touch.cal (needs firmware v0.1.5)|Formula/touchcal.lua
 relang|1.0|regular expressions for the language packages: a driver|Driver/relang.lua
 pylang|1.0|Python: the translator to Lua, a driver of the program python3|Driver/pylang.lua
