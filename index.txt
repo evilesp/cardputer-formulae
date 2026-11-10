@@ -4,7 +4,7 @@ fastfetch|1.0.0.2|system summary with the Arch Linux logo (fastfetch layout)|For
 neofetch|1.0.0.0|system summary with the Arch Linux logo (neofetch layout)|Formula/neofetch.lua
 asciiquarium|1.0|a fish tank animation (press q)|Formula/asciiquarium.lua
 speedtest-cli|1.0|ping, download and upload speed test|Formula/speedtest-cli.lua
-htop|1.0|memory, battery and CPU use per task (press q)|Formula/htop.lua
+htop|1.0.0.2|process viewer in the style of htop: CPU bars, Mem and Swp, Tasks, load average, sorted list, F-keys on letters (q quits)|Formula/htop.lua
 nano|1.0.0.1|small text editor for SD card files: nano FILE|Formula/nano.lua
 snake|1.0.0.1|the snake game (arrows or w a s d)|Formula/snake.lua
 pong|1.0.0.1|pong against the computer (w/s or arrows)|Formula/pong.lua
@@ -225,3 +225,6 @@ loc|1.0.0.1|count lines of code per language in a folder|needs:rustc|Formula/loc
 logstat|1.0.0.1|levels, hours and the most frequent messages of a log file|needs:go|Formula/logstat.go
 sysreport|1.0|a report of memory, disk, network and what is wrong: sysreport [-s FILE]|Formula/sysreport.sh
 pylib|1.0.0.1|Python: the library of Python written in Python, a driver of python3|Driver/pylib.lua
+git|1.0.0.0|read-only git for public GitHub repositories: clone, pull, status, diff, log (no commit or push)|Formula/git.lua
+vim|1.0.0.0|modal text editor in the style of Vim: normal, insert, visual and : modes, operators, counts, undo, dot, search, :s (as vim and nvim; firmware vi stays)|Formula/vim.lua
+nvim|1.0.0.0|Neovim name for the vim package (same editor)|Formula/vim.lua
