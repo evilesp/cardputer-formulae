@@ -17,6 +17,8 @@ end
 local function syntaxError(msg, line) error({ syntax = msg, line = line }, 0) end
 local ESC = { n = "\n", t = "\t", r = "\r", b = "\b", f = "\f", v = "\v", ["0"] = "\0", ["\n"] = "" }
 local OPS = { ">>>=", "...", "===", "!==", "**=", "<<=", ">>=", ">>>", "&&=", "||=", "??=", "=>", "==", "!=", "<=", ">=", "&&", "||", "??", "?.", "++", "--", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "**", "<<", ">>" }
+local OPSET = {}
+for _, o in ipairs(OPS) do OPSET[o] = true end
 
 local function lex(src)
   local toks, i, n, line = {}, 1, #src, 1
@@ -160,9 +162,11 @@ local function lex(src)
       push("regex", body, { flags = flags })
       i = j + 1 + #flags
     else
+      -- the longest operator that starts here: a lookup by length, not a scan of the list
       local op
-      for _, o in ipairs(OPS) do
-        if src:sub(i, i + #o - 1) == o then op = o; break end
+      for len = 4, 2, -1 do
+        local s = src:sub(i, i + len - 1)
+        if OPSET[s] then op = s; break end
       end
       op = op or c
       if op == "?." and src:sub(i + 2, i + 2):find("%d") then op = "?" end
@@ -174,10 +178,169 @@ local function lex(src)
   return toks
 end
 
+-- ---------------------------------------------------------------- names that always hold numbers
+-- A variable (by its name, in the whole file, so closures are counted) is a number when it is declared with a value and every
+-- assignment to it gives a number: number literals, such names, + - * / % ** and the bit operators of them, Math.x, x.length,
+-- parseInt/parseFloat/Number(...). It is never a parameter, a for-of/in variable, a destructuring target or a function. The
+-- translator writes plain Lua arithmetic and comparisons for them (all numbers of JavaScript are floats, so nothing overflows).
+local JOPEN, JCLOSE = { ["("] = 1, ["["] = 1, ["{"] = 1 }, { [")"] = 1, ["]"] = 1, ["}"] = 1 }
+local JNUMOP = { ["+"] = 1, ["-"] = 1, ["*"] = 1, ["/"] = 1, ["%"] = 1, ["**"] = 1, ["("] = 1, [")"] = 1, ["~"] = 1, ["&"] = 1, ["|"] = 1, ["^"] = 1, ["<<"] = 1, [">>"] = 1, [">>>"] = 1 }
+local JAUG = { ["+="] = 1, ["-="] = 1, ["*="] = 1, ["/="] = 1, ["%="] = 1, ["**="] = 1, ["&="] = 1, ["|="] = 1, ["^="] = 1, ["<<="] = 1, [">>="] = 1, [">>>="] = 1 }
+local JNUMFN = { parseInt = 1, parseFloat = 1, Number = 1 }
+local function jsMatch(toks, p)  -- the index of the bracket that closes the one at p
+  local d = 0
+  for q = p, #toks do
+    local x = toks[q]
+    if x.t == "op" then
+      if JOPEN[x.v] then d = d + 1 elseif JCLOSE[x.v] then d = d - 1; if d == 0 then return q end end
+    elseif x.t == "eof" then return q end
+  end
+  return #toks
+end
+local function jsNumericSpan(toks, p1, p2, N)
+  if p1 >= p2 then return false end
+  local p = p1
+  while p < p2 do
+    local x, nx = toks[p], toks[p + 1]
+    if x.t == "num" then
+    elseif x.t == "name" and (x.v == "Math" or JNUMFN[x.v]) and not N.__shadow[x.v] then
+      if x.v == "Math" then
+        if not (nx.t == "op" and nx.v == "." and toks[p + 2].t == "name") then return false end
+        p = p + 2
+        nx = toks[p + 1]
+      end
+      if nx.t == "op" and nx.v == "(" then p = jsMatch(toks, p + 1); if p >= p2 then return false end
+      elseif x.v ~= "Math" then return false end
+    elseif x.t == "name" and nx.t == "op" and nx.v == "." and toks[p + 2].v == "length" and p + 2 < p2 then
+      p = p + 2
+      local after = toks[p + 1]
+      if after.t == "op" and (after.v == "(" or after.v == "[" or after.v == ".") then return false end
+    elseif x.t == "name" then
+      if not N[x.v] then return false end
+      if nx.t == "op" and (nx.v == "(" or nx.v == "[" or nx.v == "." or nx.v == "?.") and p + 1 < p2 then return false end
+    elseif x.t == "op" and JNUMOP[x.v] then
+      if x.v == "(" and nx.t == "op" and nx.v == ")" then return false end
+    else return false end
+    p = p + 1
+  end
+  return true
+end
+local function jsNumericNames(toks)
+  local assigns, bad, N = {}, {}, { __shadow = {}, __params = {} }
+  local function badRange(a, b) for q = a, b do if toks[q].t == "name" then bad[toks[q].v] = true; N.__params[toks[q].v] = true end end end
+  -- the end of an expression that starts at p: a depth-0 , ; or a closing bracket, or a new line that does not go on with an operator
+  local function exprEnd(p)
+    local d = 0
+    for q = p, #toks do
+      local x = toks[q]
+      if x.t == "eof" then return q end
+      if q > p and x.nl and x.t ~= "op" and d == 0 then return q end
+      if x.t == "op" then
+        if JOPEN[x.v] then d = d + 1
+        elseif JCLOSE[x.v] then d = d - 1; if d < 0 then return q end
+        elseif d == 0 and (x.v == "," or x.v == ";") then return q end
+      end
+    end
+    return #toks
+  end
+  for i, x in ipairs(toks) do
+    local prev, nx = toks[i - 1], toks[i + 1]
+    if x.t == "name" then
+      if (x.v == "Math" or JNUMFN[x.v]) and prev and ((prev.t == "kw" and (prev.v == "let" or prev.v == "const" or prev.v == "var" or prev.v == "function" or prev.v == "class")) or (prev.t == "op" and prev.v == ",")) then N.__shadow[x.v] = true end
+      if prev and prev.t == "kw" and (prev.v == "let" or prev.v == "const" or prev.v == "var") then
+        if nx.t == "op" and nx.v == "=" then
+          assigns[#assigns + 1] = { n = x.v, p1 = i + 2, p2 = exprEnd(i + 2) }
+        else bad[x.v] = true end
+      elseif prev and prev.t == "op" and prev.v == "," and nx.t == "op" and nx.v == "=" then
+        -- let a = 1, b = 2 (or an assignment in a list): counted like the first
+        assigns[#assigns + 1] = { n = x.v, p1 = i + 2, p2 = exprEnd(i + 2) }
+      elseif nx.t == "op" and nx.v == "=" and not (prev and prev.t == "op" and (prev.v == "." or prev.v == "?.")) then
+        assigns[#assigns + 1] = { n = x.v, p1 = i + 2, p2 = exprEnd(i + 2) }
+      elseif nx.t == "op" and JAUG[nx.v] and not (prev and prev.t == "op" and (prev.v == "." or prev.v == "?.")) then
+        assigns[#assigns + 1] = { n = x.v, p1 = i + 2, p2 = exprEnd(i + 2), aug = nx.v }
+      elseif nx.t == "op" and nx.v == "=>" then bad[x.v] = true
+      elseif nx.t == "kw" and (nx.v == "of" or nx.v == "in") and prev and (prev.t == "kw" or (prev.t == "op" and prev.v == "(")) then bad[x.v] = true
+      elseif prev and prev.t == "kw" and (prev.v == "function" or prev.v == "class" or prev.v == "import" or prev.v == "catch") then bad[x.v] = true
+      end
+    elseif x.t == "kw" and (x.v == "let" or x.v == "const" or x.v == "var") and nx.t == "op" and (nx.v == "{" or nx.v == "[") then
+      badRange(i + 1, jsMatch(toks, i + 1))
+    elseif x.t == "op" and x.v == "(" then
+      -- the parameters of a function or an arrow
+      local c = jsMatch(toks, i)
+      local after = toks[c + 1]
+      local before = prev
+      if after and after.t == "op" and (after.v == "=>" or (after.v == "{" and not (before and before.t == "kw" and (before.v == "if" or before.v == "while" or before.v == "for" or before.v == "switch" or before.v == "with")))) then
+        badRange(i + 1, c - 1)
+      end
+    elseif x.t == "op" and (x.v == "]" or x.v == "}") and nx and nx.t == "op" and nx.v == "=" then
+      -- [a, b] = ... : a destructuring assignment
+      local d = 0
+      for q = i, 1, -1 do
+        local y = toks[q]
+        if y.t == "op" then
+          if JCLOSE[y.v] then d = d + 1
+          elseif JOPEN[y.v] then
+            d = d - 1
+            if d == 0 then
+              -- a[i] = ... is a store, not a pattern
+              local b = toks[q - 1]
+              if not (x.v == "]" and b and (b.t == "name" or (b.t == "kw" and b.v == "this") or (b.t == "op" and (b.v == ")" or b.v == "]")))) then badRange(q, i) end
+              break
+            end
+          end
+        end
+      end
+    end
+  end
+  for _, a in ipairs(assigns) do if not bad[a.n] then N[a.n] = true end end
+  -- functions declared once by "function NAME" and bound nowhere else: called straight (no check that it is a function)
+  local decl, other = {}, {}
+  for i, x in ipairs(toks) do
+    if x.t == "name" then
+      local prev, nx = toks[i - 1], toks[i + 1]
+      if prev and prev.t == "kw" and prev.v == "function" and nx.t == "op" and nx.v == "(" then decl[x.v] = (decl[x.v] or 0) + 1
+      elseif not (prev and prev.t == "op" and (prev.v == "." or prev.v == "?.")) and ((nx.t == "op" and (nx.v == "=" or JAUG[nx.v] or nx.v == "++" or nx.v == "--" or nx.v == "=>")) or (prev and prev.t == "op" and (prev.v == "++" or prev.v == "--"))) then other[x.v] = true end
+    end
+  end
+  for _, a in ipairs(assigns) do other[a.n] = true end
+  N.__funcs = {}
+  for n, c in pairs(decl) do if c == 1 and not other[n] and not N.__params[n] then N.__funcs[n] = true end end
+  repeat
+    local changed = false
+    for _, a in ipairs(assigns) do
+      if N[a.n] and not (jsNumericSpan(toks, a.p1, a.p2, N) and (not a.aug or JAUG[a.aug])) then N[a.n] = nil; changed = true end
+    end
+  until not changed
+  return N
+end
+
 local function compile(src)
   local toks, pos = lex(src), 1
   local tok = toks[1]
   local out = {}
+  local NUMS = jsNumericNames(toks)
+  -- texts known to be numbers, texts known to be Lua booleans, and the parts of && and ||
+  local NUM, BOOL, ANDOR = {}, {}, {}
+  local function condOf(c)
+    if BOOL[c] or c == "true" or c == "false" then return c end
+    local ao = ANDOR[c]
+    if ao then return "(" .. condOf(ao[2]) .. " " .. ao[1] .. " " .. condOf(ao[3]) .. ")" end
+    if NUM[c] then
+      if c:match("^[%w_]+$") then return "(" .. c .. "~=0 and " .. c .. "==" .. c .. ")" end
+      return "R_T(" .. c .. ")"
+    end
+    if c:match("^R_[lg][te]%(") or c:match("^R_eq%(") or c:match("^R_ne%(") or c:match("^R_instanceof%(") or c:match("^R_in%(") or c:sub(1, 5) == "(not " then return c end
+    return "R_T(" .. c .. ")"
+  end
+  -- a statement made of an expression: i++ and friends without the closure that gives their value
+  local function exprStmt(e)
+    local a, b, d = e:match("^%(function%(%) local _o=R_num%(([%w_]+)%) ([%w_]+)=_o([%+%-])1%.0 return _o end%)%(%)$")
+    if a and a == b then return a .. "=" .. (NUM[a] and a or ("R_num(" .. a .. ")")) .. d .. "1.0" end
+    a, d, b = e:match("^%(function%(%) ([%w_]+)=R_num%(([%w_]+)%)([%+%-])1%.0 return [%w_]+ end%)%(%)$")
+    if a then return a .. "=" .. (NUM[a] and a or ("R_num(" .. a .. ")")) .. b .. "1.0" end
+    if e:match("^R_[%w_]*%(") and e:sub(-1) == ")" then return e end
+    return "local _ = " .. e
+  end
   local labelN, tmpN = 0, 0
   local fn = { closure = 0, breakables = {} }
   local block = { decl = {}, list = {} }
@@ -560,7 +723,7 @@ local function compile(src)
   local function primary()
     local t = tok
     lastLv = nil
-    if t.t == "num" then adv(); return num(t.v)
+    if t.t == "num" then adv(); local s = num(t.v); NUM[s] = true; return s
     elseif t.t == "str" then adv(); return str(t.v)
     elseif t.t == "tpl" then adv(); return templateCode(t.v)
     elseif t.t == "regex" then adv(); return "R_regex(" .. str(t.v) .. "," .. str(t.flags) .. ")"
@@ -572,7 +735,9 @@ local function compile(src)
       end
       if t.v == "arguments" then fn.usesArgs = true; local f = fn; while f.arrow and f.parent do f = f.parent; f.usesArgs = true end end
       lastLv = { k = "name", n = t.v }
-      return mangle(t.v)
+      local r = mangle(t.v)
+      if NUMS[t.v] then NUM[r] = true end
+      return r
     elseif t.t == "kw" then
       local v = t.v
       if v == "this" then adv(); return "this"
@@ -718,6 +883,7 @@ local function compile(src)
         lastLv = nil
         if e:sub(1, 8) == "function" or e:sub(1, 4) == "R_fn" then e = "(" .. e .. ")" end
         if sp then e = "R_call(" .. e .. ",nil,table.unpack(" .. sp .. "))"
+        elseif NUMS.__funcs[e] then e = e .. "(nil" .. (#a > 0 and "," or "") .. table.concat(a, ",") .. ")"
         else e = "R_call(" .. e .. ",nil" .. (#a > 0 and "," or "") .. table.concat(a, ",") .. ")" end
       elseif tok.t == "tpl" then
         adv()
@@ -755,8 +921,14 @@ local function compile(src)
   unaryExpr = function()
     local t = tok
     if t.t == "op" then
-      if t.v == "!" then adv(); local c = unaryExpr(); lastLv = nil; return "(not R_T(" .. c .. "))" end
-      if t.v == "-" then adv(); local c = unaryExpr(); lastLv = nil; return "R_neg(" .. c .. ")" end
+      if t.v == "!" then adv(); local c = unaryExpr(); lastLv = nil; return "(not " .. condOf(c) .. ")" end
+      if t.v == "-" then
+        adv()
+        local c = unaryExpr()
+        lastLv = nil
+        if NUM[c] then local r = "(-" .. c .. ")"; NUM[r] = true; return r end
+        return "R_neg(" .. c .. ")"
+      end
       if t.v == "+" then adv(); local c = unaryExpr(); lastLv = nil; return "R_num(" .. c .. ")" end
       if t.v == "~" then adv(); local c = unaryExpr(); lastLv = nil; return "R_bnot(" .. c .. ")" end
       if t.v == "++" or t.v == "--" then
@@ -840,9 +1012,19 @@ local function compile(src)
       adv()
       local b = binLevel(l - 1)
       lastLv = nil
-      if f == "R_seq" then a = "(" .. a .. "==" .. b .. ")"
-      elseif f == "R_sne" then a = "(" .. a .. "~=" .. b .. ")"
-      else a = f .. "(" .. a .. "," .. b .. ")" end
+      local LUAOP = { R_add = "+", R_sub = "-", R_mul = "*", R_div = "/", R_lt = "<", R_gt = ">", R_le = "<=", R_ge = ">=", R_eq = "==", R_ne = "~=" }
+      local both = NUM[a] and NUM[b]
+      if f == "R_seq" then a = "(" .. a .. "==" .. b .. ")"; BOOL[a] = true
+      elseif f == "R_sne" then a = "(" .. a .. "~=" .. b .. ")"; BOOL[a] = true
+      elseif both and LUAOP[f] then
+        a = "(" .. a .. LUAOP[f] .. b .. ")"
+        if l <= 2 then NUM[a] = true else BOOL[a] = true end
+      elseif both and f == "R_mod" and tonumber(b) and tonumber(b) ~= 0 then
+        a = "R_fmod(" .. a .. "," .. b .. ")"; NUM[a] = true
+      else
+        a = f .. "(" .. a .. "," .. b .. ")"
+        if (both and l <= 2) or l == 3 or l >= 6 then NUM[a] = true end
+      end
     end
   end
   local function isBoolCode(c)
@@ -854,7 +1036,10 @@ local function compile(src)
       adv()
       local b = binLevel(#LEVELS)
       lastLv = nil
-      a = "R_and(" .. a .. ",function() return " .. b .. " end)"
+      local simple = b:match("^[%a_][%w_]*$") or tonumber(b) or b:match('^"[^"]*"$')
+      local whole = simple and ("R_andv(" .. a .. "," .. b .. ")") or ("R_and(" .. a .. ",function() return " .. b .. " end)")
+      ANDOR[whole] = { "and", a, b }
+      a = whole
     end
     return a
   end
@@ -865,7 +1050,13 @@ local function compile(src)
       adv()
       local b = andExpr()
       lastLv = nil
-      a = f .. "(" .. a .. ",function() return " .. b .. " end)"
+      local whole
+      if f == "R_or" then
+        local simple = b:match("^[%a_][%w_]*$") or tonumber(b) or b:match('^"[^"]*"$')
+        whole = simple and ("R_orv(" .. a .. "," .. b .. ")") or ("R_or(" .. a .. ",function() return " .. b .. " end)")
+        ANDOR[whole] = { "or", a, b }
+      else whole = f .. "(" .. a .. ",function() return " .. b .. " end)" end
+      a = whole
     end
     return a
   end
@@ -880,6 +1071,12 @@ local function compile(src)
       expectOp(":")
       local b = assignExpr()
       lastLv = nil
+      -- a value that is never false or nil in Lua can stand in "c and a or b"
+      if NUM[a] or tonumber(a) or a:match('^"[^"]*"$') then
+        local r = "(" .. condOf(c) .. " and " .. a .. " or " .. b .. ")"
+        if NUM[a] and NUM[b] then NUM[r] = true end
+        return r
+      end
       return "R_if(" .. c .. ",function() return " .. a .. " end,function() return " .. b .. " end)"
     end
     return c
@@ -933,10 +1130,19 @@ local function compile(src)
         lastLv = nil
         if lv.k == "name" then
           local n = mangle(lv.n)
+          local LUAOP = { ["+="] = "+", ["-="] = "-", ["*="] = "*", ["/="] = "/" }
           local s = n .. " = " .. ASSIGN[op] .. "(" .. n .. "," .. v .. ")"
+          if NUM[n] and NUM[v] and LUAOP[op] then s = n .. " = " .. n .. LUAOP[op] .. "(" .. v .. ")"
+          elseif NUM[n] and NUM[v] and op == "%=" and tonumber(v) and tonumber(v) ~= 0 then s = n .. " = R_fmod(" .. n .. "," .. v .. ")" end
           return "(function() " .. s .. " return " .. n .. " end)()", { stmt = s }
         end
-        return "(function() local _b,_i=" .. lv.o .. "," .. lv.i .. " return R_set(_b,_i," .. ASSIGN[op] .. "(R_get(_b,_i)," .. v .. ")) end)()"
+        local stmt
+        if (lv.o == "this" or lv.o:match("^[%a_][%w_]*$")) and (lv.i:match('^"[%w_]*"$') or lv.i:match("^[%a_][%w_]*$")) then
+          stmt = "R_set(" .. lv.o .. "," .. lv.i .. "," .. ASSIGN[op] .. "(R_get(" .. lv.o .. "," .. lv.i .. ")," .. v .. "))"
+        else
+          stmt = "do local _b,_i=" .. lv.o .. "," .. lv.i .. " R_set(_b,_i," .. ASSIGN[op] .. "(R_get(_b,_i)," .. v .. ")) end"
+        end
+        return "(function() local _b,_i=" .. lv.o .. "," .. lv.i .. " return R_set(_b,_i," .. ASSIGN[op] .. "(R_get(_b,_i)," .. v .. ")) end)()", { stmt = stmt }
       elseif op == "&&=" or op == "||=" or op == "??=" then
         if not lv then err() end
         adv()
@@ -1154,18 +1360,18 @@ local function compile(src)
       noIn = true
       local e, extra = expression()
       noIn = false
-      if extra and extra.stmt then emit(extra.stmt) else emit("local _ = " .. e) end
+      if extra and extra.stmt then emit(extra.stmt) else emit(exprStmt(e)) end
     end
     expectOp(";")
     local cond = "true"
-    if not isOp(";") then cond = "R_T(" .. expression() .. ")" end
+    if not isOp(";") then cond = condOf((expression())) end
     expectOp(";")
     local updateText = ""
     if not isOp(")") then
       updateText = capture(function()
         local e, extra = expression()
         if extra and extra.stmt then emit(extra.stmt)
-        else emit("local _ = " .. e) end
+        else emit(exprStmt(e)) end
       end)
     end
     expectOp(")")
@@ -1367,7 +1573,7 @@ local function compile(src)
         adv(); expectOp("(")
         local c = expression()
         expectOp(")")
-        emit("if R_T(" .. c .. ") then")
+        emit("if " .. condOf(c) .. " then")
         subStatement()
         if acceptKw("else") then emit("else"); subStatement() end
         emit("end")
@@ -1378,7 +1584,7 @@ local function compile(src)
         expectOp(")")
         local rec = newLoop(fn.nextLabel)
         fn.nextLabel = nil
-        emit("while R_T(" .. c .. ") do")
+        emit("while " .. condOf(c) .. " do")
         loopBody(rec, subStatement)
         emit("::" .. rec.contLabel .. "::")
         emit("end")
@@ -1395,7 +1601,7 @@ local function compile(src)
         local c = expression()
         expectOp(")")
         acceptOp(";")
-        emit("if not R_T(" .. c .. ") then break end")
+        emit("if not " .. condOf(c) .. " then break end")
         emit("end")
         emit("::" .. rec.endLabel .. "::")
         return
@@ -1447,9 +1653,73 @@ local function compile(src)
   return text
 end
 
+-- ---------------------------------------------------------------- translation cache, LANG_DUMP and LANG_TIME
+-- The Lua text of a program is kept in /var/cache/lang (LANG_CACHE=DIR elsewhere, LANG_CACHE=off not at all): one file per source path,
+-- used while the source text and this translator (its version, the size and date of its file) stay the same. LANG_DUMP=FILE writes
+-- the Lua text to FILE; LANG_TIME=1 prints how long the translation and the run took (to stderr).
+local LC = { clock = os.clock or function() return 0 end, translate = 0 }
+local function lcEnv(k) return os.getenv and os.getenv(k) end
+local function lcHash(s)
+  local h1, h2, byte, n, i = 0x811c9dc5, #s, string.byte, #s, 1
+  while i + 7 <= n do
+    local a, b, c, d, e, f, g, k = byte(s, i, i + 7)
+    h1 = ((h1 ~ (a | b << 8 | c << 16 | d << 24)) * 16777619) & 0xffffffff
+    h2 = ((h2 ~ (e | f << 8 | g << 16 | k << 24) ~ (h1 >> 7)) * 2246822519) & 0xffffffff
+    i = i + 8
+  end
+  for j = i, n do h1 = ((h1 ~ byte(s, j)) * 16777619) & 0xffffffff end
+  return string.format("%08x%08x", h1, h2)
+end
+-- the text of SRC (a file NAME) translated by TRANSLATE(), from the cache when it can be
+function LC.get(tag, version, name, src, translate)
+  local t0 = LC.clock()
+  local dir = lcEnv("LANG_CACHE") or "/var/cache/lang"
+  local file, stamp, text
+  if dir ~= "off" and #src >= 200 and fs and fs.read and fs.write then
+    local st = fs.stat and fs.stat((lcEnv("DRIVER_DIR") or "/usr/local/lib/drivers") .. "/" .. tag .. ".lua")
+    stamp = "-- " .. version .. " " .. (type(st) == "table" and (tostring(st.size) .. "." .. tostring(st.mtime)) or "-") .. " " .. #src .. " " .. lcHash(src) .. "\n"
+    file = dir .. "/" .. tag .. "-" .. lcHash(name) .. ".lua"
+    local old = fs.read(file)
+    if old and old:sub(1, #stamp) == stamp then text = old:sub(#stamp + 1) end
+  end
+  if not text then
+    text = translate()
+    if file and not fs.write(file, stamp .. text) and fs.mkdir then
+      pcall(fs.mkdir, dir, true)
+      fs.write(file, stamp .. text)
+    end
+  end
+  local dump = lcEnv("LANG_DUMP")
+  if dump and fs and fs.write then fs.write(dump, text) end
+  LC.translate = LC.translate + (LC.clock() - t0)
+  return text
+end
+function LC.report(t0)
+  if lcEnv("LANG_TIME") then
+    local line = string.format("lang-time translate %.4f run %.4f\n", LC.translate, LC.clock() - t0 - LC.translate)
+    if io and io.stderr then io.stderr:write(line) else print(line) end
+  end
+end
+
 J.compile = compile
+J.VERSION = "1.0.0.2"
 function J.main(args)
   local rt = driver.load("jsrt")
-  return rt.main(args, compile)
+  -- the file is the first argument that is not an option (as jsrt reads them)
+  local path
+  for _, a in ipairs(args) do
+    if a == "-e" or a == "--eval" or a == "-p" or a == "--print" then break end
+    if a:sub(1, 1) ~= "-" then path = a; break end
+  end
+  local t0 = LC.clock()
+  local first = true
+  local code = rt.main(args, function(src)
+    -- the program itself is cached; the lines of the prompt and the modules it requires are translated each time
+    if not (first and path) then return compile(src) end
+    first = false
+    return LC.get("jslang", J.VERSION, path, src, function() return compile(src) end)
+  end)
+  LC.report(t0)
+  return code
 end
 return J

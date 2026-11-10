@@ -10,6 +10,8 @@ for w in ("and do elseif end function in local nil not or repeat then until self
 local function mangle(n) if LUAKW[n] then return n .. "_" end if n:find("[\128-\255]") then return (n:gsub("[\128-\255]", function(c) return string.format("_x%02x", c:byte()) end)) end return n end
 local function syntaxError(m, l) error({ syntax = m, line = l }, 0) end
 local OPS = { "<<=", ">>=", "&^=", "...", "&&", "||", "<-", "++", "--", "==", "!=", "<=", ">=", ":=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "&^" }
+local OPSET, OPMAX = {}, 2
+for _, o in ipairs(OPS) do OPSET[o] = true; if #o > OPMAX then OPMAX = #o end end
 local ESC = { n = 10, t = 9, r = 13, a = 7, b = 8, f = 12, v = 11, ["\\"] = 92, ["'"] = 39, ['"'] = 34 }
 
 local function lex(src)
@@ -93,7 +95,11 @@ local function lex(src)
       i = j + 1
     else
       local op
-      for _, o in ipairs(OPS) do if src:sub(i, i + #o - 1) == o then op = o; break end end
+      -- the longest operator that starts here: a lookup by length, not a scan of the list
+      for len = OPMAX, 2, -1 do
+        local s = src:sub(i, i + len - 1)
+        if OPSET[s] then op = s; break end
+      end
       op = op or c
       push("op", op)
       i = i + #op
@@ -107,7 +113,16 @@ end
 local INT, FLOAT, STRING, BOOL, RUNE = { k = "int" }, { k = "float" }, { k = "string" }, { k = "bool" }, { k = "int", rune = true }
 local ANY = { k = "iface" }
 local BYTE, WRAPS = { k = "int", name = "byte" }, { uint8 = "0xFF", byte = "0xFF", uint16 = "0xFFFF", uint32 = "0xFFFFFFFF" }
-local BASIC = { int = INT, int8 = INT, int16 = INT, int32 = INT, int64 = INT, uint = INT, uint64 = INT, uintptr = INT, rune = RUNE, byte = BYTE, uint8 = { k = "int", name = "uint8" }, uint16 = { k = "int", name = "uint16" }, uint32 = { k = "int", name = "uint32" }, float32 = FLOAT, float64 = FLOAT, string = STRING, bool = BOOL, error = { k = "iface", name = "error" }, any = ANY, comparable = ANY }
+-- signed integers narrower than int wrap around at their width (sign bit, mask)
+local SWRAPS = { int8 = { 128, "0xFF" }, int16 = { 32768, "0xFFFF" }, int32 = { 2147483648, "0xFFFFFFFF" } }
+local function wrapText(name, r)
+  local m = WRAPS[name or ""]
+  if m then return "((" .. r .. ")&" .. m .. ")" end
+  local s = SWRAPS[name or ""]
+  if s then return "((((" .. r .. ")+" .. s[1] .. ")&" .. s[2] .. ")-" .. s[1] .. ")" end
+  return r
+end
+local BASIC = { int = INT, int8 = { k = "int", name = "int8" }, int16 = { k = "int", name = "int16" }, int32 = { k = "int", name = "int32" }, int64 = INT, uint = INT, uint64 = INT, uintptr = INT, rune = RUNE, byte = BYTE, uint8 = { k = "int", name = "uint8" }, uint16 = { k = "int", name = "uint16" }, uint32 = { k = "int", name = "uint32" }, float32 = FLOAT, float64 = FLOAT, string = STRING, bool = BOOL, error = { k = "iface", name = "error" }, any = ANY, comparable = ANY }
 local ERR = BASIC.error
 
 -- what the packages give back, for the conversions that depend on it
@@ -686,9 +701,7 @@ local function compile(src)
       end
       if u.k == "int" then
         local r = isFloat(from) and ("R.f2i(" .. c .. ")") or ((from and isInt(from)) and c or ("R.toint(" .. c .. ")"))
-        local mask = WRAPS[u.name or ""]
-        if mask then r = "((" .. r .. ")&" .. mask .. ")" end
-        return r, ty
+        return wrapText(u.name, r), ty
       end
       if u.k == "string" then
         if from and isString(from) then return c, ty end
@@ -961,12 +974,15 @@ local function compile(src)
       if ta and tb and isInt(ta) and isInt(tb) then return "R.idiv(" .. a .. "," .. b .. ")", rt end
       return "R.div(" .. a .. "," .. b .. ")", rt
     end
-    if op == "%" then return "R.imod(" .. a .. "," .. b .. ")", rt end
+    if op == "%" then
+      -- math.fmod of integers is Go's %; a constant divisor that is not 0 needs no check
+      if math.tointeger(tonumber(b)) and tonumber(b) ~= 0 then return "R_fmod(" .. a .. "," .. b .. ")", rt end
+      return "R.imod(" .. a .. "," .. b .. ")", rt
+    end
     if op == "&^" then return "(" .. a .. "&~" .. b .. ")", rt end
     if op == "^" then return "(" .. a .. "~" .. b .. ")", rt end
     local e = "(" .. a .. op .. b .. ")"
-    local mask = rt and under(rt) and WRAPS[under(rt).name or ""]
-    if mask and (op == "+" or op == "-" or op == "*" or op == "<<") then e = "(" .. e .. "&" .. mask .. ")" end
+    if rt and under(rt) and (op == "+" or op == "-" or op == "*" or op == "<<") then e = wrapText(under(rt).name, e) end
     return e, rt
   end
   local LV = { { "*", "/", "%", "<<", ">>", "&", "&^" }, { "+", "-", "|", "^" }, { "==", "!=", "<", "<=", ">", ">=" }, { "&&" }, { "||" } }
@@ -2009,12 +2025,62 @@ local function compile(src)
   for _, x in ipairs(inits) do if type(x) == "string" then emit("(" .. x .. ")()") end end
   if not funcs.main then syntaxError("function main is undeclared in the main package", 0) end
   emit("return G.main")
-  return table.concat(out, "\n")
+  return "local R_fmod=math.fmod\n" .. table.concat(out, "\n")
 end
+-- ---------------------------------------------------------------- translation cache, LANG_DUMP and LANG_TIME
+-- The Lua text of a program is kept in /var/cache/lang (LANG_CACHE=DIR elsewhere, LANG_CACHE=off not at all): one file per source path,
+-- used while the source text and this translator (its version, the size and date of its file) stay the same. LANG_DUMP=FILE writes
+-- the Lua text to FILE; LANG_TIME=1 prints how long the translation and the run took (to stderr).
+local LC = { clock = os.clock or function() return 0 end, translate = 0 }
+local function lcEnv(k) return os.getenv and os.getenv(k) end
+local function lcHash(s)
+  local h1, h2, byte, n, i = 0x811c9dc5, #s, string.byte, #s, 1
+  while i + 7 <= n do
+    local a, b, c, d, e, f, g, k = byte(s, i, i + 7)
+    h1 = ((h1 ~ (a | b << 8 | c << 16 | d << 24)) * 16777619) & 0xffffffff
+    h2 = ((h2 ~ (e | f << 8 | g << 16 | k << 24) ~ (h1 >> 7)) * 2246822519) & 0xffffffff
+    i = i + 8
+  end
+  for j = i, n do h1 = ((h1 ~ byte(s, j)) * 16777619) & 0xffffffff end
+  return string.format("%08x%08x", h1, h2)
+end
+-- the text of SRC (a file NAME) translated by TRANSLATE(), from the cache when it can be
+function LC.get(tag, version, name, src, translate)
+  local t0 = LC.clock()
+  local dir = lcEnv("LANG_CACHE") or "/var/cache/lang"
+  local file, stamp, text
+  if dir ~= "off" and #src >= 200 and fs and fs.read and fs.write then
+    local st = fs.stat and fs.stat((lcEnv("DRIVER_DIR") or "/usr/local/lib/drivers") .. "/" .. tag .. ".lua")
+    stamp = "-- " .. version .. " " .. (type(st) == "table" and (tostring(st.size) .. "." .. tostring(st.mtime)) or "-") .. " " .. #src .. " " .. lcHash(src) .. "\n"
+    file = dir .. "/" .. tag .. "-" .. lcHash(name) .. ".lua"
+    local old = fs.read(file)
+    if old and old:sub(1, #stamp) == stamp then text = old:sub(#stamp + 1) end
+  end
+  if not text then
+    text = translate()
+    if file and not fs.write(file, stamp .. text) and fs.mkdir then
+      pcall(fs.mkdir, dir, true)
+      fs.write(file, stamp .. text)
+    end
+  end
+  local dump = lcEnv("LANG_DUMP")
+  if dump and fs and fs.write then fs.write(dump, text) end
+  LC.translate = LC.translate + (LC.clock() - t0)
+  return text
+end
+function LC.report(t0)
+  if lcEnv("LANG_TIME") then
+    local line = string.format("lang-time translate %.4f run %.4f\n", LC.translate, LC.clock() - t0 - LC.translate)
+    if io and io.stderr then io.stderr:write(line) else print(line) end
+  end
+end
+
 M.compile = compile
+M.VERSION = "1.0.0.2"
 
 function M.main(args)
   local rt = driver.load("gort")
+  local t0 = LC.clock()
   local cmd = args[1]
   local function usage() term.write("usage: go run FILE.go [ARGS] | go build [-o PROGRAM] FILE.go | go version\n"); return 2 end
   if not cmd then return usage() end
@@ -2030,11 +2096,13 @@ function M.main(args)
     if not path then return usage() end
     local src = fs.read(path)
     if not src then term.write("go: cannot find " .. path .. "\n"); return 1 end
-    local ok, text = pcall(compile, src)
+    local ok, text = pcall(LC.get, "golang", M.VERSION, path, src, function() return compile(src) end)
     if not ok then return report(path, text) end
     local a = { path }
     for i = 3, #args do a[#a + 1] = args[i] end
-    return rt.run(text, a)
+    local code = rt.run(text, a)
+    LC.report(t0)
+    return code
   elseif cmd == "build" then
     local outPath, path
     local i = 2

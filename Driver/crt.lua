@@ -7,29 +7,44 @@ local function write(s) term.write(s) end
 
 -- ---- pointers: {a = a table, i = a key} ----
 function R.ptr(a, i) return { a = a, i = i } end
+-- a row of a 2-D array knows its length (__rn), its number (__ri) and the array (__pr): a pointer that leaves the row goes on
+-- in the next one. One past the end stays in its row (the end of a loop); reading or writing it reaches the next row.
+local function rowFix(a, i)
+  local rn = a.__rn
+  if rn and rn > 0 and (i >= rn or i < 0) then
+    local flat = a.__ri * rn + i
+    local row = a.__pr[flat // rn]
+    if row then return row, flat % rn end
+  end
+  return a, i
+end
 function R.padd(p, n)
   local a, i = p.a, p.i + n
   local rn = a.__rn
-  if rn and (i >= rn or i < 0) then  -- past the end of a row: the next row of the same array
-    local flat = a.__ri * rn + i
-    local row = a.__pr[flat // rn]
-    if row then return { a = row, i = flat % rn } end
-  end
+  if rn and (i > rn or i < 0) then a, i = rowFix(a, i) end
   return { a = a, i = i }
 end
 function R.pdiff(p, q)
   if p == nil or q == nil then return (p == nil and 0 or 1) - (q == nil and 0 or 1) end
+  local pa, qa = p.a, q.a
+  if pa ~= qa and pa.__rn and qa.__rn and pa.__pr == qa.__pr then return (pa.__ri * pa.__rn + p.i) - (qa.__ri * qa.__rn + q.i) end
   return p.i - q.i
 end
 function R.load(p)
   if p == nil then error("Segmentation fault (a null pointer was read)", 0) end
-  return p.a[p.i]
+  local a, i = p.a, p.i
+  local v = a[i]
+  if v == nil and a.__rn then a, i = rowFix(a, i); return a[i] end
+  return v
 end
 function R.store(p, v)
   if p == nil then error("Segmentation fault (a null pointer was written)", 0) end
-  p.a[p.i] = v
+  local a, i = p.a, p.i
+  if a.__rn and i >= a.__rn then a, i = rowFix(a, i) end
+  a[i] = v
 end
 local rptrMt
+local mergeSort  -- (below, with the containers; qsort uses it too)
 function R.box(v) return { a = { [0] = v }, i = 0 } end
 function R.addr(get, set)
   return { a = setmt({}, { __index = function() return get() end, __newindex = function(_, _, v) set(v) end }), i = 0 }
@@ -130,6 +145,21 @@ function R.arr(n, z)
   return t
 end
 -- the rows of a two-dimensional array know their place, so that a pointer to the first element can run over the whole array (int *p = &a[0][0]; p[k])
+-- p.a[p.i + k] past the end of a row (the translator writes that for p[k]) reaches the next rows through these
+local RowMt = {
+  __index = function(a, i)
+    if mtype(i) ~= "integer" then return nil end
+    local b, j = rowFix(a, i)
+    if b ~= a then return b[j] end
+  end,
+  __newindex = function(a, i, v)
+    if mtype(i) == "integer" then
+      local b, j = rowFix(a, i)
+      if b ~= a then b[j] = v; return end
+    end
+    rawset(a, i, v)
+  end,
+}
 local function linkRows(t, n)
   for k = 0, n - 1 do
     local row = t[k]
@@ -137,6 +167,7 @@ local function linkRows(t, n)
       local rn = 0
       while row[rn] ~= nil do rn = rn + 1 end
       row.__pr, row.__ri, row.__rn = t, k, rn
+      setmt(row, RowMt)
     end
   end
   return t
@@ -169,18 +200,31 @@ function R.cstr(s)
   end
   return p
 end
+local charBuf = {}
 local function tolua(p)
   if p == nil then return "(null)" end
   if type_(p) == "string" then return p end
-  local o, n, a, i = {}, 0, p.a, p.i
+  local a, i = p.a, p.i
+  local j = i
   while true do
-    local c = a[i]
+    local c = a[j]
     if c == 0 or c == nil then break end
-    n = n + 1
-    o[n] = char(c & 255)
-    i = i + 1
+    j = j + 1
   end
-  return concat(o)
+  if j == i then return "" end
+  -- string.char of up to 200 bytes at a time (one string per piece, not one per byte)
+  local parts, n, buf = nil, 0, charBuf
+  for s = i, j - 1, 200 do
+    local e = s + 199
+    if e > j - 1 then e = j - 1 end
+    for k = s, e do buf[k - s + 1] = a[k] & 255 end
+    local piece = char(table.unpack(buf, 1, e - s + 1))
+    if s == i and e == j - 1 then return piece end
+    parts = parts or {}
+    n = n + 1
+    parts[n] = piece
+  end
+  return concat(parts)
 end
 R.tolua = tolua
 function R.tolua_num(x) return tostring(x) end
@@ -1058,7 +1102,21 @@ function L.strncpy(d, s, n)
 end
 function L.strcat(d, s) local n = L.strlen(d); fromLua(tolua(s), { a = d.a, i = d.i + n }); return d end
 function L.strncat(d, s, c) local n = L.strlen(d); fromLua(tolua(s):sub(1, c), { a = d.a, i = d.i + n }); return d end
-function L.strcmp(a, b) a, b = tolua(a), tolua(b); return a < b and -1 or (a > b and 1 or 0) end
+function L.strcmp(a, b)
+  if a == nil or b == nil or type_(a) == "string" or type_(b) == "string" then
+    a, b = tolua(a), tolua(b)
+    return a < b and -1 or (a > b and 1 or 0)
+  end
+  -- byte by byte, as unsigned chars
+  local aa, ai, ba, bi = a.a, a.i, b.a, b.i
+  local k = 0
+  while true do
+    local x, y = (aa[ai + k] or 0) & 255, (ba[bi + k] or 0) & 255
+    if x ~= y then return x < y and -1 or 1 end
+    if x == 0 then return 0 end
+    k = k + 1
+  end
+end
 function L.strncmp(a, b, n) a, b = tolua(a):sub(1, n), tolua(b):sub(1, n); return a < b and -1 or (a > b and 1 or 0) end
 function L.strcasecmp(a, b) a, b = tolua(a):lower(), tolua(b):lower(); return a < b and -1 or (a > b and 1 or 0) end
 function L.strchr(s, c)
@@ -1809,7 +1867,10 @@ function L.dirname(p) local s = tolua(p):gsub("/+$", ""); local d = s:match("^(.
 function L.qsort(p, n, size, cmp)
   local items = {}
   for k = 1, n do items[k] = p.a[p.i + (k - 1) * (size_units and 1 or 1)] end
-  local function lt(x, y) return cmp(R.box(x), R.box(y)) < 0 end
+  -- two pointers made once and filled for each comparison (not two new ones every time)
+  local ba, bb = { a = {}, i = 0 }, { a = {}, i = 0 }
+  local aa, ab = ba.a, bb.a
+  local function lt(x, y) aa[0] = x; ab[0] = y; return cmp(ba, bb) < 0 end
   local s = mergeSort(items, n, lt)
   for k = 1, n do p.a[p.i + k - 1] = s[k] end
 end
@@ -2213,7 +2274,7 @@ function L.panel_below() return nil end
 function L.replace_panel(p, w) p.win = w; return 0 end
 function L.hide_panel(p) if p and p.win then L.wclear(p.win) end return 0 end
 -- the algorithms of C++: they work on iterators
-local function mergeSort(a, n, lt)
+mergeSort = function(a, n, lt)
   if n < 2 then return a end
   local b = {}
   local w = 1

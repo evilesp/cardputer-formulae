@@ -1,6 +1,7 @@
 # name|version|description|path (relative to this repository)
 cmatrix|1.0|matrix rain in the terminal (press q)|Formula/cmatrix.lua
-fastfetch|1.0.0.1|system summary with a board logo|Formula/fastfetch.lua
+fastfetch|1.0.0.2|system summary with the Arch Linux logo (fastfetch layout)|Formula/fastfetch.lua
+neofetch|1.0.0.0|system summary with the Arch Linux logo (neofetch layout)|Formula/neofetch.lua
 asciiquarium|1.0|a fish tank animation (press q)|Formula/asciiquarium.lua
 speedtest-cli|1.0|ping, download and upload speed test|Formula/speedtest-cli.lua
 htop|1.0|memory, battery and CPU use per task (press q)|Formula/htop.lua
@@ -191,24 +192,24 @@ natan-local-pl|1.0.0.0|natan-local-pl QUESTION: the same as natan, only with the
 desktop|1.0.0.12|graphical desktop with touch: home screen with pinned apps and a dock (launcher, terminal, files, settings), windows, task bar, quick panel, themes and wallpapers as text packages; desktop enable/disable at boot, desktop install NAME (beta, needs touch.read from the firmware)|needs:fonts|Formula/desktop.lua
 touchcal|1.0.0.0|calibrates the touch screen: touch four crosses, it saves the shift and scale in /etc/touch.cal (needs firmware v0.1.5)|Formula/touchcal.lua
 relang|1.0.0.1|regular expressions for the language packages: a driver|Driver/relang.lua
-pylang|1.0.0.1|Python: the translator to Lua, a driver of the program python3|Driver/pylang.lua
-pyrt|1.0.0.1|Python: the run-time, a driver of the program python3|Driver/pyrt.lua
+pylang|1.0.0.2|Python: the translator to Lua, a driver of the program python3|Driver/pylang.lua
+pyrt|1.0.0.2|Python: the run-time, a driver of the program python3|Driver/pyrt.lua
 python3|1.0.0.1|Python 3 for this device: python3 FILE.py, python3 -c CODE, or a prompt; classes, generators, f-strings, exceptions, math, json, re, collections (needs firmware v0.1.14)|needs:pylang pyrt pylib relang|Formula/python3.lua
 python|1.0.0.1|the same as python3|needs:python3|Formula/python.lua
-jslang|1.0.0.1|JavaScript: the translator to Lua, a driver of the program node|Driver/jslang.lua
-jsrt|1.0.0.1|JavaScript: the run-time, a driver of the program node|Driver/jsrt.lua
+jslang|1.0.0.2|JavaScript: the translator to Lua, a driver of the program node|Driver/jslang.lua
+jsrt|1.0.0.2|JavaScript: the run-time, a driver of the program node|Driver/jsrt.lua
 node|1.0.0.2|JavaScript (Node.js style) for this device: node FILE.js, node -e CODE, or a prompt; classes, async/await, promises, Map, Set, JSON, regular expressions (needs firmware v0.1.14)|needs:jslang jsrt relang|Formula/node.lua
-clang|1.0.0.5|C and C++: the translator to Lua, a driver of gcc and g++|Driver/clang.lua
-crt|1.0.0.3|C and C++: the run-time, a driver of gcc and g++|Driver/crt.lua
+clang|1.0.0.6|C and C++: the translator to Lua, a driver of gcc and g++|Driver/clang.lua
+crt|1.0.0.4|C and C++: the run-time, a driver of gcc and g++|Driver/crt.lua
 gcc|1.0.0.6|C for this device: gcc FILE.c -o PROGRAM, or gcc -run FILE.c; pointers, structs, malloc, stdio, string.h, math.h (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/gcc.lua
 cc|1.0.0.6|the same as gcc|needs:clang crt|Formula/cc.lua
 g++|1.0.0.5|C++ for this device: g++ FILE.cpp -o PROGRAM, or g++ -run FILE.cpp; classes, templates, string, vector, map, iostream (translated to Lua, needs firmware v0.1.14)|needs:clang crt|Formula/g++.lua
 c++|1.0.0.5|the same as g++|needs:clang crt|Formula/c++.lua
-golang|1.0.0.1|Go: the translator to Lua, a driver of the program go|Driver/golang.lua
+golang|1.0.0.2|Go: the translator to Lua, a driver of the program go|Driver/golang.lua
 gort|1.0.0.1|Go: the run-time, a driver of the program go|Driver/gort.lua
 go|1.0.0.2|Go for this device: go run FILE.go, go build FILE.go; structs, interfaces, slices, maps, goroutines, channels, fmt, strings (translated to Lua, needs firmware v0.1.14)|needs:golang gort|Formula/go.lua
-rustlang|1.0.0.1|Rust: the translator to Lua, a driver of the program rustc|Driver/rustlang.lua
-rustrt|1.0.0.1|Rust: the run-time, a driver of the program rustc|Driver/rustrt.lua
+rustlang|1.0.0.2|Rust: the translator to Lua, a driver of the program rustc|Driver/rustlang.lua
+rustrt|1.0.0.2|Rust: the run-time, a driver of the program rustc|Driver/rustrt.lua
 rustc|1.0.0.2|Rust for this device: rustc FILE.rs -o PROGRAM, or rustc -run FILE.rs; structs, enums, traits, iterators, Vec, HashMap, Option, Result (translated to Lua, no borrow checker, needs firmware v0.1.14)|needs:rustlang rustrt|Formula/rustc.lua
 wordfreq|1.0|the most frequent words of a text file: a program in Python|needs:python3|Formula/wordfreq.py
 jscalc|1.0|a calculator: jscalc "2*(3+4)^2", a program in JavaScript|needs:node|Formula/jscalc.js

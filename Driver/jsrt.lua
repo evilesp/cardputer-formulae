@@ -414,6 +414,10 @@ function R.and_(a, f) if T(a) then return f() end return a end
 function R.or_(a, f) if T(a) then return a end return f() end
 function R.nullish(a, f) if a == nil or a == null then return f() end return a end
 function R.if_(c, a, b) if T(c) then return a() end return b() end
+-- && and || whose right side is a plain name or a constant: no closure
+R.fmod = math.fmod
+function R.andv(a, b) if T(a) then return b end return a end
+function R.orv(a, b) if T(a) then return a end return b end
 local function numText(x)
   if x ~= x then return "NaN" end
   if x == math.huge then return "Infinity" elseif x == -math.huge then return "-Infinity" end
@@ -2177,6 +2181,9 @@ local function header()
   names[#names + 1] = "R_or"; values[#values + 1] = "RT.or_"
   names[#names + 1] = "R_if"; values[#values + 1] = "RT.if_"
   names[#names + 1] = "R_in"; values[#values + 1] = "RT.in_"
+  names[#names + 1] = "R_andv"; values[#values + 1] = "RT.andv"
+  names[#names + 1] = "R_orv"; values[#values + 1] = "RT.orv"
+  names[#names + 1] = "R_fmod"; values[#values + 1] = "RT.fmod"
   return "local R_pcall,R_error,table,rawget_env=pcall,error,table,rawget_env\nlocal RT, _ENV = ...\nlocal null=RT.null\nlocal this\nlocal " .. concat(names, ",") .. "=" .. concat(values, ",") .. "\n"
 end
 function R.runSource(src, name, extra)

@@ -565,6 +565,10 @@ R.T = T
 function R.and_(a, f) if T(a) then return f() end return a end
 function R.or_(a, f) if T(a) then return a end return f() end
 function R.if_(c, a, b) if c then return a() end return b() end
+-- the same without closures, when the second part is a plain name or a constant
+function R.andv(a, b) if T(a) then return b end return a end
+function R.orv(a, b) if T(a) then return a end return b end
+function R.ifv(c, a, b) if c then return a end return b end
 
 local eq
 eq = function(a, b)
@@ -621,6 +625,7 @@ local function cmp3(a, b)  -- -1, 0, 1 for sequences
 end
 local function numv(x) if x == true then return 1 elseif x == false then return 0 end return x end
 lt = function(a, b)
+  if mtype(a) and mtype(b) then return a < b end
   a, b = numv(a), numv(b)
   local ta, tb = type_(a), type_(b)
   if (ta == "number" and tb == "number") or (ta == "string" and tb == "string") then return a < b end
@@ -642,6 +647,7 @@ lt = function(a, b)
 end
 R.lt = lt
 function R.gt(a, b)
+  if mtype(a) and mtype(b) then return a > b end
   if type_(a) == "table" and classOf(a) then
     local f = classLookup(getmt(a), "__gt__")
     if f then return T(f(a, b)) end
@@ -649,6 +655,7 @@ function R.gt(a, b)
   return lt(b, a)
 end
 function R.le(a, b)
+  if mtype(a) and mtype(b) then return a <= b end
   a, b = numv(a), numv(b)
   local ta, tb = type_(a), type_(b)
   if (ta == "number" and tb == "number") or (ta == "string" and tb == "string") then return a <= b end
@@ -661,6 +668,7 @@ function R.le(a, b)
   return not lt(b, a)
 end
 function R.ge(a, b)
+  if mtype(a) and mtype(b) then return a >= b end
   if type_(a) == "table" and classOf(a) then
     local f = classLookup(getmt(a), "__ge__")
     if f then return T(f(a, b)) end
@@ -725,7 +733,11 @@ local function addInt(a, b)
 end
 function R.add(a, b)
   local ma, mb = mtype(a), mtype(b)
-  if ma == "integer" and mb == "integer" then return addInt(a, b) end
+  if ma == "integer" and mb == "integer" then
+    local r = a + b
+    if (a ~ r) & (b ~ r) >= 0 then return r end
+    return (a + 0.0) + b
+  end
   if ma and mb then return a + b end
   local ta, tb = type_(a), type_(b)
   if ta == "string" and tb == "string" then return a .. b end
@@ -903,6 +915,12 @@ function R.bxor(a, b)
   return toNum(a) ~ toNum(b)
 end
 function R.iadd(a, b)
+  local ma = mtype(a)
+  if ma == "integer" and mtype(b) == "integer" then
+    local r = a + b
+    if (a ~ r) & (b ~ r) >= 0 then return r end
+    return (a + 0.0) + b
+  elseif ma == "float" and mtype(b) then return a + b end
   if type_(a) == "table" then
     local m = getmt(a)
     if m == List then
@@ -1207,6 +1225,7 @@ function R.GI(o, i)
       local f = classLookup(m, "__getitem__")
       if f then return f(o, i) end
     end
+    if m == R.Range then return R.rangeGI(o, i) end
   elseif t == "string" then
     if mtype(i) == "integer" then return strIndex(o, i) end
     if getmt(i) == Slice then
@@ -1316,6 +1335,7 @@ Super.__index = function(t, k)
 end
 function R.super(c, self) return setmt({ __c = c, __self = self }, Super) end
 local function bind(f, o) return function(...) return f(o, ...) end end
+local plainSA
 
 function R.GA(o, n)
   local t = type_(o)
@@ -1390,6 +1410,8 @@ function R.GA(o, n)
   if n == "__class__" then return builtins.type(o) end
   attrErr(o, n)
 end
+-- the classes whose attributes NAME are stored plainly (no property, no __setattr__), forgotten when a class changes
+plainSA = setmt({}, { __mode = "k" })
 function R.SA(o, n, v)
   if type_(o) ~= "table" then
     if type_(o) == "function" then
@@ -1402,6 +1424,8 @@ function R.SA(o, n, v)
   end
   local m = getmt(o)
   if m and rawget_(m, "__class_mt") then
+    local pc = plainSA[m]
+    if pc and pc[n] then rawset(o, n, v); return end
     local cv = classLookup(m, n)
     if type_(cv) == "table" and getmt(cv) == Property then
       if not cv.set then raise(builtins.AttributeError("can't set attribute '" .. n .. "'")) end
@@ -1410,12 +1434,16 @@ function R.SA(o, n, v)
     end
     local sa = classLookup(m, "__setattr__")
     if sa then sa(o, n, v); return end
+    -- neither a property nor __setattr__: the next time it is a plain store
+    if not pc then pc = {}; plainSA[m] = pc end
+    pc[n] = true
     rawset(o, n, v)
     return
   end
+  if m == TypeMT then plainSA = setmt({}, { __mode = "k" }) end
   o[n] = v
 end
-function R.DA(o, n) rawset(o, n, nil) end
+function R.DA(o, n) if getmt(o) == TypeMT then plainSA = setmt({}, { __mode = "k" }) end rawset(o, n, nil) end
 function R.CM(o, n, ...)
   local t = type_(o)
   if t == "table" then
@@ -2004,6 +2032,18 @@ Range.__repr = function(r)
   if r.c == 1 then return "range(" .. r.a .. ", " .. r.b .. ")" end
   return "range(" .. r.a .. ", " .. r.b .. ", " .. r.c .. ")"
 end
+-- for x in range(a, b, c): the first value, the last one and the step of a numeric for of Lua
+function R.rng(a, b, c)
+  if a == true or a == false then a = a and 1 or 0 end
+  if b == true or b == false then b = b and 1 or 0 end
+  if mtype(a) ~= "integer" or mtype(b) ~= "integer" or mtype(c) ~= "integer" then
+    local bad = mtype(a) ~= "integer" and a or (mtype(b) ~= "integer" and b or c)
+    raise(B.TypeError("'" .. builtins.type(bad).__name__ .. "' object cannot be interpreted as an integer"))
+  end
+  if c == 0 then raise(B.ValueError("range() arg 3 must not be zero")) end
+  if c > 0 then return a, b - 1, c end
+  return a, b + 1, c
+end
 function B.range(a, b, c)
   if b == nil then a, b = 0, a end
   c = c or 1
@@ -2011,16 +2051,13 @@ function B.range(a, b, c)
   if mtype(a) ~= "integer" or mtype(b) ~= "integer" or mtype(c) ~= "integer" then raise(B.TypeError("'float' object cannot be interpreted as an integer")) end
   return setmt({ a = a, b = b, c = c }, Range)
 end
-local oldGI = R.GI
-function R.GI(o, i)
-  if type_(o) == "table" and getmt(o) == Range then
-    local n = Range.__len_(o)
-    if i < 0 then i = i + n end
-    if i < 0 or i >= n then raise(B.IndexError("range object index out of range")) end
-    return o.a + i * o.c
-  end
-  return oldGI(o, i)
+R.rangeGI = function(o, i)
+  local n = Range.__len_(o)
+  if i < 0 then i = i + n end
+  if i < 0 or i >= n then raise(B.IndexError("range object index out of range")) end
+  return o.a + i * o.c
 end
+R.Range = Range
 local oldIn = R.in_
 function R.in_(x, c)
   if type_(c) == "table" and getmt(c) == Range then
@@ -3300,7 +3337,7 @@ local HELPERS = {}
 for _, k in ipairs{ "T", "repr", "str", "fmt", "UNP", "SA", "SI", "DI", "DA", "GA", "GI", "CM", "CMK", "CK", "tuple", "list", "dict", "setlit", "set", "dictlit", "dictmerge",
   "dset", "sadd", "stararg", "concat", "takekw", "kwget", "kwdict", "kwmerge", "def", "named", "gen", "yield", "yieldfrom", "iter", "super", "slice", "pow", "neg", "mul", "div", "idiv",
   "mod", "matmul", "add", "sub", "shl", "shr", "band", "bxor", "bor", "lt", "gt", "le", "ge", "eq", "ne", "notin", "is", "isnot", "iadd", "imul", "exc", "excmatch", "raise",
-  "import", "importall", "class", "classof" } do
+  "import", "importall", "class", "classof", "rng", "andv", "orv", "ifv" } do
   HELPERS[#HELPERS + 1] = k
 end
 local aliases = { and_ = "R_and", or_ = "R_or", if_ = "R_if", in_ = "R_in" }
@@ -3309,7 +3346,7 @@ local function header()
   local names, values = {}, {}
   for _, k in ipairs(HELPERS) do names[#names + 1] = "R_" .. k; values[#values + 1] = "RT." .. k end
   for k, v in pairs(aliases) do names[#names + 1] = v; values[#values + 1] = "RT." .. k end
-  return "local pcall,error=pcall,error\nlocal RT, _ENV = ...\nlocal None=RT.None\nlocal _L=0\nlocal R_curexc\nlocal R_pcall,R_error=pcall,error\nlocal " .. concat(names, ",") .. "=" .. concat(values, ",") .. "\nRT.lineFn=function() return _L end\n"
+  return "local pcall,error,R_rawget=pcall,error,rawget\nlocal RT, _ENV = ...\nlocal None=RT.None\nlocal _L=0\nlocal R_curexc\nlocal R_pcall,R_error=pcall,error\nlocal " .. concat(names, ",") .. "=" .. concat(values, ",") .. "\nRT.lineFn=function() return _L end\n"
 end
 R.header = header
 

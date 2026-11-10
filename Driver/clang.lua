@@ -23,7 +23,13 @@ local OSTREAM, ISTREAM = base("ostream"), base("istream")
 local function ptrTo(t) return { n = "ptr", to = t } end
 local VOIDP = ptrTo(VOID)
 local WRAP = { uint = "0xFFFFFFFF", uint8 = "0xFF", uint16 = "0xFFFF" }
-local function isInt(t) local n = t.n; return n == "int" or n == "char" or n == "long" or n == "uint" or n == "uint8" or n == "uint16" or n == "ulong" or n == "enum" end
+local function isInt(t) local n = t.n; return n == "int" or n == "char" or n == "long" or n == "uint" or n == "uint8" or n == "uint16" or n == "int16" or n == "ulong" or n == "enum" end
+-- the value R kept in the range of the type TN (unsigned types are masked, a signed short wraps around)
+local function wrapTo(tn, r)
+  if WRAP[tn] then return "((" .. r .. ")&" .. WRAP[tn] .. ")" end
+  if tn == "int16" then return "((((" .. r .. ")+32768)&0xFFFF)-32768)" end
+  return r
+end
 local function isFloat(t) return t.n == "double" end
 local function isNum(t) return isInt(t) or isFloat(t) end
 local function isPtr(t) return t.n == "ptr" end
@@ -39,6 +45,8 @@ local CONSTS = { SEEK_SET = { "0", INT }, SEEK_CUR = { "1", INT }, SEEK_END = { 
 
 -- ---- lexer with a small preprocessor ----
 local OPS = { "<<=", ">>=", "...", "->*", "==", "!=", "<=", ">=", "&&", "||", "++", "--", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "->", "::" }
+local OPSET, OPMAX = {}, 2
+for _, o in ipairs(OPS) do OPSET[o] = true; if #o > OPMAX then OPMAX = #o end end
 local ESC = { n = 10, t = 9, r = 13, ["0"] = 0, a = 7, b = 8, f = 12, v = 11, e = 27, ["\\"] = 92, ["'"] = 39, ['"'] = 34, ["?"] = 63 }
 local function lex(src)
   local toks, i, n, line = {}, 1, #src, 1
@@ -166,7 +174,11 @@ local function lex(src)
     else
       atLineStart = false
       local op
-      for _, o in ipairs(OPS) do if src:sub(i, i + #o - 1) == o then op = o; break end end
+      -- the longest operator that starts here: a lookup by length, not a scan of the list
+      for len = OPMAX, 2, -1 do
+        local s = src:sub(i, i + len - 1)
+        if OPSET[s] then op = s; break end
+      end
       op = op or c
       push("op", op)
       i = i + #op
@@ -376,7 +388,8 @@ local function compile(src, isCpp)
         t = (all:find(" unsigned ")) and base("uint8") or CHAR
         if all:find(" int8_t ") then t = INT end
       elseif all:find(" uint8_t ") then t = base("uint8")
-      elseif all:find(" uint16_t ") then t = base("uint16")
+      elseif all:find(" uint16_t ") or (all:find(" short ") and all:find(" unsigned ")) then t = base("uint16")
+      elseif all:find(" short ") or all:find(" int16_t ") then t = base("int16")
       elseif all:find(" uint32_t ") then t = UINT
       elseif all:find(" uint64_t ") or all:find(" size_t ") then t = LONG
       elseif all:find(" bool ") or all:find(" _Bool ") then t = BOOL
@@ -503,6 +516,7 @@ local function compile(src, isCpp)
       elseif from.n == "bool" then r = "(" .. c .. " and 1 or 0)"
       elseif from.n == "auto" then r = c end
       if WRAP[tn] and not (tonumber(c) and tonumber(c) >= 0 and tonumber(c) <= tonumber(WRAP[tn])) then r = "((" .. r .. ")&" .. WRAP[tn] .. ")" end
+      if tn == "int16" and not (tonumber(c) and tonumber(c) >= -32768 and tonumber(c) <= 32767) then r = wrapTo(tn, r) end
       return r
     end
     if tn == "bool" then return toBool(c, from) end
@@ -886,7 +900,7 @@ local function compile(src, isCpp)
         local function sizeOfType(ty)
           local n = ty.n
           if n == "char" or n == "bool" or n == "uint8" then return "1" end
-          if n == "uint16" then return "2" end
+          if n == "uint16" or n == "int16" then return "2" end
           if n == "int" or n == "uint" or n == "enum" then return "4" end
           if n == "long" or n == "double" or n == "ptr" then return "8" end
           if n == "arr" then return "(" .. (ty.len or "0") .. "*" .. sizeOfType(ty.to) .. ")" end
@@ -1240,7 +1254,7 @@ local function compile(src, isCpp)
         else
           local nv = "_o" .. s .. "1"
           local nv2 = c .. s .. "1"
-          if WRAP[t.n] then nv = "(" .. nv .. ")&" .. WRAP[t.n]; nv2 = "(" .. nv2 .. ")&" .. WRAP[t.n] end
+          nv, nv2 = wrapTo(t.n, nv), wrapTo(t.n, nv2)
           postSt = placeSet(c, nv2)
           c = "(function() local _o=" .. c .. " " .. placeSet(c, nv) .. " return _o end)()"
         end
@@ -1253,8 +1267,7 @@ local function compile(src, isCpp)
   local function incStmt(c, t, d)
     if t.n == "ptr" then return c .. "=R.padd(" .. c .. "," .. d .. ")" end
     local nv = c .. (d == 1 and "+1" or "-1")
-    if WRAP[t.n] then nv = "(" .. nv .. ")&" .. WRAP[t.n] end
-    return placeSet(c, nv)
+    return placeSet(c, wrapTo(t.n, nv))
   end
 
   castOrUnary = function()
@@ -1378,6 +1391,8 @@ local function compile(src, isCpp)
     end
     if op == "%" then
       if isF then err("invalid operands to binary % (have floating point)") end
+      -- math.fmod of two integers is C's %; a constant divisor that is not 0 needs no check
+      if math.tointeger(tonumber(b)) and tonumber(b) ~= 0 then return "R_fmod(" .. a .. "," .. b .. ")", rt end
       return "R.imod(" .. a .. "," .. b .. ")", rt
     end
     local e = "(" .. a .. op .. b .. ")"
@@ -1546,6 +1561,10 @@ local function compile(src, isCpp)
       elseif ta.n == "char" and tb.n == "int" then rt = INT end
       if ta.n == "ptr" and tb.n == "ptr" and tb.to == VOID then rt = ta end
       if tb.n == "ptr" and ta.n == "ptr" and ta.to == VOID then rt = tb end
+      -- a number is never false or nil in Lua: "c and a or b" without closures
+      if (isInt(rt) or isFloat(rt)) and (isInt(ta) or isFloat(ta)) then
+        return "(" .. toBool(c, tc) .. " and " .. convert(a, ta, rt) .. " or " .. convert(b, tb, rt) .. ")", rt
+      end
       return "R.iff(" .. toBool(c, tc) .. ",function() return " .. convert(a, ta, rt) .. " end,function() return " .. convert(b, tb, rt) .. " end)", rt
     end
     return c, tc, lv, st
@@ -2740,6 +2759,29 @@ local function splitArgs(inner)
 end
 local function pure(x) return not x:find("function", 1, true) and not x:find("[%w_%]%)]%(") and not x:find("[\"']") end
 function C.optimize(text)
+  -- the library functions are looked up once, at the start (R.libOpt fails only when a missing one is called)
+  local libs, order = {}, {}
+  text = text:gsub('R%.lib%("([%a_][%w_]*)"%)', function(n)
+    if not libs[n] then libs[n] = true; order[#order + 1] = n end
+    return "L_" .. n
+  end)
+  -- *p++ inside an assignment made a closure each time: the pointer is stepped by a statement before it
+  text = text:gsub("([^\n]+)", function(line)
+    local x = line:match("%(function%(%) local _o=([%w_]+) [%w_]+=R%.padd%(_o,1%) return _o end%)%(%)")
+    if not x or not line:match("^[%a_][%w_%.]*=") or line:find(" and ", 1, true) or line:find(" or ", 1, true) then return nil end
+    local pat = "(function() local _o=" .. x .. " " .. x .. "=R.padd(_o,1) return _o end)()"
+    local a = line:find(pat, 1, true)
+    if line:find(pat, a + 1, true) or line:find("function", 1, true) ~= a + 1 then return nil end
+    local rest = line:sub(1, a - 1) .. "_pp" .. line:sub(a + #pat)
+    if rest:find("[^%w_%.]" .. x .. "[^%w_]") then return nil end
+    return "do local _pp=" .. x .. " " .. x .. "=R.padd(_pp,1) " .. rest .. " end"
+  end)
+  local pro = { "local R_fmod=math.fmod" }
+  for k = 1, #order, 150 do
+    local names, vals = {}, {}
+    for j = k, math.min(k + 149, #order) do names[#names + 1] = "L_" .. order[j]; vals[#vals + 1] = 'R.libOpt("' .. order[j] .. '")' end
+    pro[#pro + 1] = "local " .. table.concat(names, ",") .. "=" .. table.concat(vals, ",")
+  end
   -- i++ as a statement made a closure for every round of a loop
   text = text:gsub("local _=%(function%(%) local _o=([%w_%.]+) ([%w_%.]+)=_o([%+%-])1 return _o end%)%(%)", function(a, b, op)
     if a == b then return a .. "=" .. a .. op .. "1" end
@@ -2771,13 +2813,63 @@ function C.optimize(text)
     end
     pos = done and a or b + 1
   end
+  return table.concat(pro, "\n") .. "\n" .. text
+end
+
+-- ---------------------------------------------------------------- translation cache, LANG_DUMP and LANG_TIME
+-- The Lua text of a program is kept in /var/cache/lang (LANG_CACHE=DIR elsewhere, LANG_CACHE=off not at all): one file per source path,
+-- used while the source text and this translator (its version, the size and date of its file) stay the same. LANG_DUMP=FILE writes
+-- the Lua text to FILE; LANG_TIME=1 prints how long the translation and the run took (to stderr).
+local LC = { clock = os.clock or function() return 0 end, translate = 0 }
+local function lcEnv(k) return os.getenv and os.getenv(k) end
+local function lcHash(s)
+  local h1, h2, byte, n, i = 0x811c9dc5, #s, string.byte, #s, 1
+  while i + 7 <= n do
+    local a, b, c, d, e, f, g, k = byte(s, i, i + 7)
+    h1 = ((h1 ~ (a | b << 8 | c << 16 | d << 24)) * 16777619) & 0xffffffff
+    h2 = ((h2 ~ (e | f << 8 | g << 16 | k << 24) ~ (h1 >> 7)) * 2246822519) & 0xffffffff
+    i = i + 8
+  end
+  for j = i, n do h1 = ((h1 ~ byte(s, j)) * 16777619) & 0xffffffff end
+  return string.format("%08x%08x", h1, h2)
+end
+-- the text of SRC (a file NAME) translated by TRANSLATE(), from the cache when it can be
+function LC.get(tag, version, name, src, translate)
+  local t0 = LC.clock()
+  local dir = lcEnv("LANG_CACHE") or "/var/cache/lang"
+  local file, stamp, text
+  if dir ~= "off" and #src >= 200 and fs and fs.read and fs.write then
+    local st = fs.stat and fs.stat((lcEnv("DRIVER_DIR") or "/usr/local/lib/drivers") .. "/" .. tag .. ".lua")
+    stamp = "-- " .. version .. " " .. (type(st) == "table" and (tostring(st.size) .. "." .. tostring(st.mtime)) or "-") .. " " .. #src .. " " .. lcHash(src) .. "\n"
+    file = dir .. "/" .. tag .. "-" .. lcHash(name) .. ".lua"
+    local old = fs.read(file)
+    if old and old:sub(1, #stamp) == stamp then text = old:sub(#stamp + 1) end
+  end
+  if not text then
+    text = translate()
+    if file and not fs.write(file, stamp .. text) and fs.mkdir then
+      pcall(fs.mkdir, dir, true)
+      fs.write(file, stamp .. text)
+    end
+  end
+  local dump = lcEnv("LANG_DUMP")
+  if dump and fs and fs.write then fs.write(dump, text) end
+  LC.translate = LC.translate + (LC.clock() - t0)
   return text
+end
+function LC.report(t0)
+  if lcEnv("LANG_TIME") then
+    local line = string.format("lang-time translate %.4f run %.4f\n", LC.translate, LC.clock() - t0 - LC.translate)
+    if io and io.stderr then io.stderr:write(line) else print(line) end
+  end
 end
 
 C.compile = compile
+C.VERSION = "1.0.0.6"
 
 function C.main(args, isCpp)
   local rt = driver.load("crt")
+  local t0 = LC.clock()
   local inputs, outPath, run, compileOnly = {}, nil, false, false
   local i = 1
   while args[i] do
@@ -2827,12 +2919,14 @@ function C.main(args, isCpp)
     end
   end
   local cpp = isCpp or path:match("%.cpp$") or path:match("%.cc$") or path:match("%.cxx$")
-  local ok, text = pcall(compile, src, cpp)
+  local ok, text = pcall(LC.get, "clang", C.VERSION, path .. (cpp and " c++" or ""), src, function() return compile(src, cpp) end)
   if not ok then return report(path, text) end
   if run then
     local progArgs = {}
     for k = 1, #inputs do progArgs[k] = inputs[k] end
-    return rt.run(text, progArgs)
+    local code = rt.run(text, progArgs)
+    LC.report(t0)
+    return code
   end
   outPath = outPath or "a.out"
   local program = '#!lua\nlocal rt = driver.load("crt")\nlocal text = ' .. string.format("%q", text):gsub("\\\n", "\\n") .. "\nlocal a = {" .. string.format("%q", outPath) .. "}\nfor i, v in ipairs(arg) do a[i + 1] = v end\nrt.run(text, a)\n"

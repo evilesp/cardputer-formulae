@@ -155,6 +155,7 @@ function R.div(a, b)
   return a / b
 end
 function R.rem(a, b)
+  if mtype(a) == "integer" and mtype(b) == "integer" and b ~= 0 then return math.fmod(a, b) end
   a, b = arith(a), arith(b)
   if mtype(a) == "integer" and mtype(b) == "integer" then
     if b == 0 then panic("attempt to calculate the remainder with a divisor of zero") end
@@ -186,6 +187,14 @@ function R.not_(a)
   return not a
 end
 function R.toInt(v, bits, signed)
+  if mtype(v) == "integer" then
+    -- the common case: an integer that already fits
+    if bits >= 64 then return v end
+    if signed then
+      local h = 1 << (bits - 1)
+      if v < h and v >= -h then return v end
+    elseif v >= 0 and v < (1 << bits) then return v end
+  end
   v = arith(v)
   local t = type_(v)
   if t == "string" then v = utf8.codepoint(v)
@@ -226,6 +235,7 @@ R.consts = { PI = math.pi, E = math.exp(1), TAU = 2 * math.pi, SQRT_2 = math.sqr
 local smt = getmt("")
 smt.__add = function(a, b) return tostring(a) .. d(b) end
 function R.addAssign(a, b)
+  if mtype(a) and mtype(b) then return a + b end
   if type_(a) == "table" then
     local m = getmt(a)
     if m == Ref then return a.get() + arith(b) end
@@ -827,6 +837,10 @@ function Vec.iter_mut(v)
   end)
 end
 function R.idx(v, i)
+  if getmt(v) == Vec and mtype(i) == "integer" then
+    local x = v[i + 1]
+    if x ~= nil and i >= 0 then return x end
+  end
   v = d(v)
   local t = type_(v)
   if t == "table" then

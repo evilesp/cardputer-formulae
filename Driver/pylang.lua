@@ -66,7 +66,7 @@ local function lex(src)
       end
     else
       local c = src:sub(i, i)
-      if c == " " or c == "\t" or c == "\r" then i = i + 1
+      if c == " " or c == "\t" or c == "\r" then i = (src:find("[^ \t\r]", i + 1) or n + 1)
       elseif c == "\n" then
         if depth == 0 then push("nl"); bol = true end
         line = line + 1; i = i + 1
@@ -74,8 +74,8 @@ local function lex(src)
         i = src:find("\n", i, true) + 1; line = line + 1
       elseif c == "#" then i = src:find("\n", i, true) or n + 1
       elseif c:find("[%a_\128-\255]") or c:find("%d") == nil and false then
-        local j = i
-        while src:sub(j, j):find("[%w_\128-\255]") and j <= n do j = j + 1 end
+        -- a word in one find (not a find per character)
+        local j = select(2, src:find("^[%w_\128-\255]*", i)) + 1
         local w = src:sub(i, j - 1)
         local q = src:sub(j, j)
         if (q == '"' or q == "'") and #w <= 2 and w:lower():find("^[rbfu]+$") then
@@ -87,6 +87,7 @@ local function lex(src)
           local from = i + #close
           local k = from
           while true do
+            k = src:find(q == '"' and '[\\"]' or "[\\']", k) or n + 1
             local d = src:sub(k, k)
             if k > n then syntaxError("unterminated string literal", line) end
             if d == "\\" then k = k + 2
@@ -127,6 +128,7 @@ local function lex(src)
         local from = i + #close
         local k = from
         while true do
+          k = src:find(c == '"' and '[\\"\n]' or "[\\'\n]", k) or n + 1
           local d = src:sub(k, k)
           if k > n or (d == "\n" and not triple) then syntaxError("unterminated string literal", line) end
           if d == "\\" then k = k + 2
@@ -152,12 +154,232 @@ local function lex(src)
   return toks
 end
 
+-- ---------------------------------------------------------------- names that always hold numbers
+-- A name of a function (or of the module) is a number when every assignment to it gives one: number literals, such names, + - * / // %
+-- ** of them, len() int() float() ord() of anything, abs() round() min() max() of numbers, the variable of a for over range(). The
+-- translator then writes plain Lua arithmetic for it, with a range check that keeps Python's results (big integers become floats).
+local NUMFN = { len = "any", int = "any", float = "any", ord = "any", abs = "num", round = "num", min = "num", max = "num" }
+local NUMOP = { ["+"] = 1, ["-"] = 1, ["*"] = 1, ["/"] = 1, ["//"] = 1, ["%"] = 1, ["**"] = 1, ["("] = 1, [")"] = 1, ["~"] = 1, ["<<"] = 1, [">>"] = 1, ["&"] = 1, ["|"] = 1, ["^"] = 1 }
+local AUGNUM = { ["+="] = 1, ["-="] = 1, ["*="] = 1, ["/="] = 1, ["//="] = 1, ["%="] = 1, ["**="] = 1 }
+local OPEN, CLOSE = { ["("] = 1, ["["] = 1, ["{"] = 1 }, { [")"] = 1, ["]"] = 1, ["}"] = 1 }
+
+-- the builtins that the program gives another meaning (then their results are not known), and the names of global/nonlocal statements
+local function programFacts(toks)
+  local shadow, outer = {}, {}
+  local SAFE = { math = 1, random = 1, time = 1, string = 1, os = 1, sys = 1 }
+  for i, t in ipairs(toks) do
+    local prev, nx = toks[i - 1], toks[i + 1]
+    if t.t == "name" and (NUMFN[t.v] or t.v == "range") then
+      if (nx and nx.t == "op" and (nx.v == "=" or nx.v == ",")) or (prev and (prev.t == "kw" and (prev.v == "def" or prev.v == "class" or prev.v == "as" or prev.v == "import" or prev.v == "for" or prev.v == "global" or prev.v == "nonlocal"))) then shadow[t.v] = true end
+    elseif t.t == "kw" and (t.v == "global" or t.v == "nonlocal") then
+      local j = i + 1
+      while toks[j] and toks[j].t == "name" do outer[toks[j].v] = true; j = j + (toks[j + 1] and toks[j + 1].v == "," and 2 or 1) end
+    elseif t.t == "op" and t.v == "*" and prev and prev.t == "kw" and prev.v == "import" then
+      local m = toks[i - 2]
+      if not (m and m.t == "name" and SAFE[m.v]) then for k in pairs(NUMFN) do shadow[k] = true end shadow.range = true end
+    end
+  end
+  return shadow, outer
+end
+
+-- the tokens P1..P2-1 always give a number when the names in N are numbers
+local function numericSpan(toks, p1, p2, N, shadow)
+  if p1 >= p2 then return false end
+  local p = p1
+  while p < p2 do
+    local t = toks[p]
+    local nx = toks[p + 1]
+    if t.t == "num" then
+      if nx and nx.t == "op" and nx.v == "." then return false end
+    elseif t.t == "name" then
+      local kind = NUMFN[t.v]
+      local call = nx and nx.t == "op" and p + 1 < p2 and (nx.v == "(" or nx.v == "[" or nx.v == ".")
+      if call then
+        if not (kind and not shadow[t.v] and nx.v == "(") then return false end
+        local d, q = 0, p + 1
+        repeat
+          local x = toks[q]
+          if x.t == "op" then if OPEN[x.v] then d = d + 1 elseif CLOSE[x.v] then d = d - 1 end end
+          q = q + 1
+        until d == 0 or q >= p2
+        if d ~= 0 then return false end
+        if kind == "num" then
+          local s, d2 = p + 2, 0
+          for r = p + 2, q - 2 do
+            local x = toks[r]
+            if x.t == "op" then
+              if OPEN[x.v] then d2 = d2 + 1 elseif CLOSE[x.v] then d2 = d2 - 1
+              elseif d2 == 0 and x.v == "," then
+                if not numericSpan(toks, s, r, N, shadow) then return false end
+                s = r + 1
+              elseif x.v == "=" then return false end
+            end
+          end
+          if not numericSpan(toks, s, q - 1, N, shadow) then return false end
+        end
+        p = q - 1
+      elseif not N[t.v] then return false end
+    elseif t.t == "op" and NUMOP[t.v] then
+      if t.v == "(" and nx and nx.t == "op" and nx.v == ")" then return false end
+    else return false end
+    p = p + 1
+  end
+  return true
+end
+
+-- the number names of one scope: its statements from token A to B-1 (the bodies of def and class inside are other scopes)
+local function numericScan(toks, a, b, shadow, outer, params)
+  local assigns, bad, assigned = {}, {}, {}
+  local function add(n, p1, p2, kind) assigns[#assigns + 1] = { n = n, p1 = p1, p2 = p2, kind = kind }; assigned[n] = true end
+  local function badNames(p1, p2) for q = p1, p2 - 1 do if toks[q].t == "name" then bad[toks[q].v] = true; assigned[toks[q].v] = true end end end
+  for q = a, b - 1 do
+    local t = toks[q]
+    if t.t == "op" and t.v == ":=" and toks[q - 1].t == "name" then bad[toks[q - 1].v] = true end
+  end
+  -- the end of the simple statement at Q (the token nl or ;), and the colon that ends the header of a compound statement
+  local function stmtEnd(q)
+    local d = 0
+    while q < b do
+      local t = toks[q]
+      if t.t == "nl" or t.t == "eof" then return q end
+      if t.t == "op" then
+        if OPEN[t.v] then d = d + 1 elseif CLOSE[t.v] then d = d - 1 elseif t.v == ";" and d == 0 then return q end
+      end
+      q = q + 1
+    end
+    return b
+  end
+  local function headerColon(q)
+    local d, lambdas = 0, 0
+    while q < b do
+      local t = toks[q]
+      if t.t == "nl" then return nil end
+      if t.t == "kw" and t.v == "lambda" then lambdas = lambdas + 1 end
+      if t.t == "op" then
+        if OPEN[t.v] then d = d + 1 elseif CLOSE[t.v] then d = d - 1
+        elseif t.v == ":" and d == 0 then
+          if lambdas == 0 then return q end
+          lambdas = lambdas - 1
+        end
+      end
+      q = q + 1
+    end
+  end
+  local function blockAfter(colon)  -- the token after the body that follows a header colon
+    if toks[colon + 1] and toks[colon + 1].t == "nl" then
+      local q, depth = colon + 3, 1
+      while q < b and depth > 0 do
+        local t = toks[q]
+        if t.t == "indent" then depth = depth + 1 elseif t.t == "dedent" then depth = depth - 1 end
+        q = q + 1
+      end
+      return q
+    end
+    return stmtEnd(colon + 1) + 1
+  end
+  local p = a
+  while p < b do
+    local t = toks[p]
+    if t.t == "nl" or t.t == "indent" or t.t == "dedent" or (t.t == "op" and t.v == ";") then p = p + 1
+    elseif t.t == "op" and t.v == "@" then p = stmtEnd(p) + 1
+    elseif t.t == "kw" and (t.v == "def" or t.v == "class") then
+      if toks[p + 1].t == "name" then bad[toks[p + 1].v] = true; assigned[toks[p + 1].v] = true end
+      local c = headerColon(p)
+      p = c and blockAfter(c) or stmtEnd(p) + 1
+    elseif t.t == "kw" and (t.v == "if" or t.v == "elif" or t.v == "else" or t.v == "while" or t.v == "for" or t.v == "with" or t.v == "try"
+        or t.v == "except" or t.v == "finally" or t.v == "async") then
+      local c = headerColon(p)
+      if not c then p = stmtEnd(p) + 1
+      else
+        if t.v == "for" or (t.v == "async" and toks[p + 1].v == "for") then
+          local f = t.v == "for" and p or p + 1
+          local q, d = f + 1, 0
+          while q < c and not (d == 0 and toks[q].t == "kw" and toks[q].v == "in") do
+            local x = toks[q]
+            if x.t == "op" then if OPEN[x.v] then d = d + 1 elseif CLOSE[x.v] then d = d - 1 end end
+            q = q + 1
+          end
+          local r = toks[q + 1]
+          if q == f + 2 and toks[f + 1].t == "name" and r and r.t == "name" and r.v == "range" and not shadow.range and toks[q + 2].v == "(" and toks[c - 1].v == ")" then
+            -- the parenthesis that opens at q+2 closes just before the colon
+            local d2, z = 0, q + 2
+            repeat
+              local x = toks[z]
+              if x.t == "op" then if OPEN[x.v] then d2 = d2 + 1 elseif CLOSE[x.v] then d2 = d2 - 1 end end
+              z = z + 1
+            until d2 == 0 or z >= c
+            if z == c then add(toks[f + 1].v, nil, nil, "range") else bad[toks[f + 1].v] = true; assigned[toks[f + 1].v] = true end
+          else badNames(f + 1, q) end
+        elseif t.v == "with" or t.v == "except" then
+          for q = p, c do if toks[q].t == "kw" and toks[q].v == "as" then badNames(q + 1, q + 2) end end
+        end
+        p = c + 1
+      end
+    elseif t.t == "kw" and (t.v == "import" or t.v == "from" or t.v == "global" or t.v == "nonlocal" or t.v == "del") then
+      local e = stmtEnd(p)
+      badNames(p, e)
+      p = e + 1
+    else
+      local e = stmtEnd(p)
+      local eqs, aug, d = {}, nil, 0
+      for q = p, e - 1 do
+        local x = toks[q]
+        if x.t == "op" then
+          if OPEN[x.v] then d = d + 1 elseif CLOSE[x.v] then d = d - 1
+          elseif d == 0 and x.v == "=" then eqs[#eqs + 1] = q
+          elseif d == 0 and not aug and #eqs == 0 and x.v:sub(-1) == "=" and #x.v >= 2 and x.v ~= "==" and x.v ~= "<=" and x.v ~= ">=" and x.v ~= "!=" then aug = q end
+        elseif x.t == "kw" and x.v == "lambda" then break end
+      end
+      if #eqs > 0 then
+        local s = p
+        for _, q in ipairs(eqs) do
+          local first, second = toks[s], toks[s + 1]
+          if first.t == "name" and (s + 1 == q or (second.t == "op" and second.v == ":")) then add(first.v, eqs[#eqs] + 1, e)
+          elseif first.t == "name" and second.t == "op" and (second.v == "." or second.v == "[") then
+            local tuple = false
+            local d3 = 0
+            for z = s, q - 1 do
+              local x = toks[z]
+              if x.t == "op" then if OPEN[x.v] then d3 = d3 + 1 elseif CLOSE[x.v] then d3 = d3 - 1 elseif x.v == "," and d3 == 0 then tuple = true end end
+            end
+            if tuple then badNames(s, q) end
+          else badNames(s, q) end
+          s = q + 1
+        end
+      elseif aug then
+        if aug == p + 1 and toks[p].t == "name" then add(toks[p].v, aug + 1, e, toks[aug].v) end
+      end
+      p = e + 1
+    end
+  end
+  local N = {}
+  for _, as in ipairs(assigns) do N[as.n] = true end
+  for n in pairs(N) do if bad[n] or outer[n] or (params and params[n]) then N[n] = nil end end
+  repeat
+    local changed = false
+    for _, as in ipairs(assigns) do
+      if N[as.n] then
+        local ok
+        if as.kind == "range" then ok = true
+        elseif as.kind then ok = AUGNUM[as.kind] and numericSpan(toks, as.p1, as.p2, N, shadow)
+        else ok = numericSpan(toks, as.p1, as.p2, N, shadow) end
+        if not ok then N[as.n] = nil; changed = true end
+      end
+    end
+  until not changed
+  return N, assigned
+end
+
 -- ---------------------------------------------------------------- compiler
 local function compile(src, chunkName)
   local toks, pos = lex(src), 1
   local tok = toks[1]
   local out = {}
   local scope = { kind = "module", locals = {}, globals = {}, closure = 0 }
+  local shadow, outerNames = programFacts(toks)
+  scope.nums, scope.assigned = numericScan(toks, 1, #toks, shadow, outerNames)
+  -- texts of expressions known to be numbers (the value is the scope they belong to, or true for a literal), their bound, and/or parts
+  local NUM, BND, ANDOR = {}, {}, {}
   local loops = {}
   local labelN, tmpN = 0, 0
   local lastLv
@@ -189,6 +411,66 @@ local function compile(src, chunkName)
   local function nameRef(n)
     if scope.kind == "class" and scope.locals[n] then return "c_" .. n end
     return mangle(n)
+  end
+  -- is the name N (as read here) one of the number names of the scope it belongs to
+  local function numName(n)
+    if scope.kind == "class" then return false end
+    local s = scope
+    while s do
+      if s.kind ~= "class" then
+        if s.globals[n] then return false end
+        if (s.params and s.params[n]) or s.locals[n] or (s.assigned and s.assigned[n]) then return s.nums and s.nums[n] or false end
+      end
+      s = s.parent
+    end
+    return false
+  end
+  local function isNum(c) local v = NUM[c]; return v == true or (v ~= nil and v == scope) end
+  local function markNum(c, bound) NUM[c] = scope; BND[c] = bound; return c end
+  local function intLit(c) return c:match("^%d+$") and math.tointeger(tonumber(c)) end
+  local function floatLit(c) return c:match("^[%d%.]+[eE]?[%-+]?%d*$") and c:find("[%.eE]") and tonumber(c) end
+  local function simpleT(c) return c:match("^[%a_][%w_]*$") or intLit(c) end
+  local B62, B61 = 4611686018427387904, 2305843009213693952
+  -- Lua for "a OP b" when both are numbers: plain arithmetic, with a range check where an integer could overflow (then the helper
+  -- makes a float of it as before). Nil when one of them is not known to be a number.
+  local HELPER = { ["+"] = "R_add", ["-"] = "R_sub", ["*"] = "R_mul", ["/"] = "R_div", ["//"] = "R_idiv", ["%"] = "R_mod", ["**"] = "R_pow" }
+  local function numBin(op, a, b)
+    if not (isNum(a) and isNum(b)) then return nil end
+    local ba, bb = BND[a], BND[b]
+    local fa, fb = floatLit(a), floatLit(b)
+    local helper = HELPER[op] and (HELPER[op] .. "(" .. a .. "," .. b .. ")")
+    local exact = "(" .. a .. op .. b .. ")"
+    if op == "+" or op == "-" or op == "*" then
+      if fa or fb then return markNum(exact) end
+      local conds = {}
+      local function need(x, L)
+        if not simpleT(x) then return false end
+        local c = x .. "<" .. L .. " and " .. x .. ">-" .. L
+        if conds[1] ~= c then conds[#conds + 1] = c end
+        return true
+      end
+      if op == "*" then
+        if ba and bb and (ba == 0 or bb <= math.maxinteger // ba) then return markNum(exact, ba * bb) end
+        local ok
+        if ba and ba < B62 then ok = need(b, B62 // math.max(ba, 1))
+        elseif bb and bb < B62 then ok = need(a, B62 // math.max(bb, 1))
+        else ok = need(a, 2147483648) and need(b, 2147483648) end
+        if not ok then return markNum(helper) end
+      else
+        -- an integer result stays below 2^63 when the bounds add up to less
+        if ba and bb and ba <= math.maxinteger - bb then return markNum(exact, ba + bb) end
+        if not ((ba and ba < B61) or need(a, B61)) or not ((bb and bb < B61) or need(b, B61)) then return markNum(helper) end
+      end
+      -- the checked form: an integer result is below 2^62 (a float needs no bound)
+      return markNum("((" .. table.concat(conds, " and ") .. ") and " .. exact .. " or " .. helper .. ")", B62)
+    end
+    local kb = intLit(b) or fb
+    if (op == "%" or op == "//" or op == "/") and kb and kb ~= 0 then
+      local bound
+      if op == "%" and intLit(b) then bound = kb elseif op == "//" and ba and intLit(b) then bound = ba // kb + 1 end
+      return markNum(exact, bound)
+    end
+    return helper and markNum(helper) or nil
   end
 
   local testExpr, testList, parseLambda, suite, statement, comprehension, parseArgsCall
@@ -272,7 +554,7 @@ local function compile(src, chunkName)
   end
 
   -- a function: parameters, body; returns the Lua text of a function value
-  local function functionBody(params, parseBody, isMethodClass)
+  local function functionBody(params, parseBody, isMethodClass, bodyFrom, bodyTo)
     local saved, savedLoops = scope, loops
     scope = { kind = "function", locals = {}, globals = {}, closure = 0, parent = saved, first = params.names[1], cls = isMethodClass }
     loops = {}
@@ -282,6 +564,8 @@ local function compile(src, chunkName)
     if params.star then paramSet[params.star] = true end
     if params.kwstar then paramSet[params.kwstar] = true end
     for _, p in ipairs(params.kwonly) do paramSet[p] = true end
+    scope.params = paramSet
+    if bodyFrom then scope.nums, scope.assigned = numericScan(toks, bodyFrom, bodyTo, shadow, outerNames, paramSet) end
     local body = capture(parseBody)
     local locals = {}
     for n in pairs(scope.locals) do if not paramSet[n] then locals[#locals + 1] = mangle(n) end end
@@ -458,8 +742,15 @@ local function compile(src, chunkName)
     if t.t == "name" then
       adv()
       lastLv = { k = "name", n = t.v }
-      return nameRef(t.v)
-    elseif t.t == "num" then adv(); return t.v
+      local r = nameRef(t.v)
+      if numName(t.v) then markNum(r) end
+      return r
+    elseif t.t == "num" then
+      adv()
+      local v = math.tointeger(tonumber(t.v))
+      NUM[t.v] = true
+      BND[t.v] = v and math.abs(v) or nil
+      return t.v
     elseif t.t == "str" then
       adv()
       local s = t.v
@@ -513,6 +804,8 @@ local function compile(src, chunkName)
         local lv = lastLv
         expectOp(")")
         lastLv = lv
+        if isNum(first) then return markNum("(" .. first .. ")", BND[first]) end
+        if ANDOR[first] then ANDOR["(" .. first .. ")"] = ANDOR[first] end
         return "(" .. first .. ")"
       elseif t.v == "[" then
         adv()
@@ -670,7 +963,12 @@ local function compile(src, chunkName)
           lastLv = nil
         else
           lastLv = { k = "attr", o = code, n = n }
-          code = "R_GA(" .. code .. "," .. str(n) .. ")"
+          if code == "self" and scope.cls and scope.first == "self" then
+            -- self of a method is an instance: its own attributes are read straight (false and missing go to the helper)
+            code = "(R_rawget(self," .. str(n) .. ") or R_GA(self," .. str(n) .. "))"
+          else
+            code = "R_GA(" .. code .. "," .. str(n) .. ")"
+          end
         end
         isCallName = nil
       elseif isOp("(") then
@@ -736,7 +1034,13 @@ local function compile(src, chunkName)
     return a
   end
   local function unary()
-    if isOp("-") then adv(); local c = unary(); lastLv = nil; return "R_neg(" .. c .. ")" end
+    if isOp("-") then
+      adv()
+      local c = unary()
+      lastLv = nil
+      if isNum(c) then return markNum("(-" .. c .. ")", BND[c]) end
+      return "R_neg(" .. c .. ")"
+    end
     if isOp("+") then adv(); local c = unary(); lastLv = nil; return c end
     if isOp("~") then adv(); local c = unary(); lastLv = nil; return "(~" .. c .. ")" end
     return power()
@@ -746,10 +1050,16 @@ local function compile(src, chunkName)
     return function()
       local a = next_()
       while tok.t == "op" and ops[tok.v] do
-        local f = ops[tok.v]
+        local f, op = ops[tok.v], tok.v
         adv()
         local b = next_()
-        a = f .. "(" .. a .. "," .. b .. ")"
+        local fast = numBin(op, a, b)
+        if fast then a = fast
+        else
+          local both = isNum(a) and isNum(b)
+          a = f .. "(" .. a .. "," .. b .. ")"
+          if both and op ~= "@" then markNum(a) end
+        end
         lastLv = nil
       end
       return a
@@ -782,6 +1092,8 @@ local function compile(src, chunkName)
     lastLv = nil
     local b = bitor()
     local g = cmpOp()
+    local LUACMP = { R_lt = "<", R_gt = ">", R_le = "<=", R_ge = ">=", R_eq = "==", R_ne = "~=" }
+    if not g and LUACMP[f] and isNum(a) and isNum(b) then lastLv = nil; return mkBool("(" .. a .. LUACMP[f] .. b .. ")") end
     if not g then lastLv = nil; return mkBool(f .. "(" .. a .. "," .. b .. ")") end
     -- a chain: a < b < c, each middle once
     local parts = { "local _a=" .. a, "local _b=" .. b, "if not " .. f .. "(_a,_b) then return false end" }
@@ -797,6 +1109,9 @@ local function compile(src, chunkName)
   end
   local function cond(c)
     if isBool(c) then return c end
+    local ao = ANDOR[c]
+    if ao then return "(" .. cond(ao[2]) .. " " .. ao[1] .. " " .. cond(ao[3]) .. ")" end
+    if isNum(c) then return "(" .. c .. "~=0)" end
     return "R_T(" .. c .. ")"
   end
   P._cond = cond
@@ -810,7 +1125,7 @@ local function compile(src, chunkName)
     return comparison()
   end
   P._notTest = notTest
-  local function isSimple(c) return c:match("^[%a_][%w_]*$") or tonumber(c) or c == "None" end
+  local function isSimple(c) return c:match("^[%a_][%w_]*$") or tonumber(c) or c == "None" or c:match('^"[^"]*"$') end
   local function andTest()
     local a = notTest()
     while isKw("and") do
@@ -818,7 +1133,11 @@ local function compile(src, chunkName)
       local b = notTest()
       lastLv = nil
       if isBool(a) and isBool(b) then a = mkBool("(" .. a .. " and " .. b .. ")")
-      else a = "R_and(" .. a .. ",function() return " .. b .. " end)" end
+      else
+        local whole = isSimple(b) and ("R_andv(" .. a .. "," .. b .. ")") or ("R_and(" .. a .. ",function() return " .. b .. " end)")
+        ANDOR[whole] = { "and", a, b }
+        a = whole
+      end
     end
     return a
   end
@@ -829,7 +1148,11 @@ local function compile(src, chunkName)
       local b = andTest()
       lastLv = nil
       if isBool(a) and isBool(b) then a = mkBool("(" .. a .. " or " .. b .. ")")
-      else a = "R_or(" .. a .. ",function() return " .. b .. " end)" end
+      else
+        local whole = isSimple(b) and ("R_orv(" .. a .. "," .. b .. ")") or ("R_or(" .. a .. ",function() return " .. b .. " end)")
+        ANDOR[whole] = { "or", a, b }
+        a = whole
+      end
     end
     return a
   end
@@ -855,6 +1178,13 @@ local function compile(src, chunkName)
       expectKw("else")
       local b = testExpr()
       lastLv = nil
+      -- a value that is never false in Lua can stand in "c and a or b"
+      if isNum(a) or a:sub(1, 1) == '"' or a == "None" or a == "true" then
+        local r = "(" .. c .. " and " .. a .. " or " .. b .. ")"
+        if isNum(a) and isNum(b) then markNum(r) end
+        return r
+      end
+      if isSimple(a) and isSimple(b) then return "R_ifv(" .. c .. "," .. a .. "," .. b .. ")" end
       return "R_if(" .. c .. ",function() return " .. a .. " end,function() return " .. b .. " end)"
     end
     return a
@@ -1140,7 +1470,20 @@ local function compile(src, chunkName)
     expectOp(")")
     if acceptOp("->") then testExpr() end
     local isMethod = scope.kind == "class"
-    local f = functionBody(params, function() suite() end, isMethod)
+    -- the body: from the colon to the end of its block
+    local bodyTo = pos + 1
+    if toks[pos + 1] and toks[pos + 1].t == "nl" then
+      local depth = 0
+      bodyTo = pos + 2
+      repeat
+        local x = toks[bodyTo]
+        if x.t == "indent" then depth = depth + 1 elseif x.t == "dedent" then depth = depth - 1 end
+        bodyTo = bodyTo + 1
+      until depth == 0 or x.t == "eof"
+    else
+      while toks[bodyTo].t ~= "nl" and toks[bodyTo].t ~= "eof" do bodyTo = bodyTo + 1 end
+    end
+    local f = functionBody(params, function() suite() end, isMethod, pos + 1, bodyTo)
     -- the name of the function, for repr and __name__
     local text = "R_named(" .. f .. "," .. str(n) .. ")"
     for i = #decorators, 1, -1 do text = decorators[i] .. "(" .. text .. ")" end
@@ -1213,7 +1556,21 @@ local function compile(src, chunkName)
           return { k = "tuple", items = items }
         end)()
         expectKw("in")
-        local src = testList()
+        -- for x in range(...): a numeric for of Lua (range() is not made)
+        local rangeArgs
+        if tok.t == "name" and tok.v == "range" and not shadow.range and toks[pos + 1].v == "(" then
+          local save = pos
+          adv(); adv()
+          local args = {}
+          while not isOp(")") do
+            if isOp("*") then break end
+            args[#args + 1] = testExpr()
+            if not acceptOp(",") then break end
+          end
+          if acceptOp(")") and isOp(":") and #args >= 1 and #args <= 3 then rangeArgs = args
+          else pos = save; tok = toks[pos] end
+        end
+        local src = not rangeArgs and testList()
         local v_ = tmp()
         local rec
         local text = capture(function()
@@ -1226,10 +1583,28 @@ local function compile(src, chunkName)
           flag = tmp()
           emit("do local " .. flag .. "=true")
         end
-        emit("for " .. v_ .. " in R_iter(" .. src .. ") do")
+        local closeExtra = false
+        if rangeArgs then
+          local a, b, c = rangeArgs[1], rangeArgs[2], rangeArgs[3]
+          if not b then a, b = "0", a end
+          local ia, ib, ic = intLit(a), intLit(b), c and intLit(c) or (not c and 1)
+          local na, nb, nc = a:match("^%(%-(%d+)%)$"), b:match("^%(%-(%d+)%)$"), c and c:match("^%(%-(%d+)%)$")
+          ia = ia or (na and -math.tointeger(tonumber(na))); ib = ib or (nb and -math.tointeger(tonumber(nb))); ic = ic or (nc and -math.tointeger(tonumber(nc)))
+          if ia and ib and ic and ic ~= 0 then
+            emit("for " .. v_ .. " = " .. ia .. "," .. (ic > 0 and ib - 1 or ib + 1) .. (ic ~= 1 and ("," .. ic) or "") .. " do")
+          else
+            local r1, r2, r3 = tmp(), tmp(), tmp()
+            emit("do local " .. r1 .. "," .. r2 .. "," .. r3 .. " = R_rng(" .. a .. "," .. b .. "," .. (c or "1") .. ")")
+            emit("for " .. v_ .. " = " .. r1 .. "," .. r2 .. "," .. r3 .. " do")
+            closeExtra = true
+          end
+        else
+          emit("for " .. v_ .. " in R_iter(" .. src .. ") do")
+        end
         emit(flag and (text:gsub("BF_" .. label .. "=", flag .. "=")) or text)
         emit("::" .. label .. "::")
         emit("end")
+        if closeExtra then emit("end") end
         if flag then
           emit("if " .. flag .. " then")
           suite()
@@ -1395,11 +1770,14 @@ local function compile(src, chunkName)
         local F = { ["+"] = "R_iadd", ["-"] = "R_sub", ["*"] = "R_imul", ["/"] = "R_div", ["//"] = "R_idiv", ["%"] = "R_mod", ["**"] = "R_pow", ["&"] = "R_band", ["|"] = "R_bor", ["^"] = "R_bxor", ["<<"] = "R_shl", [">>"] = "R_shr" }
         if lv.k == "name" then
           if scope.kind ~= "module" and not scope.globals[lv.n] and not scope.locals[lv.n] then declare(lv.n) end
-          emit(nameRef(lv.n) .. " = " .. F[op] .. "(" .. nameRef(lv.n) .. "," .. value .. ")")
+          local fast = numBin(op, code, value)
+          emit(nameRef(lv.n) .. " = " .. (fast or (F[op] .. "(" .. nameRef(lv.n) .. "," .. value .. ")")))
         elseif lv.k == "attr" then
           local o = tmp()
           emit("do local " .. o .. "=" .. lv.o)
-          emit("R_SA(" .. o .. "," .. str(lv.n) .. "," .. F[op] .. "(R_GA(" .. o .. "," .. str(lv.n) .. ")," .. value .. "))")
+          local get = "R_GA(" .. o .. "," .. str(lv.n) .. ")"
+          if lv.o == "self" and scope.cls and scope.first == "self" then get = "(R_rawget(" .. o .. "," .. str(lv.n) .. ") or " .. get .. ")" end
+          emit("R_SA(" .. o .. "," .. str(lv.n) .. "," .. F[op] .. "(" .. get .. "," .. value .. "))")
           emit("end")
         else
           local o, i = tmp(), tmp()
@@ -1434,11 +1812,66 @@ local function compile(src, chunkName)
   return text
 end
 
+-- ---------------------------------------------------------------- translation cache, LANG_DUMP and LANG_TIME
+-- The Lua text of a program is kept in /var/cache/lang (LANG_CACHE=DIR elsewhere, LANG_CACHE=off not at all): one file per source path,
+-- used while the source text and this translator (its version, the size and date of its file) stay the same. LANG_DUMP=FILE writes
+-- the Lua text to FILE; LANG_TIME=1 prints how long the translation and the run took (to stderr).
+local LC = { clock = os.clock or function() return 0 end, translate = 0 }
+local function lcEnv(k) return os.getenv and os.getenv(k) end
+local function lcHash(s)
+  local h1, h2, byte, n, i = 0x811c9dc5, #s, string.byte, #s, 1
+  while i + 7 <= n do
+    local a, b, c, d, e, f, g, k = byte(s, i, i + 7)
+    h1 = ((h1 ~ (a | b << 8 | c << 16 | d << 24)) * 16777619) & 0xffffffff
+    h2 = ((h2 ~ (e | f << 8 | g << 16 | k << 24) ~ (h1 >> 7)) * 2246822519) & 0xffffffff
+    i = i + 8
+  end
+  for j = i, n do h1 = ((h1 ~ byte(s, j)) * 16777619) & 0xffffffff end
+  return string.format("%08x%08x", h1, h2)
+end
+-- the text of SRC (a file NAME) translated by TRANSLATE(), from the cache when it can be
+function LC.get(tag, version, name, src, translate)
+  local t0 = LC.clock()
+  local dir = lcEnv("LANG_CACHE") or "/var/cache/lang"
+  local file, stamp, text
+  if dir ~= "off" and #src >= 200 and fs and fs.read and fs.write then
+    local st = fs.stat and fs.stat((lcEnv("DRIVER_DIR") or "/usr/local/lib/drivers") .. "/" .. tag .. ".lua")
+    stamp = "-- " .. version .. " " .. (type(st) == "table" and (tostring(st.size) .. "." .. tostring(st.mtime)) or "-") .. " " .. #src .. " " .. lcHash(src) .. "\n"
+    file = dir .. "/" .. tag .. "-" .. lcHash(name) .. ".lua"
+    local old = fs.read(file)
+    if old and old:sub(1, #stamp) == stamp then text = old:sub(#stamp + 1) end
+  end
+  if not text then
+    text = translate()
+    if file and not fs.write(file, stamp .. text) and fs.mkdir then
+      pcall(fs.mkdir, dir, true)
+      fs.write(file, stamp .. text)
+    end
+  end
+  local dump = lcEnv("LANG_DUMP")
+  if dump and fs and fs.write then fs.write(dump, text) end
+  LC.translate = LC.translate + (LC.clock() - t0)
+  return text
+end
+function LC.report(t0)
+  if lcEnv("LANG_TIME") then
+    local line = string.format("lang-time translate %.4f run %.4f\n", LC.translate, LC.clock() - t0 - LC.translate)
+    if io and io.stderr then io.stderr:write(line) else print(line) end
+  end
+end
+
 P.compile = compile
+P.VERSION = "1.0.0.2"
 
 function P.main(args)
   local rt = driver.load("pyrt")
-  return rt.main(args, compile)
+  local t0 = LC.clock()
+  local code = rt.main(args, function(src, name)
+    if name == "<stdin>" then return compile(src, name) end
+    return LC.get("pylang", P.VERSION, name or "?", src, function() return compile(src, name) end)
+  end)
+  LC.report(t0)
+  return code
 end
 
 return P
