@@ -5,18 +5,27 @@
 local VERSION = "git version 2.47.1"
 local MAX_FILES, MAX_BYTES = 1000, 1048576
 local HELP = [[
-usage: git [-C <path>] <command> [<args>]
+usage: git [-v | --version] [-h | --help] [-C <path>] <command> [<args>]
 
-This is a read-only git client for public GitHub repositories.
-It cannot add, commit, push, branch or merge; it only follows a repository.
+These are common Git commands used in various situations:
 
-   clone <url> [<dir>]   copy a GitHub repository (the files of its default branch)
-   pull                  download what changed upstream
-   status                files changed here since clone or pull
-   diff [<path>...]      the changes here, as a unified diff
-   log [-n <N>] [--oneline]
-                         the last commits (10 by default) from GitHub
-   --version             print the version]]
+start a working area
+   clone      Clone a repository into a new directory
+
+examine the history and state
+   diff       Show changes between the working tree and the last pull
+   log        Show commit logs
+   status     Show the working tree status
+
+grow and tweak your common history
+   branch     List the branch (read-only here)
+
+collaborate
+   pull       Fetch from and integrate with the remote repository
+
+This is a read-only client for public GitHub repositories:
+add, commit, push, merge and checkout are not available.
+'git help -a' and 'git help <command>' list subcommands and concepts.]]
 
 local function die(msg, code)
   io.stderr:write(msg .. "\n")
@@ -399,9 +408,11 @@ local function cmdStatus()
     print("Your branch is up to date with 'origin/" .. meta.branch .. "'.\n\nnothing to commit, working tree clean")
     return
   end
-  print("Your branch is up to date with 'origin/" .. meta.branch .. "' (as of the last clone or pull).\n")
+  print("Your branch is up to date with 'origin/" .. meta.branch .. "'.\n")
   if #modified + #deleted > 0 then
     print("Changes not staged for commit:")
+    print("  (use \"git add <file>...\" to update what will be committed)")
+    print("  (use \"git restore <file>...\" to discard changes in working directory)")
     local rows = {}
     for _, p in ipairs(modified) do rows[#rows + 1] = { p, "modified:   " .. p } end
     for _, p in ipairs(deleted) do rows[#rows + 1] = { p, "deleted:    " .. p } end
@@ -411,12 +422,12 @@ local function cmdStatus()
   end
   if #untracked > 0 then
     print("Untracked files:")
+    print("  (use \"git add <file>...\" to include in what will be committed)")
     for _, p in ipairs(untracked) do print("\t" .. p) end
     print("")
-    if #modified + #deleted == 0 then print("nothing added to commit but untracked files present") end
-  else
-    print("no changes added to commit")
+    if #modified + #deleted == 0 then print("nothing added to commit but untracked files present (use \"git add\" to track)") end
   end
+  if #modified + #deleted > 0 then print("no changes added to commit (use \"git add\" and/or \"git commit -a\")") end
 end
 
 local function wanted(p, filters)
@@ -605,6 +616,11 @@ elseif sub == "pull" then cmdPull()
 elseif sub == "status" then cmdStatus()
 elseif sub == "diff" then cmdDiff(args)
 elseif sub == "log" then cmdLog(args)
+elseif sub == "branch" then
+  local meta = needRoot()
+  print("* " .. meta.branch)
+elseif sub == "commit" or sub == "add" or sub == "push" or sub == "init" or sub == "checkout" or sub == "merge" then
+  die("fatal: this git is read-only: '" .. sub .. "' is not available on this device", 128)
 else
   die("git: '" .. sub .. "' is not a git command. See 'git --help'.", 1)
 end

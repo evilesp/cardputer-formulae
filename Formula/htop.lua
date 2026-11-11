@@ -149,14 +149,17 @@ local function stackText(bytes)
   return tostring(bytes)
 end
 
+local totalHeap = 1
 local function draw(up)
   term.clear()
+  local _, th = sys.heap()
+  totalHeap = th or 1
   local y = header(0)
   -- the text next to the meters
   local n = tostring(#rows)
   term.text(RIGHT, 0, "Tasks: ", "white")
   term.text(RIGHT + 7, 0, n, "green")
-  term.text(RIGHT + 7 + #n, 0, ", 0 thr; ", "white")
+  term.text(RIGHT + 7 + #n, 0, ", 0 thr, 0 kthr; ", "white")
   term.text(RIGHT + 16 + #n, 0, tostring(running), "green")
   term.text(RIGHT + 16 + #n + #tostring(running), 0, " running", "white")
   term.text(RIGHT, 1, string.format("Load average: %.2f %.2f %.2f", load[1], load[2], load[3]), "white")
@@ -165,7 +168,7 @@ local function draw(up)
   if pct then term.text(RIGHT, 3, string.format("Battery: %d%% %dmV%s", pct, mv, charging and " +" or ""), "white") end
 
   local headY = y
-  term.text(0, headY, string.format("%-" .. COLS .. "s", "  PID USER   PRI S   STK  CPU%   TIME+ Command"), "inverse-green")
+  term.text(0, headY, string.format("%-" .. COLS .. "s", "PID USER PRI NI VIRT  RES  SHR S CPU% MEM% TIME+  Command"), "inverse-green")
   local list = visible()
   local visibleRows = ROWS - headY - 2
   if sel > #list then sel = #list end
@@ -176,14 +179,15 @@ local function draw(up)
     local r = list[scroll + i]
     if not r then break end
     local cmd = (tree and "`- " or "") .. r.name
-    local line = string.format("%5d %-6s %3d %s %5s %5.1f %7s %s", r.pid, "root", 20 - r.prio,
-                               r.cpu > 0.05 and "R" or "S", stackText(r.stack), r.cpu, timePlus(r.secs), cmd)
+    local stk = stackText(r.stack)
+    local line = string.format("%3d %-4s %3d %2d %4s %4s %4s %s %4.1f %4.1f %6s %s", r.pid, "root", 20 - r.prio, 0,
+                               stk, stk, "0", r.cpu > 0.05 and "R" or "S", r.cpu, r.stack * 100 / math.max(totalHeap, 1), timePlus(r.secs), cmd)
     local yy = headY + i
     if scroll + i == sel then
       term.text(0, yy, string.format("%-" .. COLS .. "s", line:sub(1, COLS)), "inverse-cyan")
     else
       term.text(0, yy, line:sub(1, COLS), "text")
-      term.text(25, yy, string.format("%5.1f", r.cpu), level(r.cpu))
+      term.text(31, yy, string.format("%4.1f", r.cpu), level(r.cpu))
     end
   end
 
@@ -194,7 +198,7 @@ local function draw(up)
   elseif message ~= "" then
     term.text(0, bottom, message:sub(1, COLS), "yellow")
   else
-    local keys = { { "h", "Help " }, { "/", "Search" }, { "\\", "Filter" }, { "t", "Tree " }, { "<", "SortBy" }, { "k", "Kill " }, { "q", "Quit" } }
+    local keys = { { "F1", "Help  " }, { "F2", "Setup " }, { "F3", "Search" }, { "F4", "Filter" }, { "F5", "Tree  " }, { "F6", "SortBy" }, { "F7", "Nice -" }, { "F8", "Nice +" }, { "F9", "Kill  " }, { "F10", "Quit" } }
     local x = 0
     for _, k in ipairs(keys) do
       term.text(x, bottom, k[1], "white")
@@ -256,6 +260,9 @@ local function onKey(k)
     return k == "q" or k == "ctrl-c"   -- q in the help leaves htop at once, as in htop
   end
   message = ""
+  -- the keyboard has no F-keys: letters stand for them (see the help), real F-key names work where they exist
+  local fmap = { f1 = "h", f3 = "/", f4 = "\\", f5 = "t", f6 = "<", f9 = "k", f10 = "q", f7 = "]", f8 = "[" }
+  k = fmap[k] or k
   if k == "q" or k == "ctrl-c" then return true end
   if k == "up" then sel = sel - 1
   elseif k == "down" then sel = sel + 1
@@ -273,6 +280,8 @@ local function onKey(k)
   elseif k == "n" then findNext(sel + 1)
   elseif k == "t" then tree = not tree
   elseif k == "h" or k == "?" then mode = "help"
+  elseif k == "[" or k == "]" then
+    message = "Cannot change the priority of a FreeRTOS task (Permission denied)"
   elseif k == "k" then
     local r = visible()[sel]
     message = r and ("Cannot kill " .. r.name .. ": FreeRTOS tasks are not processes (Operation not permitted)") or ""

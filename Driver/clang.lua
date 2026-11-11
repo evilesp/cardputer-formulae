@@ -2876,8 +2876,9 @@ function C.main(args, isCpp)
     local a = args[i]
     if a == "-o" then outPath = args[i + 1]; i = i + 1
     elseif a == "-run" then run = true
-    elseif a == "--version" or a == "-v" then
-      term.write((isCpp and "g++" or "gcc") .. " (ESP Linux, translates to Lua) 13.0\n")
+    elseif a == "--version" or a == "-v" or a == "-dumpversion" then
+      local n = isCpp and "g++" or "gcc"
+      term.write(n .. " (GCC) 15.1.1 20250425\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n")
       return 0
     elseif a == "--selftest" then
       local src = isCpp and '#include <iostream>\nint main(){std::cout<<"c++ ok "<<6*7<<std::endl;return 0;}' or '#include <stdio.h>\nint main(void){printf("c ok %d\\n",6*7);return 0;}'
@@ -2899,16 +2900,29 @@ function C.main(args, isCpp)
     term.write((isCpp and "g++" or "gcc") .. ": fatal error: no input files\ncompilation terminated.\n")
     return 1
   end
-  local function report(path, e)
+  local function report(path, e, srcText)
     if type(e) == "table" and e.syntax then
-      term.write(path .. ":" .. tostring(e.line) .. ": error: " .. e.syntax .. "\ncompilation terminated.\n")
+      local ln = tonumber(e.line) or 1
+      local code = ""
+      local k = 0
+      for l in ((srcText or "") .. "\n"):gmatch("([^\n]*)\n") do
+        k = k + 1
+        if k == ln then code = l; break end
+      end
+      local col = (code:find("%S")) or 1
+      term.write(path .. ":" .. ln .. ":" .. col .. ": error: " .. e.syntax .. "\n")
+      if code ~= "" then
+        local gut = string.format("%5d", ln)
+        term.write(gut .. " | " .. code .. "\n" .. string.rep(" ", #gut) .. " | " .. string.rep(" ", col - 1) .. "^\n")
+      end
     else term.write(tostring(e) .. "\n") end
     return 1
   end
   local path = inputs[1]
   local src = fs.read(path)
   if not src then
-    term.write((isCpp and "g++" or "gcc") .. ": error: " .. path .. ": No such file or directory\n")
+    local n = isCpp and "g++" or "gcc"
+    term.write(n .. ": error: " .. path .. ": No such file or directory\n" .. n .. ": fatal error: no input files\ncompilation terminated.\n")
     return 1
   end
   -- more source files are joined into one program
@@ -2920,7 +2934,7 @@ function C.main(args, isCpp)
   end
   local cpp = isCpp or path:match("%.cpp$") or path:match("%.cc$") or path:match("%.cxx$")
   local ok, text = pcall(LC.get, "clang", C.VERSION, path .. (cpp and " c++" or ""), src, function() return compile(src, cpp) end)
-  if not ok then return report(path, text) end
+  if not ok then return report(path, text, src) end
   if run then
     local progArgs = {}
     for k = 1, #inputs do progArgs[k] = inputs[k] end

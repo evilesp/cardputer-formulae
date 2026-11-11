@@ -133,11 +133,9 @@ if NEOFETCH then
   add("Shell", "bash " .. bashVersion)
   add("Resolution", "800x480")
   add("Terminal", "tty1")
-  add("CPU", string.format("%s (%d) @ %dMHz", model, cores, mhz))
+  add("CPU", string.format("%s (%d) @ %.3fGHz", model, cores, mhz / 1000))
   add("Memory", string.format("%dMiB / %dMiB", memUsed, total // 1024))
-  if sdTotal then
-    add("Disk (/)", string.format("%s / %s (%d%%)", short(sdUsed), short(sdTotal), sdUsed * 100 // sdTotal))
-  end
+  -- neofetch shows no disk line unless the user turns it on in its config
 else
   add("OS", osName .. " " .. machine)
   add("Host", sys.board())
@@ -147,7 +145,7 @@ else
   add("Shell", "bash " .. bashVersion)
   add("Display (DSI-1)", "800x480 @ 60 Hz")
   add("Terminal", "tty1")
-  add("CPU", string.format("%s (%d) @ %d MHz", model, cores, mhz))
+  add("CPU", string.format("%s (%d) @ %.2f GHz", model, cores, mhz / 1000))
   local used = (total - free) * 1024
   add("Memory", string.format("%s / %s (%d%%)", iec(used), iec(total * 1024), used * 100 // math.max(total * 1024, 1)))
   add("Swap", "Disabled")

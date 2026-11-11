@@ -11,6 +11,7 @@ local API_FORECAST = "https://api.open-meteo.com/v1/forecast"
 local API_GEOCODE = "https://geocoding-api.open-meteo.com/v1/search"
 local SAVED = "/home/user/.weather"
 local USAGE = "usage: weatherForecast [CITY | LAT LON | saveMyLocation CITY | saveMyLocation LAT LON]"
+local MONTHS = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
 local DAYS = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }
 
 local function fail(msg)
@@ -234,14 +235,15 @@ local function show(place, data)
     fail("the answer has no current weather")
     return
   end
-  print(place.name)
-  print(string.format("%.2f, %.2f", place.lat, place.lon))
+  -- the layout of wttr.in, without the pictures: a title, the weather now, then one block per day
+  print("Weather report: " .. place.name)
+  print(string.format("(%.2f, %.2f)", place.lat, place.lon))
   print("")
   local night = cur.is_day == 0 and " (night)" or ""
-  print(string.format("Now: %s C (feels %s C), %s%s", num(cur.temperature_2m, "%.1f"),
-    num(cur.apparent_temperature, "%.1f"), describe(cur.weather_code or -1), night))
-  print(string.format("Wind %s km/h, humidity %s%%", num(cur.wind_speed_10m, "%.0f"),
-    num(cur.relative_humidity_2m, "%.0f")))
+  print("  " .. describe(cur.weather_code or -1) .. night)
+  print(string.format("  %s(%s) °C", num(cur.temperature_2m, "%.0f"), num(cur.apparent_temperature, "%.0f")))
+  print(string.format("  Wind: %s km/h", num(cur.wind_speed_10m, "%.0f")))
+  print(string.format("  Humidity: %s%%", num(cur.relative_humidity_2m, "%.0f")))
   print("")
 
   local d = data.daily
@@ -249,19 +251,25 @@ local function show(place, data)
     for i, date in ipairs(d.time) do
       local y, m, day = nil, nil, nil
       if type(date) == "string" then y, m, day = date:match("^(%d+)-(%d+)-(%d+)$") end
-      local label = "Today"
-      if i == 2 then label = "Tomorrow"
-      elseif i > 2 and y then label = DAYS[weekday(tonumber(y), tonumber(m), tonumber(day)) + 1] end
+      local label = date
+      if y then
+        label = string.format("%s %02d %s", DAYS[weekday(tonumber(y), tonumber(m), tonumber(day)) + 1], tonumber(day),
+          MONTHS[tonumber(m)] or "")
+      end
+      print(string.format("%s %s %s", string.rep("-", 3), label, string.rep("-", 56 - #label - 5)))
       local code = type(d.weather_code) == "table" and d.weather_code[i] or -1
-      print(string.format("%-9s%-15s%s/%s C %s mm", label, describe(code):sub(1, 15),
-        num(type(d.temperature_2m_min) == "table" and d.temperature_2m_min[i] or nil, "%2.0f"),
-        num(type(d.temperature_2m_max) == "table" and d.temperature_2m_max[i] or nil, "%2.0f"),
-        num(type(d.precipitation_sum) == "table" and d.precipitation_sum[i] or nil, "%4.1f")))
+      local lo = num(type(d.temperature_2m_min) == "table" and d.temperature_2m_min[i] or nil, "%.0f")
+      local hi = num(type(d.temperature_2m_max) == "table" and d.temperature_2m_max[i] or nil, "%.0f")
+      print(string.format("  %-18s %s..%s °C", describe(code):sub(1, 18), lo, hi))
+      print(string.format("  Precipitation: %s mm", num(type(d.precipitation_sum) == "table" and d.precipitation_sum[i] or nil, "%.1f")))
+      if i == 1 then
+        local rise = type(d.sunrise) == "table" and type(d.sunrise[1]) == "string" and d.sunrise[1]:sub(12, 16) or "-"
+        local set = type(d.sunset) == "table" and type(d.sunset[1]) == "string" and d.sunset[1]:sub(12, 16) or "-"
+        print("  Sunrise: " .. rise .. "  Sunset: " .. set)
+      end
     end
-    local rise = type(d.sunrise) == "table" and type(d.sunrise[1]) == "string" and d.sunrise[1]:sub(12, 16) or "-"
-    local set = type(d.sunset) == "table" and type(d.sunset[1]) == "string" and d.sunset[1]:sub(12, 16) or "-"
-    print("Sunrise " .. rise .. ", sunset " .. set)
   end
+  print("")
   print("Weather data: Open-Meteo.com (CC BY 4.0)")
 end
 

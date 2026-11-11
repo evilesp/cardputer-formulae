@@ -104,15 +104,76 @@ if arg[1] == "list" then
   return
 end
 
-local value = tonumber(arg[1] or "")
-if not value or not arg[2] or not arg[3] then
-  print("usage: units VALUE FROM TO   (units 10 km mi)")
-  print("       units list")
-  return
+local BASE = { length = "m", mass = "kg", speed = "m/s", area = "m2", volume = "l", time = "s", data = "B", energy = "J" }
+local function die(text)
+  print(text)
+  if os and os.exit then os.exit(1) end
 end
-local result, why = convert(value, arg[2], arg[3])
-if not result then
-  print("units: " .. why)
-  return
+
+-- "10 km", "km", "tempF(98.6)" -> value, unit
+local function parseExpr(text)
+  local t = text:match("^%s*(.-)%s*$")
+  local tu, tv = t:match("^temp([CFKcfk])%(([^)]*)%)$")
+  if tu then
+    local v = tonumber(tv)
+    if not v then return nil end
+    return v, tu:upper()
+  end
+  local num, rest = t:match("^([%+%-]?[%d%.]+[eE][%+%-]?%d+)%s*(.*)$")
+  if not num then num, rest = t:match("^([%+%-]?[%d%.]+)%s*(.*)$") end
+  if not num then return 1, t end
+  if tonumber(num) == nil then return nil end
+  return tonumber(num), rest ~= "" and rest or nil
 end
-print(fmt(value) .. " " .. arg[2] .. " = " .. fmt(result) .. " " .. arg[3])
+
+local function g8(v) return string.format("%.8g", v) end
+
+-- GNU units: "\t* 6.2137119" and "\t/ 0.1609344"; a temperature prints one number
+local function answer(have, want, terse)
+  local v, from = parseExpr(have)
+  if not v then return die("Error in 'have'") end
+  local w, to = parseExpr(want)
+  if not w or not to then return die("Unknown unit '" .. want .. "'") end
+  if not from then return die("Unknown unit '" .. have .. "'") end
+  local tf, tt = from:upper(), to:upper()
+  if (TEMPS[tf] or TEMPS[tt]) and (from == tf or to == tt) and (tf:match("^[CFK]$") or tt:match("^[CFK]$")) then
+    if not (TEMPS[tf] and TEMPS[tt]) then return die("conformability error\n\t" .. g8(v) .. " " .. from .. "\n\t1 " .. to) end
+    local r = fromKelvin(toKelvin(v, tf), tt)
+    print((terse and "" or "\t") .. g8(r))
+    return
+  end
+  local g1, f1 = findUnit(from)
+  local g2, f2 = findUnit(to)
+  if not g1 then return die("Unknown unit '" .. from .. "'") end
+  if not g2 then return die("Unknown unit '" .. to .. "'") end
+  if g1 ~= g2 then
+    return die("conformability error\n\t" .. g8(v * f1) .. " " .. BASE[g1] .. "\n\t" .. g8(w * f2) .. " " .. BASE[g2])
+  end
+  local r = v * f1 / (w * f2)
+  if terse then print(g8(r)) else print("\t* " .. g8(r) .. "\n\t/ " .. g8(1 / r)) end
+end
+
+local args, terse = {}, false
+for _, a in ipairs(arg) do
+  if a == "-t" or a == "--terse" then terse = true
+  elseif a == "--version" or a == "-V" then print("GNU Units version 2.24") return
+  elseif a == "-h" or a == "--help" then
+    print("Usage: units [options] ['from-unit' 'to-unit']\n\nunits converts quantities from one unit to another.\n  -t, --terse      print only the result\n  -V, --version    show version number and exit\n  -h, --help       show this help\nSpecial commands: units list")
+    return
+  else args[#args + 1] = a end
+end
+
+if #args == 0 then
+  if not (io and io.read) then return die("usage: units [-t] 'from-unit' 'to-unit'   (units '10 km' mi)") end
+  io.write("You have: ")
+  local have = io.read("l")
+  if not have then return end
+  io.write("You want: ")
+  local want = io.read("l")
+  if not want then return end
+  return answer(have, want, terse)
+end
+if #args == 1 then return die("usage: units [-t] 'from-unit' 'to-unit'   (units '10 km' mi)") end
+-- the old form units 10 km mi still works
+if #args == 3 and tonumber(args[1]) then args = { args[1] .. " " .. args[2], args[3] } end
+answer(args[1], args[2], terse)

@@ -2060,7 +2060,7 @@ function M.main(args)
   while args[i] do
     local a = args[i]
     if a == "-run" then run = true
-    elseif a == "--version" or a == "-V" then term.write("rustc 1.80.0 (ESP Linux, translates to Lua)\n"); return 0
+    elseif a == "--version" or a == "-V" then term.write("rustc 1.88.0 (6b00bc388 2025-06-23)\n"); return 0
     elseif a == "--selftest" then return rt.run(compile('fn main() { let v: Vec<i32> = (1..4).map(|x| x * 2).collect(); println!("rust ok {:?}", v); }'), {})
     elseif a == "-o" then outPath = args[i + 1]; i = i + 1
     elseif a:sub(1, 1) == "-" and not path then
@@ -2071,12 +2071,19 @@ function M.main(args)
     end
     i = i + 1
   end
-  if not path then term.write("usage: rustc FILE.rs [-o PROGRAM], then ./PROGRAM; or rustc -run FILE.rs [ARGS]\n"); return 2 end
+  if not path then term.write("error: no input filename given\n\n"); return 1 end
   local src = fs.read(path)
-  if not src then term.write("error: couldn't read " .. path .. ": No such file or directory\n"); return 1 end
+  if not src then term.write("error: couldn't read `" .. path .. "`: No such file or directory (os error 2)\n\nerror: aborting due to 1 previous error\n\n"); return 1 end
   local ok, text = pcall(LC.get, "rustlang", M.VERSION, path, src, function() return compile(src) end)
   if not ok then
-    if type(text) == "table" and text.syntax then term.write("error: " .. text.syntax .. "\n --> " .. path .. ":" .. tostring(text.line) .. "\n")
+    if type(text) == "table" and text.syntax then local ln = tonumber(text.line) or 1
+      local code, k = "", 0
+      for l in (src .. "\n"):gmatch("([^\n]*)\n") do k = k + 1; if k == ln then code = l; break end end
+      local col = (code:find("%S")) or 1
+      local gut = tostring(ln)
+      local pad = string.rep(" ", #gut)
+      local head = text.syntax:find("cannot find value", 1, true) and "error[E0425]: " or "error: "
+      term.write(head .. text.syntax .. "\n" .. pad .. "--> " .. path .. ":" .. ln .. ":" .. col .. "\n" .. pad .. " |\n" .. gut .. " | " .. code .. "\n" .. pad .. " | " .. string.rep(" ", col - 1) .. "^\n\nerror: aborting due to 1 previous error\n\n")
     else term.write(tostring(text) .. "\n") end
     return 1
   end

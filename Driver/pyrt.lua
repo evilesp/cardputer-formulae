@@ -3389,7 +3389,7 @@ function R.main(args, compiler)
   while args[i] do
     local a = args[i]
     if a == "-c" then code = args[i + 1]; i = i + 2; list_[1] = "-c"; break
-    elseif a == "--version" or a == "-V" then write("Python 3.12.0 (ESP Linux)\n"); return 0
+    elseif a == "--version" or a == "-V" then write("Python 3.13.3\n"); return 0
     elseif a == "--selftest" then code = "print('python ok', sum(i*i for i in range(4)))"; i = i + 1; list_[1] = "-c"; break
     elseif a == "-u" or a == "-B" then i = i + 1
     else path = a; list_[1] = a; i = i + 1; break end
@@ -3436,7 +3436,7 @@ function R.protect(f, name)
 end
 
 function R.repl()
-  write("Python 3.12.0 (ESP Linux, translated to Lua)\nType exit() to leave.\n")
+  write("Python 3.13.3 (main, Apr  9 2025, 12:00:00) [GCC 14.2.1 20250207] on linux\nType \"help\", \"copyright\", \"credits\" or \"license\" for more information.\n")
   local env = R.newEnv("__main__")
   while true do
     local line = readLine(">>> ")

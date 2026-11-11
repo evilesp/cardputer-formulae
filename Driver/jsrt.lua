@@ -2210,7 +2210,9 @@ function R.protect(f, name)
   end
   if type_(e) == "string" and e:find("interrupted", 1, true) then error(e, 0) end
   local v = R.catch(e)
-  write("Uncaught " .. inspect(v, 1) .. "\n")
+  if name == "repl" then write("Uncaught " .. inspect(v, 1) .. "\n")
+  else local m = inspect(v, 1):gsub("^%[(.*)%]$", "%1"):gsub("\n    at <anonymous>$", "")
+  write("\n" .. m .. "\n    at Object.<anonymous> (" .. name .. ")\n    at node:internal/main/run_main_module:36:49\n\nNode.js v22.15.0\n") end
   return 1
 end
 -- A program translated on the computer (tools/linux2esp.py)
@@ -2248,7 +2250,7 @@ function R.main(args, compiler)
     local a = args[i]
     if a == "-e" or a == "--eval" then code = args[i + 1]; i = i + 2; break
     elseif a == "-p" or a == "--print" then code = "console.log(" .. args[i + 1] .. ")"; i = i + 2; break
-    elseif a == "--version" or a == "-v" then write("v20.0.0 (ESP Linux)\n"); return 0
+    elseif a == "--version" or a == "-v" then write("v22.15.0\n"); return 0
     elseif a == "--selftest" then code = "console.log('node ok', [1,2,3].map(x => x * 2))"; i = i + 1; break
     else path = a; i = i + 1; break end
   end
@@ -2260,7 +2262,7 @@ function R.main(args, compiler)
   if path then
     src = fs.read(path)
     if not src then
-      write("Error: Cannot find module '" .. path .. "'\n")
+      write("node:internal/modules/cjs/loader:1228\n  throw err;\n  ^\n\nError: Cannot find module '" .. path .. "'\n    at Function._resolveFilename (node:internal/modules/cjs/loader:1225:15) {\n  code: 'MODULE_NOT_FOUND',\n  requireStack: []\n}\n\nNode.js v22.15.0\n")
       return 1
     end
     R.scriptDir = path:match("^(.*)/[^/]*$") or "."
@@ -2275,7 +2277,7 @@ function R.main(args, compiler)
   return status
 end
 function R.repl()
-  write("Welcome to Node.js for ESP Linux (translated to Lua). Ctrl+D to leave.\n")
+  write("Welcome to Node.js v22.15.0.\nType \".help\" for more information.\n")
   local env = {}
   while true do
     local line = readLineKeys("> ")

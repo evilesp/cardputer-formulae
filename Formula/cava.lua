@@ -1,12 +1,18 @@
 #!lua
--- cava: an animation of bars that dance like the audio visualizer of the same name. It is only a picture: nothing
--- is read from the microphone or the speaker. The bars on the left are higher on average, as in a spectrum, and
--- each bar falls back slowly after a peak. q quits.
+-- cava: bars that dance like the audio visualizer of the same name: two columns wide, one apart, no labels, the colour
+-- going from green at the bottom through yellow to red at the top. It is only a picture: nothing is read from the
+-- microphone or the speaker. The bars on the left are higher on average, as in a spectrum, and each bar falls back with
+-- gravity after a peak. q quits (so does Ctrl+C).
+local USAGE = "\nUsage : cava [options]\nVisualize audio input in terminal. \n\nOptions:\n\t-p          path to config file\n\t-v          print version\n\nFeatures : ncurses\n\n"
+for _, a in ipairs(arg) do
+  if a == "-v" then print("cava 0.10.4") return end
+  if a == "-h" or a == "--help" then print(USAGE) return end
+end
 
 local COLS, ROWS = term.size()
-local BARS = 20                   -- one bar every second column
-local BAR_TOP = 1                 -- the title is on row 0
-local BAR_BOTTOM = ROWS - 2       -- the key hint is on the last row
+local BARS = (COLS + 1) // 3      -- a bar is 2 columns wide with 1 column between bars
+local BAR_TOP = 0
+local BAR_BOTTOM = ROWS - 1
 local HEIGHT = BAR_BOTTOM - BAR_TOP + 1
 local FALL = 0.04                 -- how far a bar drops per frame after a peak
 
@@ -32,22 +38,15 @@ end
 
 local function draw(shown)
   term.clear()
-  term.text(0, 0, "cava", "cyan")
-  local cells = {}
-  for y = BAR_TOP, BAR_BOTTOM do
-    cells[y] = {}
-    for x = 1, COLS do cells[y][x] = " " end
-  end
   for i = 1, BARS do
     local h = math.floor(shown[i] * HEIGHT + 0.5)
     for y = BAR_BOTTOM - h + 1, BAR_BOTTOM do
-      if y >= BAR_TOP then cells[y][2 * i - 1] = "#" end
+      local f = (BAR_BOTTOM - y) / HEIGHT  -- 0 at the bottom, 1 at the top
+      local color = f < 0.5 and "green" or (f < 0.8 and "yellow" or "red")
+      term.put(3 * i - 3, y, "#", color)
+      term.put(3 * i - 2, y, "#", color)
     end
   end
-  for y = BAR_TOP, BAR_BOTTOM do
-    term.text(0, y, table.concat(cells[y]), "white")
-  end
-  term.text(0, ROWS - 1, "q quit", "dim")
   term.flush()
 end
 

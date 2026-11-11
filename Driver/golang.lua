@@ -2082,12 +2082,12 @@ function M.main(args)
   local rt = driver.load("gort")
   local t0 = LC.clock()
   local cmd = args[1]
-  local function usage() term.write("usage: go run FILE.go [ARGS] | go build [-o PROGRAM] FILE.go | go version\n"); return 2 end
+  local function usage() term.write("Go is a tool for managing Go source code.\n\nUsage:\n\n\tgo <command> [arguments]\n\nThe commands are:\n\n\tbuild       compile packages and dependencies\n\trun         compile and run Go program\n\tversion     print Go version\n\nUse \"go help <command>\" for more information about a command.\n\n"); return 2 end
   if not cmd then return usage() end
-  if cmd == "version" or cmd == "--version" then term.write("go version go1.22 esp/riscv32 (translated to Lua)\n"); return 0 end
+  if cmd == "version" or cmd == "--version" then term.write("go version go1.24.3 linux/riscv64\n"); return 0 end
   if cmd == "--selftest" then return rt.run(compile('package main\nimport "fmt"\nfunc main() { fmt.Println("go ok", 6*7) }\n'), {}) end
   local function report(path, e)
-    if type(e) == "table" and e.syntax then term.write("# command-line-arguments\n" .. path .. ":" .. tostring(e.line) .. ": " .. e.syntax .. "\n")
+    if type(e) == "table" and e.syntax then term.write("# command-line-arguments\n" .. (path:find("/", 1, true) and path or ("./" .. path)) .. ":" .. tostring(e.line) .. ":1: " .. e.syntax .. "\n")
     else term.write(tostring(e) .. "\n") end
     return 1
   end
@@ -2095,7 +2095,7 @@ function M.main(args)
     local path = args[2]
     if not path then return usage() end
     local src = fs.read(path)
-    if not src then term.write("go: cannot find " .. path .. "\n"); return 1 end
+    if not src then term.write("go: open " .. path .. ": no such file or directory\n"); return 1 end
     local ok, text = pcall(LC.get, "golang", M.VERSION, path, src, function() return compile(src) end)
     if not ok then return report(path, text) end
     local a = { path }
@@ -2112,7 +2112,7 @@ function M.main(args)
     end
     if not path then return usage() end
     local src = fs.read(path)
-    if not src then term.write("go: cannot find " .. path .. "\n"); return 1 end
+    if not src then term.write("go: open " .. path .. ": no such file or directory\n"); return 1 end
     local ok, text = pcall(compile, src)
     if not ok then return report(path, text) end
     outPath = outPath or path:gsub("%.go$", ""):match("([^/]+)$")
