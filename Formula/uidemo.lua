@@ -1,6 +1,6 @@
 #!lua
 -- uidemo: shows what the ui library draws, with pixel graphics: a window, labels, bars, buttons, a menu and a message
--- box. a and d move between the buttons, enter presses one, ctrl-q quits. Needs the ui package (brew install ui) and
+-- box. a and d move between the buttons, enter presses one, ctrl-q quits. Needs the ui package (sudo pacman -S ui) and
 -- firmware v0.1.0.13(beta) or newer. It is also a short example of an app with a graphical interface: read the code.
 
 if not gfx or not driver then

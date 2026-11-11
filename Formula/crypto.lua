@@ -1,7 +1,7 @@
 #!lua
 -- crypto: prices of popular cryptocurrencies from CoinGecko (no key), with the change over 24 hours. c switches the
 -- currency (PLN, USD, EUR), r downloads now (it also refreshes every minute), q quits. The prices are information only,
--- not advice. Needs WiFi (wifi connect SSID PASS). Run it with --selftest to check the reading of the answer.
+-- not advice. Needs WiFi (nmcli device wifi connect SSID password PASSWORD). Run it with --selftest to check the reading of the answer.
 
 local COLS, ROWS = term.size()
 local COINS = {
@@ -62,7 +62,7 @@ if arg[1] == "--selftest" then
 end
 
 if not net.connected() then
-  print("crypto: no WiFi connection (wifi connect SSID PASS)")
+  print("crypto: no WiFi connection (nmcli device wifi connect SSID password PASSWORD)")
   return
 end
 

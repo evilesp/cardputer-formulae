@@ -66,7 +66,7 @@ if not gfx then
   return
 end
 if not net.connected() then
-  print("rss: no WiFi connection (wifi connect SSID PASS)")
+  print("rss: no WiFi connection (nmcli device wifi connect SSID password PASSWORD)")
   return
 end
 local ui, uiErr = driver.load("ui", true)

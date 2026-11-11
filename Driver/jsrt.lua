@@ -2186,6 +2186,7 @@ local function header()
   names[#names + 1] = "R_fmod"; values[#values + 1] = "RT.fmod"
   return "local R_pcall,R_error,table,rawget_env=pcall,error,table,rawget_env\nlocal RT, _ENV = ...\nlocal null=RT.null\nlocal this\nlocal " .. concat(names, ",") .. "=" .. concat(values, ",") .. "\n"
 end
+R.header = header  -- for hosts that load translated text in their own environment (the html player)
 function R.runSource(src, name, extra)
   local text = R.compiler(src)
   local env = setmt(extra or {}, { __index = function(_, k)

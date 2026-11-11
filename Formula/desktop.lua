@@ -10,7 +10,7 @@
 --   desktop remove NAME   removes one
 -- Home screen: the apps pinned to it, and a dock with the launcher (the grid of dots: every app), the terminal, files and settings.
 -- Hold an app (in the launcher or on the home screen) for Open, Pin to home or Unpin, and Hide. The Terminal window is the real console
--- (sys.termOpen: the same shell, cd, history, Tab, nano, apt, every program, all inside the window); Ctrl+D or exit closes it. On a firmware
+-- (sys.termOpen: the same shell, cd, history, Tab, nano, pacman, every program, all inside the window); Ctrl+D or exit closes it. On a firmware
 -- without sys.termOpen it is a window that runs commands with sys.shell. Typing needs a keyboard (the Bluetooth one or the serial port).
 -- Gestures (one finger): tap = click; double tap on a title bar = maximize; long press on an icon = menu; drag a title bar
 -- = move the window; drag the grip in the corner = resize; drag in a list = scroll; swipe down from the top edge = quick
@@ -289,7 +289,7 @@ local function kindOf(name)
 end
 
 local function installPackage(spec)
-  if not net or not net.connected or not net.connected() then return false, "no WiFi: wifi connect SSID PASSWORD" end
+  if not net or not net.connected or not net.connected() then return false, "no WiFi: nmcli device wifi connect SSID password PASSWORD" end
   local url = spec:find("://", 1, true) and spec or (REPO .. spec)
   local name = url:match("([^/]+)$") or spec
   if not kindOf(name) then
@@ -496,7 +496,7 @@ local BUILTIN = {
   { id = "settings", name = "Settings", icon = "St", color = 0x77767b, kind = "settings" },
   { id = "monitor", name = "Monitor", icon = "Mo", color = 0x26a269, kind = "monitor" },
   { id = "about", name = "About", icon = "Ab", color = 0xe95420, kind = "about" },
-  { id = "touchcal", name = "Calibrate touch", icon = "+", color = 0x1a9fb8, exec = "touchcal", comment = "fix the touch position (sudo apt install touchcal)" },
+  { id = "touchcal", name = "Calibrate touch", icon = "+", color = 0x1a9fb8, exec = "touchcal", comment = "fix the touch position (sudo pacman -S touchcal)" },
 }
 
 local function loadApps()
@@ -580,7 +580,7 @@ local function runProgram(app)
 end
 
 -- ---- the terminal window shows the text grid of the real console (sys.termOpen): the same shell, cd, history, Tab and every program run in it
-local renderRef = nil   -- set after render() is defined: the firmware calls it while a command runs, so nano or apt are seen
+local renderRef = nil   -- set after render() is defined: the firmware calls it while a command runs, so nano or pacman are seen
 local termPalette = nil
 local function termAvailable() return sys and sys.termOpen and sys.termRow and sys.termTick end
 
@@ -662,7 +662,7 @@ local function termPrint(win, text_)
 end
 
 -- Commands whose whole output fits a window and that never ask a question: their output is shown in the terminal window.
--- Every other command (apt, nano, ollama, a program ...) runs on the real text terminal, because it may ask questions or draw
+-- Every other command (pacman, nano, ollama, a program ...) runs on the real text terminal, because it may ask questions or draw
 -- the whole screen: the desktop gives the screen up, and takes it back when a key is pressed or the screen is touched.
 local CAPTURED = {}
 for name in ("ls cat echo pwd df free uname date whoami hostname uptime ps head tail grep wc find du sort uniq id battery lscpu lsblk "

@@ -102,7 +102,7 @@ else
   if action == "sync" then
     text = sys.date("%Y-%m-%d %H:%M:%S")
     if not text then
-      print("rtc: no network clock yet (connect to WiFi first: wifi connect SSID PASS)")
+      print("rtc: no network clock yet (connect to WiFi first: nmcli device wifi connect SSID password PASSWORD)")
       bus:close()
       return
     end

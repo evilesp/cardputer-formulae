@@ -2,7 +2,7 @@
 -- netmon: watches how fast a web address answers and draws a chart of the last 100 answers: the time of each in
 -- milliseconds, and a red mark for one that failed. It fetches a few bytes every few seconds. ctrl-q quits.
 --   netmon [URL [SECONDS]]      e.g. netmon http://example.com 3   (http://example.com every 2 seconds by default)
--- Needs WiFi (wifi connect SSID PASS), the graphics and the ui package. Run it with --selftest to check the statistics.
+-- Needs WiFi (nmcli device wifi connect SSID password PASSWORD), the graphics and the ui package. Run it with --selftest to check the statistics.
 
 local KEEP = 100
 
@@ -55,7 +55,7 @@ if not driver then
   return
 end
 if not net.connected() then
-  print("netmon: no WiFi connection (wifi connect SSID PASS)")
+  print("netmon: no WiFi connection (nmcli device wifi connect SSID password PASSWORD)")
   return
 end
 local ui, uiErr = driver.load("ui", true)

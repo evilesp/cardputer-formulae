@@ -1,7 +1,7 @@
 #!lua
 -- appstore: every formula of your brew taps on one screen. Search by name or description, read the description,
 -- and see what is installed. A package cannot start a command, so to install, the screen shows the exact line
--- "brew install NAME" to type in the terminal. The list comes from the indexes that "brew update" saved.
+-- "sudo pacman -S NAME" to type in the terminal. The list comes from the indexes that "sudo pacman -Sy" saved.
 --   type        search: names that start with the text come first, then names, then descriptions
 --   up, down    choose an app             enter    details
 --   backspace   delete a letter           ctrl-x   quit
@@ -183,7 +183,7 @@ local function detailLines(app, installed)
   else
     add("needs firmware v0.1.0.7(beta) or newer", "dim")
   end
-  add("brew install " .. app.name, "white")
+  add("sudo pacman -S " .. app.name, "white")
   return lines
 end
 
@@ -209,11 +209,11 @@ end
 
 local apps = loadApps()
 if not apps then
-  print("appstore: no formula index yet. Run: brew update")
+  print("appstore: no formula index yet. Run: sudo pacman -Sy")
   return
 end
 if #apps == 0 then
-  print("appstore: the taps list no formulae (see: brew tap)")
+  print("appstore: the taps list no formulae (see: pacman -Sl)")
   return
 end
 local installed = loadInstalled()

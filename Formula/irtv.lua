@@ -1,5 +1,5 @@
 #!lua
--- irtv: a remote control on the screen. It shows the buttons you taught the remote app (brew install remote), as large
+-- irtv: a remote control on the screen. It shows the buttons you taught the remote app (sudo pacman -S remote), as large
 -- buttons you can press: w a s d move between them, enter sends the signal, keys 1 to 9 send the first nine buttons at
 -- once, ctrl-q quits. The signals are the ones saved in /home/user/remote-NAME.rem and the LED pin is the TX pin set in
 -- the remote app (pin 44 until you change it).
@@ -124,7 +124,7 @@ local ok, problem = pcall(function()
   if not name then
     local names = remoteNames(fs.list("/home/user") or {})
     if #names == 0 then
-      ui.message("No remotes", { "Teach one with the remote app:", "brew install remote" })
+      ui.message("No remotes", { "Teach one with the remote app:", "sudo pacman -S remote" })
       return
     end
     local c = ui.choose("Which remote?", names)

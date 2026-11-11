@@ -27,6 +27,7 @@ brew install htop nano snake
 | tetris | klocki (spacja upuszcza) |
 | cowsay | krowa mówi, co podasz |
 | fortune | losowa rada |
+| html (webplay, htmlplay) | mała przeglądarka/odtwarzacz stron HTML/CSS/JS na ekranie (`html strona.html`, Ctrl+Q wyjście) |
 | cal | kalendarz miesiąca |
 | calc | kalkulator wyrażeń |
 | hexdump | plik w hex i tekście |

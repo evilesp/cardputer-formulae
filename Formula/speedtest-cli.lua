@@ -21,7 +21,7 @@ while arg[i] do
 end
 
 if not net.connected() then
-  print("Error: no network connection (wifi connect SSID PASS)")
+  print("Error: no network connection (nmcli device wifi connect SSID password PASSWORD)")
   return
 end
 

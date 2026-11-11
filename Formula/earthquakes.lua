@@ -2,7 +2,7 @@
 -- earthquakes: the latest earthquakes in the world from the USGS feed (no key). Each line has the magnitude, how long ago
 -- it was and where. w and s move, enter shows the details of one, r downloads the list again, q quits.
 -- usage: earthquakes [MIN_MAGNITUDE]   (4.5 when left out; 2.5 shows many more)
--- Needs WiFi (wifi connect SSID PASS). Run it with --selftest to check the reading of the list.
+-- Needs WiFi (nmcli device wifi connect SSID password PASSWORD). Run it with --selftest to check the reading of the list.
 
 local COLS, ROWS = term.size()
 local LIMIT = 20
@@ -119,7 +119,7 @@ if arg[1] then
   end
 end
 if not net.connected() then
-  print("earthquakes: no WiFi connection (wifi connect SSID PASS)")
+  print("earthquakes: no WiFi connection (nmcli device wifi connect SSID password PASSWORD)")
   return
 end
 

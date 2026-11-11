@@ -1,7 +1,7 @@
 #!lua
 -- invaders: space invaders in pixels. The aliens march across and step down; you have three lives.
 -- a and d move (tap again to keep going), space stops, f fires (up to three shots), ctrl-q quits.
--- Needs the graphics and the ui package (brew install ui). Run it with --selftest to check the rules.
+-- Needs the graphics and the ui package (sudo pacman -S ui). Run it with --selftest to check the rules.
 
 local COLS_A, ROWS_A = 6, 3
 local ALIEN_W, ALIEN_H = 16, 8

@@ -6,7 +6,7 @@
 -- bigger model answers: natan takes the first model of the server, or --model, or model=NAME in /etc/natan.conf. Without a
 -- server, or with --local, the three small models of this device answer (natan-local-pl: ollama pull natan-intent:pl
 -- natan-cmd:pl natan-reply:pl), in Polish or English, and nothing leaves the device.
--- Needs the llm module of the firmware and the drivers json and natanlocal (brew installs them).
+-- Needs the llm module of the firmware and the drivers json and natanlocal (installed as dependencies).
 
 local MAX_STEPS = 6
 
@@ -243,7 +243,7 @@ if not model then
       nl.ask(question)
       return
     end
-    print("natan answers with models that run on this device; they are not here and there is no WiFi to pull them (wifi connect SSID PASS), or pull them once:")
+    print("natan answers with models that run on this device; they are not here and there is no WiFi to pull them (nmcli device wifi connect SSID password PASSWORD), or pull them once:")
     print("  ollama pull " .. table.concat(missing, " "))
     print("or set an Ollama server on your network: natan /set ollama HOST:PORT")
     return

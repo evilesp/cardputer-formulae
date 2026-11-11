@@ -3,7 +3,7 @@
 -- pins through softspi (a software SPI), so the pins need not be the hardware SPI's.
 --   adcview SCK MOSI MISO CS [VREF]     e.g. adcview 1 2 3 4 3.3
 -- SCK goes to CLK, MOSI to DIN, MISO to DOUT and CS to CS. VREF is the reference voltage (3.3 by default) and must be
--- the voltage on the chip's VREF pin. Needs the brew packages softspi and mcp3008 (brew install softspi mcp3008) and
+-- the voltage on the chip's VREF pin. Needs the packages softspi and mcp3008 (sudo pacman -S softspi mcp3008) and
 -- firmware v0.1.0.11(beta) or newer. q quits, and the pins are released when the app ends.
 
 local USAGE = "usage: adcview SCK MOSI MISO CS [VREF]   e.g. adcview 1 2 3 4 3.3"

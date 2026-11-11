@@ -297,7 +297,7 @@ if arg[1] == "saveMyLocation" then
 end
 
 if not net.connected() then
-  fail("no WiFi connection (wifi connect SSID PASS)")
+  fail("no WiFi connection (nmcli device wifi connect SSID password PASSWORD)")
   return
 end
 

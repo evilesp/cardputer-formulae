@@ -1,6 +1,6 @@
 #!lua
 -- analogclock: an analogue clock face with hour, minute and second hands, and the date and the time in digits. The time
--- comes from the network clock, so connect to WiFi first (wifi connect SSID PASS); without it the clock says so.
+-- comes from the network clock, so connect to WiFi first (nmcli device wifi connect SSID password PASSWORD); without it the clock says so.
 -- ctrl-q quits. Needs the graphics and the ui package. Run it with --selftest to check the hands.
 
 local CX, CY, R = 120, 66, 58

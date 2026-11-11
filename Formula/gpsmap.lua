@@ -3,7 +3,7 @@
 -- dot, and the distance walked. The map fits the track and keeps north up. c clears the track, ctrl-q quits. The module's TX
 -- goes to the pin RX (given first), its RX to the pin TX (-1 when it is not wired back).
 --   gpsmap RX TX [BAUD]        e.g. gpsmap 1 2      (BAUD 9600 by default)
--- A first fix can take a few minutes outdoors. Needs the packages gps and ui (brew install gps ui) and firmware v0.1.0.13.
+-- A first fix can take a few minutes outdoors. Needs the packages gps and ui (sudo pacman -S gps ui) and firmware v0.1.0.13.
 -- Run it with --selftest to check the distance and the map scale.
 
 -- the distance in metres between two points on the Earth (the haversine formula)

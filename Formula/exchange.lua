@@ -2,7 +2,7 @@
 -- exchange: the exchange rates of the National Bank of Poland (table A, published on working days, no key needed). The list
 -- shows how many zloty one unit of each currency costs. w and s choose a currency, t types an amount of zloty to convert to
 -- the chosen currency, r downloads the table again, ctrl-q quits. The rates are information only, not advice.
--- Needs the graphics, the ui package, the json driver (brew install json) and a network connection. Run it with --selftest.
+-- Needs the graphics, the ui package, the json driver (sudo pacman -S json) and a network connection. Run it with --selftest.
 
 local URL = "https://api.nbp.pl/api/exchangerates/tables/A/?format=json"
 
@@ -44,7 +44,7 @@ if arg[1] == "--selftest" then
     end
   end
   local json = driver.load("json")
-  check(json ~= nil, "the json driver is installed for the test (brew install json)")
+  check(json ~= nil, "the json driver is installed for the test (sudo pacman -S json)")
   if not json then
     print("selftest failed: json driver missing")
     return
@@ -70,7 +70,7 @@ if not gfx then
 end
 local json = driver.load("json")
 if not json then
-  print("exchange: the json driver is not installed (brew install json)")
+  print("exchange: the json driver is not installed (sudo pacman -S json)")
   return
 end
 local ui, uiErr = driver.load("ui", true)
@@ -79,7 +79,7 @@ if not ui then
   return
 end
 if not net.connected() then
-  print("exchange: no WiFi connection (wifi connect SSID PASS)")
+  print("exchange: no WiFi connection (nmcli device wifi connect SSID password PASSWORD)")
   return
 end
 

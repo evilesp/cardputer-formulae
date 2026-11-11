@@ -1,7 +1,7 @@
 #!lua
 -- joke: a random joke from JokeAPI (no key, the safe mode is on: nothing rude). In English.
 -- usage: joke [programming|pun|misc|spooky|christmas]   (any of them when left out)
--- Needs WiFi (wifi connect SSID PASS). Run it with --selftest to check the reading of the answer.
+-- Needs WiFi (nmcli device wifi connect SSID password PASSWORD). Run it with --selftest to check the reading of the answer.
 
 local CATEGORIES = { programming = "Programming", pun = "Pun", misc = "Misc", spooky = "Spooky", christmas = "Christmas" }
 
@@ -61,7 +61,7 @@ if arg[1] then
   end
 end
 if not net.connected() then
-  print("joke: no WiFi connection (wifi connect SSID PASS)")
+  print("joke: no WiFi connection (nmcli device wifi connect SSID password PASSWORD)")
   return
 end
 

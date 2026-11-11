@@ -1,6 +1,6 @@
 #!lua
 -- iss: where the International Space Station is now, on a map of the world. The position comes from open-notify.org
--- (no key). It is refreshed every 15 seconds; r refreshes now, q quits. It needs WiFi (wifi connect SSID PASS).
+-- (no key). It is refreshed every 15 seconds; r refreshes now, q quits. It needs WiFi (nmcli device wifi connect SSID password PASSWORD).
 -- The map is a plain grid: left is 180 degrees west, right is 180 degrees east, the top is the North Pole.
 
 local COLS, ROWS = term.size()
@@ -18,7 +18,7 @@ local function parse(body)
 end
 
 local function fetch()
-  if not net.connected() then return nil, "no WiFi connection (wifi connect SSID PASS)" end
+  if not net.connected() then return nil, "no WiFi connection (nmcli device wifi connect SSID password PASSWORD)" end
   local status, body = net.fetch(URL, 4096)
   if not status then return nil, tostring(body) end
   if status ~= 200 then return nil, "the server answered " .. status end

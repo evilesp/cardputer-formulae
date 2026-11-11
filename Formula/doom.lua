@@ -1,7 +1,6 @@
 #!lua
 -- doom 0.1.1.3: a Doom-like shooter with pixel graphics. Walk a level, shoot the imps and demons, pick up health and ammo, and
--- clear the level. Needs firmware v0.1.0.14(beta) (the graphics in little pieces of memory) and three drivers, which brew
--- installs with it: doomlevel, doomdraw and doomgame (brew asks first).
+-- clear the level. Needs firmware v0.1.0.14(beta) (the graphics in little pieces of memory) and three drivers, installed as dependencies: doomlevel, doomdraw and doomgame.
 -- Every key is a letter or a punctuation key, so no Fn is needed. The motion keys work while they are held down:
 --   w  forward          s  back            a  turn left      d  turn right
 --   ,  turn left        /  turn right      q  step left      e  step right
@@ -26,7 +25,7 @@ end
 local game, err = driver.load("doomgame", true)
 if not game then
   print("doom: " .. tostring(err))
-  print("doom: install the parts with: brew install doom")
+  print("doom: install the parts with: sudo pacman -S doom")
   return
 end
 game.run(arg[1] == "--start")

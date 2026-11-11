@@ -3,7 +3,7 @@ cmatrix|1.0|matrix rain in the terminal (press q)|Formula/cmatrix.lua
 fastfetch|1.0.0.2|system summary with the Arch Linux logo (fastfetch layout)|Formula/fastfetch.lua
 neofetch|1.0.0.0|system summary with the Arch Linux logo (neofetch layout)|Formula/neofetch.lua
 asciiquarium|1.0|a fish tank animation (press q)|Formula/asciiquarium.lua
-speedtest-cli|1.0|ping, download and upload speed test|Formula/speedtest-cli.lua
+speedtest-cli|1.0.0.1|ping, download and upload speed test|Formula/speedtest-cli.lua
 htop|1.0.0.2|process viewer in the style of htop: CPU bars, Mem and Swp, Tasks, load average, sorted list, F-keys on letters (q quits)|Formula/htop.lua
 nano|1.0.0.1|small text editor for SD card files: nano FILE|Formula/nano.lua
 snake|1.0.0.1|the snake game (arrows or w a s d)|Formula/snake.lua
@@ -31,8 +31,8 @@ sox|1.0.0.2|SoX-style audio: sox -d out.wav trim 0 5 records, sox -n synth 1 sin
 rec|1.0.0.2|record from the microphone: rec FILE trim 0 5 (rec -n stat only measures)|Formula/rec.lua
 play|1.0.0.2|play a WAV or AIFF file on the speaker, an AVI video on the screen: play FILE (or play -n synth 1 sine 440)|Formula/play.lua
 afplay|1.0.0.1|play a WAV or AIFF file on the speaker: afplay [-v 0..1] [--time SECONDS] FILE|Formula/afplay.lua
-weatherForecast|1.0|weather now and for 3 days, no API key: weatherForecast CITY or LAT LON, saveMyLocation|Formula/weatherForecast.lua
-appstore|1.0.0.1|every brew app in one list: search, read it, install or update it (i), see what is installed|Formula/appstore.lua
+weatherForecast|1.0.0.1|weather now and for 3 days, no API key: weatherForecast CITY or LAT LON, saveMyLocation|Formula/weatherForecast.lua
+appstore|1.0.0.2|package browser: search, read details, install or update (i), see what is installed|Formula/appstore.lua
 spiritLevel|1.0.0.1|spirit level from the motion sensor: tilt the board, z sets level (q quits)|Formula/spiritLevel.lua
 cava|1.0|an animation of bars that dance like the cava visualizer, a picture only (q quits)|Formula/cava.lua
 parrotDancing|1.0.0.2|the party parrot of parrot.live: shaded letters, head circling, a new colour every beat (q quits)|Formula/parrotDancing.lua
@@ -41,12 +41,12 @@ show|1.0|shows JPEG and PNG pictures from the SD card on the screen: show FILE..
 wikipedia|1.0.0.2|the lead of a Wikipedia article as text, no key: wikipedia WORDS or wikipedia -l en WORDS|Formula/wikipedia.lua
 server|1.0.0.2|a web page for a phone or a laptop: terminal, SD card files (upload, download), device state; server PORT [NAME] (needs v0.1)|Formula/server.lua
 gps|1.0|driver for GPS modules on a UART (NMEA sentences): an app loads it with driver.load("gps")|Driver/gps.lua
-gpsview|1.0.0.1|position, satellites and speed from a GPS module on a UART: gpsview RX TX (needs the gps driver)|Formula/gpsview.lua
+gpsview|1.0.0.2|position, satellites and speed from a GPS module on a UART: gpsview RX TX (needs the gps driver)|Formula/gpsview.lua
 i2cscan|1.0.0.1|lists the devices on an I2C bus, on two free pins: i2cscan SDA SCL|Formula/i2cscan.lua
 remote|1.0.0.2|infrared remotes: learn the buttons of a remote (press them at the receiver), name them, send one or all in order; set the TX and RX pins with p: remote (needs firmware v0.1.0.11)|Formula/remote.lua
 softspi|1.0|software SPI on any GPIO pins, bit-banged in Lua, for devices whose pins the hardware SPI cannot reach (needs firmware v0.1.0.11)|Driver/softspi.lua
 mcp3008|1.0.0.1|driver for the MCP3008 analogue-to-digital converter: 8 inputs, 10 bits, on a hardware or software SPI bus (needs firmware v0.1.0.11)|Driver/mcp3008.lua
-adcview|1.0|the 8 inputs of an MCP3008 on the screen: adcview SCK MOSI MISO CS [VREF] (q quits; needs softspi and mcp3008)|Formula/adcview.lua
+adcview|1.0.0.1|the 8 inputs of an MCP3008 on the screen: adcview SCK MOSI MISO CS [VREF] (q quits; needs softspi and mcp3008)|Formula/adcview.lua
 life|1.0|Conway's Game of Life on the screen: arrows move, space toggles a cell, p runs and pauses (q quits)|Formula/life.lua
 simon|1.0|the memory game with tones: repeat the growing sequence of pads a s d f (needs the speaker)|Formula/simon.lua
 dino|1.0|endless runner in the terminal: space or up jumps over the cacti, r plays again (q quits)|Formula/dino.lua
@@ -55,15 +55,15 @@ typetest|1.0|how fast and how accurately you type: typetest, or typetest WORDS f
 timer|1.0|countdown with big digits and a beep at zero: timer 25m, timer 90, timer 1h30m (space pauses, q quits)|Formula/timer.lua
 todo|1.0|a task list kept on the SD card: todo add TEXT, todo done N, todo rm N, todo clear|Formula/todo.lua
 passgen|1.0|random passwords: passgen [LENGTH] [-s], -s adds symbols|Formula/passgen.lua
-iss|1.0.0.1|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
-rtc|1.0.0.1|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua
-doom|0.1.1.4|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; hold w s a d , / q e to move and turn, letter keys only, no Fn (sound from firmware v0.1.0.17; x turns it off; needs firmware v0.1.0.14)|needs:doomgame|Formula/doom.lua
+iss|1.0.0.2|where the International Space Station is now, on a map (needs WiFi, no key, q quits)|Formula/iss.lua
+rtc|1.0.0.2|the clock of a DS3231 real-time clock on I2C: rtc SDA SCL, rtc SDA SCL set TIME, rtc SDA SCL sync (needs firmware v0.1.0.10)|Formula/rtc.lua
+doom|0.1.1.5|a Doom-like shooter with pixel graphics: walk, shoot imps and demons, pick up health and ammo; hold w s a d , / q e to move and turn, letter keys only, no Fn (sound from firmware v0.1.0.17; x turns it off; needs firmware v0.1.0.14)|needs:doomgame|Formula/doom.lua
 ui|1.0.0.2|a graphical toolkit for apps: windows, buttons, bars, lists, menus and message boxes drawn in pixels on top of the gfx module; an app loads it with driver.load("ui") (needs firmware v0.1.0.13)|Driver/ui.lua
 fonts|1.0.0.1|smooth Lato fonts (VLW files loaded from the tap): an app loads it with driver.load("fonts") (needs firmware v0.1.1)|Driver/fonts.lua
-uidemo|1.0.0.2|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs firmware v0.1.0.13)|needs:ui|Formula/uidemo.lua
+uidemo|1.0.0.3|shows what the ui library draws and is an example of a graphical app: a window, bars, buttons, a menu and a message box (needs firmware v0.1.0.13)|needs:ui|Formula/uidemo.lua
 doomlevel|1.0.0.2|the level of doom: the map, the look of the walls and monsters, and the ray caster geometry (a driver for doom)|Driver/doomlevel.lua
 doomdraw|1.0.0.4|the picture and the menus of doom: walls and floor, monsters, weapon, crosshair, minimap and the bar at the bottom (a driver for doom)|needs:doomlevel|Driver/doomdraw.lua
-invaders|1.0.0.1|space invaders in pixels: a d move, f fires, three lives (needs firmware v0.1.0.13)|needs:ui|Formula/invaders.lua
+invaders|1.0.0.2|space invaders in pixels: a d move, f fires, three lives (needs firmware v0.1.0.13)|needs:ui|Formula/invaders.lua
 breakout|1.0.0.1|break the bricks with the ball, paddle on a and d (needs firmware v0.1.0.13)|needs:ui|Formula/breakout.lua
 flappy|1.0.0.1|fly the bird through the gaps in the pipes, space flaps (needs firmware v0.1.0.13)|needs:ui|Formula/flappy.lua
 2048|1.0.0.1|the 2048 puzzle with w a s d (needs firmware v0.1.0.13)|needs:ui|Formula/game2048.lua
@@ -78,12 +78,12 @@ music|1.0.0.1|plays the WAV and AIFF files of a folder one after another (needs 
 plot|1.0.0.1|draws a chart from a text or CSV file: plot FILE (needs firmware v0.1.0.13)|needs:ui|Formula/plot.lua
 sensors|1.0.0.3|live charts of the accelerometer, the gyroscope and the battery; every reading is logged to /home/user/sensors.csv (needs firmware v0.1.0.15)|needs:ui|Formula/sensors.lua
 setting|1.0.0.1|the settings in pictures: WiFi (scan, password, connect, save for boot), brightness, volume and connect at boot; saved for the next boot (needs firmware v0.1.0.16 and ui)|needs:ui|Formula/setting.lua
-analogclock|1.0.0.1|an analogue clock face with the date, from the network clock (needs firmware v0.1.0.13)|needs:ui|Formula/analogclock.lua
+analogclock|1.0.0.2|an analogue clock face with the date, from the network clock (needs firmware v0.1.0.13)|needs:ui|Formula/analogclock.lua
 metronome|1.0.0.1|a metronome with a click and a pendulum, 30 to 240 beats a minute (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/metronome.lua
 piano|1.0.0.1|the keyboard as a piano with black and white keys (needs firmware v0.1.0.13, the speaker)|needs:ui|Formula/piano.lua
-irtv|1.0.0.1|a remote control on the screen with the buttons taught to the remote app: irtv NAME (needs firmware v0.1.0.13)|needs:ui|Formula/irtv.lua
-gpsmap|1.0.0.1|the track of a GPS module drawn as a map: gpsmap RX TX (needs firmware v0.1.0.13 and a GPS module)|needs:gps ui|Formula/gpsmap.lua
-netmon|1.0.0.1|a chart of how fast a web address answers: netmon [URL [SECONDS]] (needs firmware v0.1.0.13, WiFi)|needs:ui|Formula/netmon.lua
+irtv|1.0.0.2|a remote control on the screen with the buttons taught to the remote app: irtv NAME (needs firmware v0.1.0.13)|needs:ui|Formula/irtv.lua
+gpsmap|1.0.0.2|the track of a GPS module drawn as a map: gpsmap RX TX (needs firmware v0.1.0.13 and a GPS module)|needs:gps ui|Formula/gpsmap.lua
+netmon|1.0.0.2|a chart of how fast a web address answers: netmon [URL [SECONDS]] (needs firmware v0.1.0.13, WiFi)|needs:ui|Formula/netmon.lua
 doomgame|1.0.0.5|the rules and the game loop of doom: player, monsters, shooting, pickups and menus; motion while a key is held (a driver for doom, needs firmware v0.1.0.14)|needs:doomdraw|Driver/doomgame.lua
 memcleaner|1.0.0.1|frees room on the SD card: finds empty files, copies, cache, temporary files, unfinished downloads and very old files, and asks y or n for each (needs firmware v0.1.0.14)|Formula/memcleaner.lua
 steps|1.0|the step counter: today's steps against a goal, the last seven days, reset or pause (firmware v0.1.0.18; counts in the background)|needs:ui|Formula/steps.lua
@@ -103,10 +103,10 @@ frogger|1.0|get the frog across the road and the traffic, three lives|needs:ui|F
 bubbles|1.0.0.1|shoot coloured bubbles into the cluster: groups of three pop, loose bubbles fall|needs:ui|Formula/bubbles.lua
 pomodoro|1.0|work and break timer: 25 minute blocks, short and long breaks, beeps (firmware v0.1.0.18 for the beeps)|needs:ui|Formula/pomodoro.lua
 moodlog|1.0|mood diary: a score from 1 to 5 and a note a day, saved to /home/user/mood.csv, with a graph|needs:ui|Formula/moodlog.lua
-exchange|1.0.0.1|exchange rates of the National Bank of Poland (table A, no key), with a converter (needs the json driver)|needs:ui json|Formula/exchange.lua
+exchange|1.0.0.2|exchange rates of the National Bank of Poland (table A, no key), with a converter (needs the json driver)|needs:ui json|Formula/exchange.lua
 countdown|1.0|days until your dates, from /home/user/countdown.txt; add and remove dates|needs:ui|Formula/countdown.lua
 cipher|1.0|encrypt and decrypt text: Caesar shift and Vigenere key, save the result to the SD card|needs:ui|Formula/cipher.lua
-rss|1.0|headlines of your RSS and Atom feeds listed in /home/user/rss.txt|needs:ui|Formula/rss.lua
+rss|1.0.0.1|headlines of your RSS and Atom feeds listed in /home/user/rss.txt|needs:ui|Formula/rss.lua
 worldclock|1.0|the time in several cities with summer time rules (Europe, US) and the date|needs:ui|Formula/worldclock.lua
 tuner|1.0|instrument tuner: the note nearest to the microphone sound and the cents off pitch (firmware v0.1.0.18)|needs:ui|Formula/tuner.lua
 scope|1.0|oscilloscope for an analogue pin (GPIO1 to GPIO10): voltage over time (firmware v0.1.0.18, gpio.scope)|needs:ui|Formula/scope.lua
@@ -116,12 +116,12 @@ tanks|1.0.0.4|artillery duel over destructible ground: play against the bot (eas
 wifimap|1.0|Wi-Fi networks by channel: the strongest signal and the number per channel, the least crowded channel (firmware v0.1.0.18)|needs:ui|Formula/wifimap.lua
 quiz|1.0.0.3|104 questions in 7 categories to choose from (A-D), rounds of 10, best scores; own questions in quiz.csv|needs:ui|Formula/quiz.lua
 json|1.0.0.1|a small JSON reader for the apps: driver.load("json") gives json.decode(text) (a driver)|Driver/json.lua
-earthquakes|1.0|the latest earthquakes in the world from USGS (no key), with details (needs WiFi, q quits)|Formula/earthquakes.lua
-crypto|1.0|prices of popular cryptocurrencies from CoinGecko in PLN, USD or EUR with the 24 h change (no key)|Formula/crypto.lua
+earthquakes|1.0.0.1|the latest earthquakes in the world from USGS (no key), with details (needs WiFi, q quits)|Formula/earthquakes.lua
+crypto|1.0.0.1|prices of popular cryptocurrencies from CoinGecko in PLN, USD or EUR with the 24 h change (no key)|Formula/crypto.lua
 connect4|1.0.0.3|four in a row against a bot (3 levels) or a friend, with falling discs|needs:ui|Formula/connect4.lua
 reversi|1.0.0.2|reversi (Othello) against a bot (3 levels) or a friend, with move hints|needs:ui|Formula/reversi.lua
 units|1.0|unit converter: length, mass, temperature, speed, area, volume, time, data, energy (units 10 km mi)|Formula/units.lua
-joke|1.0|a random clean joke from JokeAPI (no key, in English)|Formula/joke.lua
+joke|1.0.0.1|a random clean joke from JokeAPI (no key, in English)|Formula/joke.lua
 sunrise|1.0.0.1|sunrise, sunset, solar noon and day length for any place, worked out offline|Formula/sunrise.lua
 eng|1.0|engineering numbers for the electronics apps: parse 4k7 or 100nF, format with k M u n p, E series (a driver)|Driver/eng.lua
 plasma|1.0|animation: the classic plasma, five palettes (space changes them, w s speed)|Formula/plasma.lua
@@ -186,18 +186,27 @@ pwcheck|1.0.0.1|password strength offline: length, character sets, common words 
 helix|1.0|a double helix (DNA) turning on the screen: w s speed, a d coil length, space colours (q quits)|Formula/helix.lua
 sortviz|1.0|sorting algorithms drawn as bars: bubble, insertion or selection sort with 1 2 3, n new shuffle (needs firmware v0.1.0.13)|Formula/sortviz.lua
 cube|1.0|a spinning 3D wireframe cube drawn with perspective: a d size, w s speed, space colours, p pauses (q quits)|Formula/cube.lua
-natan|1.0.0.1|ask the device in plain words: natan ile mam miejsca na karcie sd. The small models of the device answer (pulled by themselves the first time); natan /set local, natan /set ollama HOST:PORT or natan /set api HOST:PORT KEY change who answers|needs:json natanlocal|Formula/natan.lua
+natan|1.0.0.2|ask the device in plain words: natan ile mam miejsca na karcie sd. The small models of the device answer (pulled by themselves the first time); natan /set local, natan /set ollama HOST:PORT or natan /set api HOST:PORT KEY change who answers|needs:json natanlocal|Formula/natan.lua
 natanlocal|1.0.0.0|the three small models of natan on this device (intent, command, reply): driver.load("natanlocal"); needs firmware v0.1.1|needs:json|Driver/natanlocal.lua
 natan-local-pl|1.0.0.0|natan-local-pl QUESTION: the same as natan, only with the models of this device, in Polish or English|needs:json natanlocal|Formula/natan-local-pl.lua
-desktop|1.0.0.12|graphical desktop with touch: home screen with pinned apps and a dock (launcher, terminal, files, settings), windows, task bar, quick panel, themes and wallpapers as text packages; desktop enable/disable at boot, desktop install NAME (beta, needs touch.read from the firmware)|needs:fonts|Formula/desktop.lua
+desktop|1.0.0.13|graphical desktop with touch: home screen with pinned apps and a dock (launcher, terminal, files, settings), windows, task bar, quick panel, themes and wallpapers as text packages; desktop enable/disable at boot, desktop install NAME (beta, needs touch.read from the firmware)|needs:fonts|Formula/desktop.lua
 touchcal|1.0.0.0|calibrates the touch screen: touch four crosses, it saves the shift and scale in /etc/touch.cal (needs firmware v0.1.5)|Formula/touchcal.lua
 relang|1.0.0.1|regular expressions for the language packages: a driver|Driver/relang.lua
 pylang|1.0.0.2|Python: the translator to Lua, a driver of the program python3|Driver/pylang.lua
 pyrt|1.0.0.2|Python: the run-time, a driver of the program python3|Driver/pyrt.lua
 python3|1.0.0.1|Python 3 for this device: python3 FILE.py, python3 -c CODE, or a prompt; classes, generators, f-strings, exceptions, math, json, re, collections (needs firmware v0.1.14)|needs:pylang pyrt pylib relang|Formula/python3.lua
 python|1.0.0.1|the same as python3|needs:python3|Formula/python.lua
+htmldom|1.0.0.0|HTML parser and DOM driver|Driver/htmldom.lua
+htmlcss|1.0.0.0|CSS parser and cascade driver|Driver/htmlcss.lua
+htmllayout|1.0.0.0|HTML layout driver|needs:htmldom htmlcss|Driver/htmllayout.lua
+htmlpaint|1.0.0.0|HTML painting driver|needs:htmldom htmlcss|Driver/htmlpaint.lua
+htmljs|1.0.0.0|HTML and JavaScript page engine|needs:htmldom htmlcss htmllayout htmlpaint jslang jsrt relang|Driver/htmljs.lua
+htmlapp|1.0.0.0|HTML player application driver|needs:htmljs fonts|Driver/htmlapp.lua
+html|1.0.0.0|a small HTML/CSS/JavaScript player for local apps and simple pages: html FILE.html or URL (tap or Tab+Enter on links, Backspace back, Ctrl+O console, Ctrl+Q quit), html --dump FILE, html --console FILE|needs:htmlapp|Formula/html.lua
+htmlplay|1.0.0.0|HTML player alternative command|needs:htmlapp|Formula/htmlplay.lua
+webplay|1.0.0.0|HTML player alternative command|needs:htmlapp|Formula/webplay.lua
 jslang|1.0.0.2|JavaScript: the translator to Lua, a driver of the program node|Driver/jslang.lua
-jsrt|1.0.0.2|JavaScript: the run-time, a driver of the program node|Driver/jsrt.lua
+jsrt|1.0.0.3|JavaScript: the run-time, a driver of the program node|Driver/jsrt.lua
 node|1.0.0.2|JavaScript (Node.js style) for this device: node FILE.js, node -e CODE, or a prompt; classes, async/await, promises, Map, Set, JSON, regular expressions (needs firmware v0.1.14)|needs:jslang jsrt relang|Formula/node.lua
 clang|1.0.0.6|C and C++: the translator to Lua, a driver of gcc and g++|Driver/clang.lua
 crt|1.0.0.4|C and C++: the run-time, a driver of gcc and g++|Driver/crt.lua
