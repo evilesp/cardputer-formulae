@@ -3355,7 +3355,7 @@ function R.compileText(src, name)
   local ok, text = pcall(R.compiler, src, name)
   if not ok then
     if type_(text) == "table" and text.syntax then
-      error(setmt({ syntax = text.syntax, line = text.line }, { __tostring = function() return text.syntax end }), 0)
+      error(setmt({ syntax = text.syntax, line = text.line, col = text.col, len = text.len, text = text.text }, { __tostring = function() return text.syntax end }), 0)
     end
     error(text, 0)
   end
@@ -3415,7 +3415,13 @@ function R.protect(f, name)
   local ok, e = pcall(f)
   if ok then return 0 end
   if type_(e) == "table" and e.syntax then
-    write('  File "' .. name .. '", line ' .. tostring(e.line) .. "\nSyntaxError: " .. e.syntax .. "\n")
+    write('  File "' .. name .. '", line ' .. tostring(e.line) .. "\n")
+    -- as CPython 3.13: the line indented by 4 spaces, then the carets under the token (col from 1, len the token length)
+    if type_(e.text) == "string" and mtype(e.col) then
+      local len = mtype(e.len) and e.len > 0 and e.len or 1
+      write("    " .. e.text .. "\n" .. string.rep(" ", 4 + e.col - 1) .. string.rep("^", len) .. "\n")
+    end
+    write("SyntaxError: " .. e.syntax .. "\n")
     return 1
   end
   if type_(e) == "string" and e:find("interrupted", 1, true) then error(e, 0) end

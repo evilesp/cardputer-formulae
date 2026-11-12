@@ -193,7 +193,7 @@ desktop|1.0.0.13|graphical desktop with touch: home screen with pinned apps and 
 touchcal|1.0.0.0|calibrates the touch screen: touch four crosses, it saves the shift and scale in /etc/touch.cal (needs firmware v0.1.5)|Formula/touchcal.lua
 relang|1.0.0.1|regular expressions for the language packages: a driver|Driver/relang.lua
 pylang|1.0.0.3|Python: the translator to Lua, a driver of the program python3|Driver/pylang.lua
-pyrt|1.0.0.2|Python: the run-time, a driver of the program python3|Driver/pyrt.lua
+pyrt|1.0.0.3|Python: the run-time, a driver of the program python3|Driver/pyrt.lua
 python3|1.0.0.2|Python 3 for this device: python3 FILE.py, python3 -c CODE, or a prompt; classes, generators, f-strings, exceptions, math, json, re, collections (needs firmware v0.1.14)|needs:pylang pyrt pylib relang|Formula/python3.lua
 python|1.0.0.2|the same as python3|needs:python3|Formula/python.lua
 htmldom|1.0.0.0|HTML parser and DOM driver|Driver/htmldom.lua
@@ -206,7 +206,7 @@ html|1.0.0.0|a small HTML/CSS/JavaScript player for local apps and simple pages:
 htmlplay|1.0.0.0|HTML player alternative command|needs:htmlapp|Formula/htmlplay.lua
 webplay|1.0.0.0|HTML player alternative command|needs:htmlapp|Formula/webplay.lua
 jslang|1.0.0.3|JavaScript: the translator to Lua, a driver of the program node|Driver/jslang.lua
-jsrt|1.0.0.3|JavaScript: the run-time, a driver of the program node|Driver/jsrt.lua
+jsrt|1.0.0.4|JavaScript: the run-time, a driver of the program node|Driver/jsrt.lua
 node|1.0.0.3|JavaScript (Node.js style) for this device: node FILE.js, node -e CODE, or a prompt; classes, async/await, promises, Map, Set, JSON, regular expressions (needs firmware v0.1.14)|needs:jslang jsrt relang|Formula/node.lua
 clang|1.0.0.7|C and C++: the translator to Lua, a driver of gcc and g++|Driver/clang.lua
 crt|1.0.0.4|C and C++: the run-time, a driver of gcc and g++|Driver/crt.lua

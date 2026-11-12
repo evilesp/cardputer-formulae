@@ -2205,7 +2205,13 @@ function R.protect(f, name)
   if ok then return 0 end
   if type_(e) == "table" and e.exit then return e.exit end
   if type_(e) == "table" and e.syntax then
-    write(name .. ":" .. tostring(e.line) .. "\nSyntaxError: " .. e.syntax .. "\n")
+    -- as Node 22: the file and line, the line itself, the carets under the token (col from 1), then the message
+    write(name .. ":" .. tostring(e.line) .. "\n")
+    if type_(e.text) == "string" and mtype(e.col) then
+      local len = mtype(e.len) and e.len > 0 and e.len or 1
+      write(e.text .. "\n" .. string.rep(" ", e.col - 1) .. string.rep("^", len) .. "\n\n")
+    end
+    write("SyntaxError: " .. e.syntax .. "\n")
     return 1
   end
   if type_(e) == "string" and e:find("interrupted", 1, true) then error(e, 0) end
