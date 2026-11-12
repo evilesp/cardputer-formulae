@@ -58,10 +58,27 @@ local function clock(sec)
   return t
 end
 
+-- TIME+ in 7 columns: 0:02.50, 12:34.5 -> 12:34.0 style is too wide, so from 10 minutes on it is h:mm:ss, then Nh
 local function timePlus(sec)
-  local m = math.floor(sec / 60)
-  return string.format("%d:%05.2f", m, sec - m * 60)
+  if sec < 600 then
+    local m = math.floor(sec / 60)
+    return string.format("%d:%05.2f", m, sec - m * 60)
+  end
+  local s = math.floor(sec)
+  if s < 36000 then return string.format("%d:%02d:%02d", s // 3600, (s // 60) % 60, s % 60) end
+  return string.format("%dh", s // 3600)
 end
+
+-- a percentage in 4 columns: 40.0, 9.5, 100
+local function pct4(v)
+  if v >= 99.95 then return " 100" end
+  return string.format("%4.1f", math.max(v, 0))
+end
+
+-- the columns of the list, as htop shows them on a narrow terminal (57 columns, one blank between): the widths add up to 50,
+-- so "Command" has its 7 columns; CPU% starts at CPUX
+local COLFMT = "%3s %-4s %3s %2s %4s %4s %3s %1s %4s %4s %7s %s"
+local CPUX = 3 + 1 + 4 + 1 + 3 + 1 + 2 + 1 + 4 + 1 + 4 + 1 + 3 + 1 + 1 + 1
 
 local function readLoad()
   local out = sys.shell and sys.shell("uptime")
@@ -168,7 +185,7 @@ local function draw(up)
   if pct then term.text(RIGHT, 3, string.format("Battery: %d%% %dmV%s", pct, mv, charging and " +" or ""), "white") end
 
   local headY = y
-  term.text(0, headY, string.format("%-" .. COLS .. "s", "PID USER PRI NI VIRT  RES  SHR S CPU% MEM% TIME+  Command"), "inverse-green")
+  term.text(0, headY, string.format("%-" .. COLS .. "s", string.format(COLFMT, "PID", "USER", "PRI", "NI", "VIRT", "RES", "SHR", "S", "CPU%", "MEM%", "TIME+", "Command")), "inverse-green")
   local list = visible()
   local visibleRows = ROWS - headY - 2
   if sel > #list then sel = #list end
@@ -180,14 +197,14 @@ local function draw(up)
     if not r then break end
     local cmd = (tree and "`- " or "") .. r.name
     local stk = stackText(r.stack)
-    local line = string.format("%3d %-4s %3d %2d %4s %4s %4s %s %4.1f %4.1f %6s %s", r.pid, "root", 20 - r.prio, 0,
-                               stk, stk, "0", r.cpu > 0.05 and "R" or "S", r.cpu, r.stack * 100 / math.max(totalHeap, 1), timePlus(r.secs), cmd)
+    local line = string.format(COLFMT, tostring(r.pid), "root", tostring(20 - r.prio), "0",
+                               stk, stk, "0", r.cpu > 0.05 and "R" or "S", pct4(r.cpu), pct4(r.stack * 100 / math.max(totalHeap, 1)), timePlus(r.secs), cmd)
     local yy = headY + i
     if scroll + i == sel then
       term.text(0, yy, string.format("%-" .. COLS .. "s", line:sub(1, COLS)), "inverse-cyan")
     else
       term.text(0, yy, line:sub(1, COLS), "text")
-      term.text(31, yy, string.format("%4.1f", r.cpu), level(r.cpu))
+      term.text(CPUX, yy, pct4(r.cpu), level(r.cpu))
     end
   end
 
@@ -198,12 +215,18 @@ local function draw(up)
   elseif message ~= "" then
     term.text(0, bottom, message:sub(1, COLS), "yellow")
   else
+    -- the full bar of htop is 79 columns; on this screen the unused keys go and the labels lose their padding
     local keys = { { "F1", "Help  " }, { "F2", "Setup " }, { "F3", "Search" }, { "F4", "Filter" }, { "F5", "Tree  " }, { "F6", "SortBy" }, { "F7", "Nice -" }, { "F8", "Nice +" }, { "F9", "Kill  " }, { "F10", "Quit" } }
+    local width = 0
+    for _, k in ipairs(keys) do width = width + #k[1] + #k[2] end
+    if width > COLS then
+      keys = { { "F1", "Help" }, { "F3", "Search" }, { "F4", "Filter" }, { "F5", "Tree" }, { "F6", "Sort" }, { "F9", "Kill" }, { "F10", "Quit" } }
+    end
     local x = 0
     for _, k in ipairs(keys) do
       term.text(x, bottom, k[1], "white")
       term.text(x + #k[1], bottom, k[2], "inverse-cyan")
-      x = x + #k[1] + #k[2]
+      x = x + #k[1] + #k[2] + (width > COLS and 1 or 0)
       if x >= COLS then break end
     end
   end

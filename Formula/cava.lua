@@ -1,6 +1,6 @@
 #!lua
--- cava: bars that dance like the audio visualizer of the same name: two columns wide, one apart, no labels, the colour
--- going from green at the bottom through yellow to red at the top. It is only a picture: nothing is read from the
+-- cava: bars that dance like the audio visualizer of the same name: two columns wide, one apart, no labels, built of the
+-- block characters (heights in eighths of a cell), the colour a gradient from green at the bottom through yellow to red. It is only a picture: nothing is read from the
 -- microphone or the speaker. The bars on the left are higher on average, as in a spectrum, and each bar falls back with
 -- gravity after a peak. q quits (so does Ctrl+C).
 local USAGE = "\nUsage : cava [options]\nVisualize audio input in terminal. \n\nOptions:\n\t-p          path to config file\n\t-v          print version\n\nFeatures : ncurses\n\n"
@@ -36,15 +36,31 @@ local function target(i, t)
   return clamp(wave * tilt, 0, 1)
 end
 
+-- the colour of a row: a gradient from green at the bottom through yellow to red at the top (true colour, nearest palette entry)
+local GRAD = {}
+for y = BAR_TOP, BAR_BOTTOM do
+  local f = (BAR_BOTTOM - y) / math.max(1, HEIGHT - 1)  -- 0 at the bottom, 1 at the top
+  local r, g
+  if f < 0.5 then r, g = f * 2 * 255, 255 else r, g = 255, (1 - (f - 0.5) * 2) * 255 end
+  GRAD[y] = term.rgb(math.floor(r), math.floor(g), 40)
+end
+local PART = { "\u{2581}", "\u{2582}", "\u{2583}", "\u{2584}", "\u{2585}", "\u{2586}", "\u{2587}" }  -- 1/8 .. 7/8 of a cell
+
 local function draw(shown)
   term.clear()
   for i = 1, BARS do
-    local h = math.floor(shown[i] * HEIGHT + 0.5)
-    for y = BAR_BOTTOM - h + 1, BAR_BOTTOM do
-      local f = (BAR_BOTTOM - y) / HEIGHT  -- 0 at the bottom, 1 at the top
-      local color = f < 0.5 and "green" or (f < 0.8 and "yellow" or "red")
-      term.put(3 * i - 3, y, "#", color)
-      term.put(3 * i - 2, y, "#", color)
+    -- the height in eighths of a cell, as the real cava does with its block characters
+    local eighths = math.floor(shown[i] * HEIGHT * 8 + 0.5)
+    local full, part = eighths // 8, eighths % 8
+    for k = 0, full - 1 do
+      local y = BAR_BOTTOM - k
+      term.put(3 * i - 3, y, "\u{2588}", GRAD[y])
+      term.put(3 * i - 2, y, "\u{2588}", GRAD[y])
+    end
+    if part > 0 and full < HEIGHT then
+      local y = BAR_BOTTOM - full
+      term.put(3 * i - 3, y, PART[part], GRAD[y])
+      term.put(3 * i - 2, y, PART[part], GRAD[y])
     end
   end
   term.flush()

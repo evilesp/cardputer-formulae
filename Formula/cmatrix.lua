@@ -1,5 +1,5 @@
 #!lua
--- cmatrix: the falling green characters of cmatrix 2.0. White head, green trail, characters from ! to ~ as in the
+-- cmatrix: the falling green characters of cmatrix 2.0. White head, trail fading from bright to dark green (true colour), characters from ! to ~ as in the
 -- original. q quits (in -s mode any key does). While it runs: 0-9 change the speed, a toggles async, ! @ # $ % ^ & pick a colour.
 local USAGE = [[
 Usage: cmatrix -[abBcfhlsVx] [-u delay] [-C color]
@@ -76,6 +76,19 @@ if o.delay < 0 or o.delay > 10 then
   return
 end
 
+-- the trail goes from bright to dark: LEVELS shades of each colour, made with term.rgb (true colour, nearest palette entry)
+local BASE = { green = {0, 255, 70}, red = {255, 40, 40}, blue = {60, 100, 255}, white = {255, 255, 255},
+  yellow = {255, 235, 0}, cyan = {0, 240, 255}, magenta = {255, 0, 220}, dim = {150, 150, 150} }
+local RAMPS = {}
+local LEVELS = 8
+for name, c in pairs(BASE) do
+  RAMPS[name] = {}
+  for l = 0, LEVELS - 1 do
+    local f = 1 - 0.85 * l / (LEVELS - 1)  -- 1 near the head, 0.15 at the tail
+    RAMPS[name][l] = term.rgb(math.floor(c[1] * f), math.floor(c[2] * f), math.floor(c[3] * f))
+  end
+end
+
 local COLS, ROWS = term.size()
 local async = o.a or false
 local delay = o.delay
@@ -129,9 +142,12 @@ while not quit do
     for y, ch in pairs(c.cells) do
       if y >= 0 and y < ROWS then
         if o.k then ch = rc(); c.cells[y] = ch end
-        local color = base
-        if y == c.head then color = "white"
-        elseif base == "green" and c.head - y > c.len // 2 then color = "greendim" end
+        local color
+        if y == c.head then color = term.rgb(255, 255, 255)
+        else
+          local l = math.min(LEVELS - 1, (c.head - y) * LEVELS // math.max(c.len, 1))
+          color = RAMPS[base][l]
+        end
         term.put(x, y, ch, color)
       end
     end

@@ -14,17 +14,40 @@ local function mangle(n)
   if n:find("[$\128-\255]") then return (n:gsub("[$\128-\255]", function(c) return string.format("_x%02x", c:byte()) end)) end
   return n
 end
-local function syntaxError(msg, line) error({ syntax = msg, line = line }, 0) end
+-- col, len: where the error is in the line (1-based) and how long the token is
+local function syntaxError(msg, line, col, len) error({ syntax = msg, line = line, col = col, len = len }, 0) end
 local ESC = { n = "\n", t = "\t", r = "\r", b = "\b", f = "\f", v = "\v", ["0"] = "\0", ["\n"] = "" }
 local OPS = { ">>>=", "...", "===", "!==", "**=", "<<=", ">>=", ">>>", "&&=", "||=", "??=", "=>", "==", "!=", "<=", ">=", "&&", "||", "??", "?.", "++", "--", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "**", "<<", ">>" }
 local OPSET = {}
 for _, o in ipairs(OPS) do OPSET[o] = true end
 
+-- where a token stands: the line starts of a source, and the column (1 = first character of the line) of an index; used by the
+-- error messages of the translator
+local function lineStartsOf(src)
+  local ls, p = { 1 }, 1
+  while true do
+    p = src:find("\n", p, true)
+    if not p then break end
+    p = p + 1
+    ls[#ls + 1] = p
+  end
+  return ls
+end
+local function colAt(ls, p)
+  local lo, hi = 1, #ls
+  while lo < hi do
+    local mid = (lo + hi + 1) // 2
+    if ls[mid] <= p then lo = mid else hi = mid - 1 end
+  end
+  return p - ls[lo] + 1
+end
+
 local function lex(src)
   local toks, i, n, line = {}, 1, #src, 1
+  local ls, tokStart = lineStartsOf(src), 1
   local nlBefore = false
   local function push(t, v, extra)
-    local tk = { t = t, v = v, line = line, nl = nlBefore }
+    local tk = { t = t, v = v, line = line, nl = nlBefore, col = colAt(ls, tokStart) }
     if extra then for k, x in pairs(extra) do tk[k] = x end end
     toks[#toks + 1] = tk
     nlBefore = false
@@ -51,6 +74,9 @@ local function lex(src)
   end
   if src:sub(1, 2) == "#!" then i = src:find("\n", 1, true) or n + 1 end
   while i <= n do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+    tokStart = i
     local c = src:sub(i, i)
     if c == "\n" then line = line + 1; nlBefore = true; i = i + 1
     elseif c == " " or c == "\t" or c == "\r" then i = i + 1
@@ -83,7 +109,7 @@ local function lex(src)
       local b, j = {}, i + 1
       while true do
         local d = src:sub(j, j)
-        if d == "" or d == "\n" then syntaxError("Invalid or unexpected token", line) end
+        if d == "" or d == "\n" then syntaxError("Invalid or unexpected token", line, colAt(ls, tokStart), 1) end
         if d == c then break end
         if d == "\\" then
           local x
@@ -174,6 +200,11 @@ local function lex(src)
       i = i + #op
     end
   end
+  do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+  end
+  tokStart = i
   push("eof")
   return toks
 end
@@ -314,7 +345,7 @@ local function jsNumericNames(toks)
   return N
 end
 
-local function compile(src)
+local function compileText(src)
   local toks, pos = lex(src), 1
   local tok = toks[1]
   local out = {}
@@ -348,7 +379,7 @@ local function compile(src)
   local function adv() pos = pos + 1; tok = toks[pos] end
   local function isOp(v) return tok.t == "op" and tok.v == v end
   local function isKw(v) return tok.t == "kw" and tok.v == v end
-  local function err(m) syntaxError(m or ("Unexpected token '" .. tostring(tok.v or "end of input") .. "'"), tok.line) end
+  local function err(m) syntaxError(m or ("Unexpected token '" .. tostring(tok.v or "end of input") .. "'"), tok.line, tok.col, tok.col and tok.ecol and math.max(1, tok.ecol - tok.col + 1) or 1) end
   local function acceptOp(v) if isOp(v) then adv(); return true end end
   local function acceptKw(v) if isKw(v) then adv(); return true end end
   local function expectOp(v) if not acceptOp(v) then err() end end
@@ -1701,8 +1732,21 @@ function LC.report(t0)
   end
 end
 
+-- an error of the translator gets the text of its line, for the message (File "x.py", line 3 / the caret under the token)
+local function compile(src)
+  local ok, r = pcall(compileText, src)
+  if ok then return r end
+  if type(r) == "table" and r.syntax and not r.text then
+    local k = 0
+    for l in (src .. "\n"):gmatch("([^\n]*)\n") do
+      k = k + 1
+      if k == tonumber(r.line) then r.text = l; break end
+    end
+  end
+  error(r, 0)
+end
 J.compile = compile
-J.VERSION = "1.0.0.2"
+J.VERSION = "1.0.0.3"
 function J.main(args)
   local rt = driver.load("jsrt")
   -- the file is the first argument that is not an option (as jsrt reads them)

@@ -8,15 +8,38 @@ for w in ("break case chan const continue default defer else fallthrough for fun
 local LUAKW = {}
 for w in ("and do elseif end function in local nil not or repeat then until self true false while R G"):gmatch("%S+") do LUAKW[w] = true end
 local function mangle(n) if LUAKW[n] then return n .. "_" end if n:find("[\128-\255]") then return (n:gsub("[\128-\255]", function(c) return string.format("_x%02x", c:byte()) end)) end return n end
-local function syntaxError(m, l) error({ syntax = m, line = l }, 0) end
+-- col: where the error is in the line (1-based, in bytes like the go tool)
+local function syntaxError(m, l, col) error({ syntax = m, line = l, col = col }, 0) end
 local OPS = { "<<=", ">>=", "&^=", "...", "&&", "||", "<-", "++", "--", "==", "!=", "<=", ">=", ":=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "&^" }
 local OPSET, OPMAX = {}, 2
 for _, o in ipairs(OPS) do OPSET[o] = true; if #o > OPMAX then OPMAX = #o end end
 local ESC = { n = 10, t = 9, r = 13, a = 7, b = 8, f = 12, v = 11, ["\\"] = 92, ["'"] = 39, ['"'] = 34 }
 
+-- where a token stands: the line starts of a source, and the column (1 = first character of the line) of an index; used by the
+-- error messages of the translator
+local function lineStartsOf(src)
+  local ls, p = { 1 }, 1
+  while true do
+    p = src:find("\n", p, true)
+    if not p then break end
+    p = p + 1
+    ls[#ls + 1] = p
+  end
+  return ls
+end
+local function colAt(ls, p)
+  local lo, hi = 1, #ls
+  while lo < hi do
+    local mid = (lo + hi + 1) // 2
+    if ls[mid] <= p then lo = mid else hi = mid - 1 end
+  end
+  return p - ls[lo] + 1
+end
+
 local function lex(src)
   local toks, i, n, line = {}, 1, #src, 1
-  local function push(t, v) toks[#toks + 1] = { t = t, v = v, line = line } end
+  local ls, tokStart = lineStartsOf(src), 1
+  local function push(t, v) toks[#toks + 1] = { t = t, v = v, line = line, col = colAt(ls, tokStart) } end
   local function needsSemi()
     local p = toks[#toks]
     if not p then return false end
@@ -34,9 +57,12 @@ local function lex(src)
   end
   if src:sub(1, 2) == "#!" then i = src:find("\n", 1, true) or n + 1 end
   while i <= n do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+    tokStart = i
     local c = src:sub(i, i)
     if c == "\n" then
-      if needsSemi() then push("op", ";") end
+      if needsSemi() then push("op", ";"); toks[#toks].auto = true end
       line = line + 1; i = i + 1
     elseif c == " " or c == "\t" or c == "\r" then i = i + 1
     elseif src:sub(i, i + 1) == "//" then i = src:find("\n", i, true) or n + 1
@@ -67,7 +93,7 @@ local function lex(src)
       local b, j = {}, i + 1
       while true do
         local d = src:sub(j, j)
-        if d == "" or d == "\n" then syntaxError("string literal not terminated", line) end
+        if d == "" or d == "\n" then syntaxError("string literal not terminated", line, colAt(ls, tokStart)) end
         if d == '"' then break end
         if d == "\\" then
           local v, nx, raw = esc(j)
@@ -105,7 +131,12 @@ local function lex(src)
       i = i + #op
     end
   end
-  if needsSemi() then push("op", ";") end
+  do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+  end
+  tokStart = i
+  if needsSemi() then push("op", ";"); toks[#toks].auto = true end
   push("eof")
   return toks
 end
@@ -175,12 +206,22 @@ local function compile(src)
   local function peek(k) return toks[pos + (k or 1)] end
   local function isOp(v) return tok.t == "op" and tok.v == v end
   local function isKw(v) return tok.t == "kw" and tok.v == v end
-  local function err(m) syntaxError(m or ("syntax error: unexpected " .. tostring(tok.v or "EOF")), tok.line) end
+  -- how the go compiler names a token in "unexpected ..."
+  local function tokDesc(t)
+    if t.t == "eof" then return "EOF" end
+    if t.t == "op" and t.v == ";" then return t.auto and "newline" or "semicolon" end
+    if t.t == "name" then return "name " .. t.v end
+    if t.t == "kw" then return "keyword " .. t.v end
+    if t.t == "str" then return "literal " .. string.format("%q", t.v) end
+    if t.t == "int" or t.t == "float" or t.t == "char" then return "literal " .. tostring(t.v) end
+    return tostring(t.v)
+  end
+  local function err(m) syntaxError(m or ("syntax error: unexpected " .. tokDesc(tok)), tok.line, tok.col) end
   local function acceptOp(v) if isOp(v) then adv(); return true end end
   local function acceptKw(v) if isKw(v) then adv(); return true end end
-  local function expectOp(v) if not acceptOp(v) then err("syntax error: unexpected " .. tostring(tok.v or "EOF") .. ", expected " .. v) end end
+  local function expectOp(v) if not acceptOp(v) then err("syntax error: unexpected " .. tokDesc(tok) .. ", expected " .. v) end end
   local function expectKw(v) if not acceptKw(v) then err("syntax error: expected " .. v) end end
-  local function name() if tok.t ~= "name" then err("syntax error: unexpected " .. tostring(tok.v) .. ", expected name") end local v = tok.v; adv(); return v end
+  local function name() if tok.t ~= "name" then err("syntax error: unexpected " .. tokDesc(tok) .. ", expected name") end local v = tok.v; adv(); return v end
   local function emit(s) out[#out + 1] = s end
   local function tmp() tmpN = tmpN + 1; return "_t" .. tmpN end
   local function capture(f) local s = out; out = {}; f(); local r = table.concat(out, "\n"); out = s; return r end
@@ -802,7 +843,7 @@ local function compile(src)
         if n == "clear" then return "R.clear(" .. a .. ")", nil end
         return "R." .. n .. "(" .. a .. ")", INT
       end
-      syntaxError("undefined: " .. n, t.line)
+      syntaxError("undefined: " .. n, t.line, t.col)
     end
     err()
   end
@@ -1270,7 +1311,7 @@ local function compile(src)
       if tok.t == "eof" then err("syntax error: unexpected EOF, expected }") end
       statement()
       if not isOp("}") then
-        if not acceptOp(";") then err("syntax error: unexpected " .. tostring(tok.v) .. " at end of statement") end
+        if not acceptOp(";") then err("syntax error: unexpected " .. tokDesc(tok) .. " at end of statement") end
       end
     end
     adv()
@@ -2076,7 +2117,7 @@ function LC.report(t0)
 end
 
 M.compile = compile
-M.VERSION = "1.0.0.2"
+M.VERSION = "1.0.0.3"
 
 function M.main(args)
   local rt = driver.load("gort")
@@ -2087,7 +2128,7 @@ function M.main(args)
   if cmd == "version" or cmd == "--version" then term.write("go version go1.24.3 linux/riscv64\n"); return 0 end
   if cmd == "--selftest" then return rt.run(compile('package main\nimport "fmt"\nfunc main() { fmt.Println("go ok", 6*7) }\n'), {}) end
   local function report(path, e)
-    if type(e) == "table" and e.syntax then term.write("# command-line-arguments\n" .. (path:find("/", 1, true) and path or ("./" .. path)) .. ":" .. tostring(e.line) .. ":1: " .. e.syntax .. "\n")
+    if type(e) == "table" and e.syntax then term.write("# command-line-arguments\n" .. (path:find("/", 1, true) and path or ("./" .. path)) .. ":" .. tostring(e.line) .. ":" .. tostring(e.col or 1) .. ": " .. e.syntax .. "\n")
     else term.write(tostring(e) .. "\n") end
     return 1
   end

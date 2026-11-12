@@ -71,6 +71,14 @@ if not net.connected() then
   os.exit(2)
 end
 
+-- like httping: the name is resolved once and the replies name the address
+local ip, why = net.resolve(h)
+if not ip then
+  if why and why:find("unreachable") then io.stderr:write("httping: " .. h .. ": " .. why .. "\n")
+  else io.stderr:write("Problem resolving " .. h .. ": Name or service not known\n") end
+  os.exit(2)
+end
+
 if not quiet then print("PING " .. h .. ":" .. p .. " (" .. path .. "):") end
 
 local best, worst, total, ok, tries = nil, 0, 0, 0, 0
@@ -86,11 +94,11 @@ for seq = 0, count - 1 do
     if best == nil or ms < best then best = ms end
     if ms > worst then worst = ms end
     if not quiet then
-      print(string.format("connected to %s:%d (%d bytes), seq=%d time=%7.2f ms%s", h, p, #body, seq, ms,
+      print(string.format("connected to %s:%d (%d bytes), seq=%d time=%7.2f ms%s", ip, p, #body, seq, ms,
         showStatus and (" " .. status) or ""))
     end
   elseif not quiet then
-    print(string.format("%s:%d: %s", h, p, tostring(body)))
+    print(string.format("%s:%d: %s", ip, p, tostring(body)))
   end
   if seq < count - 1 then sys.sleep(math.floor(interval * 1000)) end
 end

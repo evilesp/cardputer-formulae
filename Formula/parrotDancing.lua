@@ -7,7 +7,16 @@
 
 local STEPS = 10                      -- frames of one circle of the head
 local RAMP = { ".", ",", ":", ";", "c", "l", "o", "d", "k" }  -- from the edge of a shape to its middle
-local RAINBOW = { "red", "yellow", "green", "cyan", "blue", "magenta" }
+-- a new colour every beat: the hue walks round the colour wheel (6 beats make a full turn) and term.rgb picks it from the palette
+local function hue(h)
+  local x = h % 6
+  local f = x - math.floor(x)
+  local r, g, b
+  local i = math.floor(x)
+  if i == 0 then r, g, b = 1, f, 0 elseif i == 1 then r, g, b = 1 - f, 1, 0 elseif i == 2 then r, g, b = 0, 1, f
+  elseif i == 3 then r, g, b = 0, 1 - f, 1 elseif i == 4 then r, g, b = f, 0, 1 else r, g, b = 1, 0, 1 - f end
+  return term.rgb(math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+end
 local ASPECT = 0.62                   -- a letter is narrower than it is high: one column is this many rows wide
 
 -- the distance from a point to an ellipse's edge, negative inside (good enough near the edge, which is what shades)
@@ -122,7 +131,7 @@ while not quit do
   end
   if quit then break end
   term.clear()
-  local colour = RAINBOW[step % #RAINBOW + 1]
+  local colour = hue(step * 0.6)
   for r, line in ipairs(frames[step % STEPS + 1]) do term.text(0, r - 1, line, colour) end
   term.text(0, ROWS - 1, "parrotDancing   q quit", "dim")
   term.flush()

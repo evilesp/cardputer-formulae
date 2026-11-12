@@ -9,15 +9,43 @@ for w in ("as break const continue crate dyn else enum extern false fn for if im
 local LUAKW = {}
 for w in ("and do elseif end function local nil not or repeat then until goto R G"):gmatch("%S+") do LUAKW[w] = true end
 local function mangle(n) if LUAKW[n] then return n .. "_" end return n end
-local function syntaxError(m, l) error({ syntax = m, line = l }, 0) end
+-- col, len: where the error is (1-based column, length of the token); extra: code (E0425 ...), label, second (another place with its
+-- own label, drawn with dashes)
+local function syntaxError(m, l, col, len, extra)
+  local e = { syntax = m, line = l, col = col, len = len }
+  if extra then for k, v in pairs(extra) do e[k] = v end end
+  error(e, 0)
+end
 local OPS = { "<<=", ">>=", "..=", "...", "::", "->", "=>", "==", "!=", "<=", ">=", "&&", "||", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", ".." }
 local OPSET, OPMAX = {}, 2
 for _, o in ipairs(OPS) do OPSET[o] = true; if #o > OPMAX then OPMAX = #o end end
 local ESC = { n = "\n", t = "\t", r = "\r", ["0"] = "\0", ["\\"] = "\\", ["'"] = "'", ['"'] = '"' }
 
+-- where a token stands: the line starts of a source, and the column (1 = first character of the line) of an index; used by the
+-- error messages of the translator
+local function lineStartsOf(src)
+  local ls, p = { 1 }, 1
+  while true do
+    p = src:find("\n", p, true)
+    if not p then break end
+    p = p + 1
+    ls[#ls + 1] = p
+  end
+  return ls
+end
+local function colAt(ls, p)
+  local lo, hi = 1, #ls
+  while lo < hi do
+    local mid = (lo + hi + 1) // 2
+    if ls[mid] <= p then lo = mid else hi = mid - 1 end
+  end
+  return p - ls[lo] + 1
+end
+
 local function lex(src)
   local toks, i, n, line = {}, 1, #src, 1
-  local function push(t, v, x) toks[#toks + 1] = { t = t, v = v, line = line, x = x } end
+  local ls, tokStart = lineStartsOf(src), 1
+  local function push(t, v, x) toks[#toks + 1] = { t = t, v = v, line = line, x = x, col = colAt(ls, tokStart) } end
   local function esc(j)
     local d = src:sub(j + 1, j + 1)
     if d == "x" then return string.char(tonumber(src:sub(j + 2, j + 3), 16)), j + 4 end
@@ -53,6 +81,9 @@ local function lex(src)
   end
   if src:sub(1, 2) == "#!" and src:sub(3, 3) ~= "[" then i = src:find("\n", 1, true) or n + 1 end
   while i <= n do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+    tokStart = i
     local c = src:sub(i, i)
     if c == "\n" then line = line + 1; i = i + 1
     elseif c == " " or c == "\t" or c == "\r" then i = i + 1
@@ -159,6 +190,11 @@ local function lex(src)
       i = i + #op
     end
   end
+  do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+  end
+  tokStart = i
   push("eof")
   return toks
 end
@@ -182,12 +218,14 @@ local function compile(src)
   local curRetHint, hint
   local structs, enums, traits, fnNames, impls = {}, {}, {}, {}, {}
   local locals = { {} }
+  local unresolved = {}   -- names that are used as plain values or functions: checked against the items at the end (E0425)
 
   local function adv() pos = pos + 1; tok = toks[pos] end
   local function peek(k) return toks[pos + (k or 1)] end
   local function isOp(v) return tok.t == "op" and tok.v == v end
   local function isKw(v) return tok.t == "kw" and tok.v == v end
-  local function err(m) syntaxError(m or ("expected something else, found `" .. tostring(tok.v or "<eof>") .. "`"), tok.line) end
+  local function tlen(t) return t and t.col and t.ecol and math.max(1, t.ecol - t.col + 1) or 1 end
+  local function err(m) syntaxError(m or ("expected expression, found `" .. tostring(tok.v or "<eof>") .. "`"), tok.line, tok.col, tlen(tok)) end
   local function acceptOp(v) if isOp(v) then adv(); return true end end
   local function acceptKw(v) if isKw(v) then adv(); return true end end
   local function splitOp(first)
@@ -202,7 +240,14 @@ local function compile(src)
   local function expectOp(v)
     if acceptOp(v) then return end
     if splitOp(v) then return end
-    err("expected `" .. v .. "`, found `" .. tostring(tok.v or "<eof>") .. "`")
+    local m = "expected `" .. v .. "`, found `" .. tostring(tok.v or "<eof>") .. "`"
+    local prev = toks[pos - 1]
+    if v == ";" and prev and prev.col and tok.t ~= "eof" then
+      -- rustc points just after the last token and shows the one that follows
+      syntaxError(m, prev.line, (prev.ecol or prev.col) + 1, 1, { label = "help: add `;` here",
+                  second = { line = tok.line, col = tok.col, len = tlen(tok), label = "unexpected token" } })
+    end
+    syntaxError(m, tok.line, tok.col, tlen(tok), { label = "expected `" .. v .. "`" })
   end
   local function expectKw(v) if not acceptKw(v) then err("expected `" .. v .. "`") end end
   local function name() if tok.t ~= "name" then err("expected identifier, found `" .. tostring(tok.v) .. "`") end local v = tok.v; adv(); return v end
@@ -457,7 +502,7 @@ local function compile(src)
       r = str(table.concat(p, " "))
     elseif n == "line" then r = tostring(tok.line)
     elseif n == "file" then r = '"main.rs"'
-    else syntaxError("cannot find macro `" .. n .. "` in this scope", tok.line) end
+    else syntaxError("cannot find macro `" .. n .. "` in this scope", tok.line, tok.col, tlen(tok), { label = "" }) end
     if not isOp(close) then err() end
     adv()
     return r
@@ -1175,6 +1220,7 @@ local function compile(src)
         if n == "Some" or n == "Ok" or n == "Err" then return "R." .. n end
         if n == "None" then return "R.None" end
         if n == "String" or n == "Vec" or n == "Box" then return "R.type_" .. n end
+        unresolved[#unresolved + 1] = { n = n, tok = t, call = isOp("(") }
         return "G." .. mangle(n), { set = function(x) return "G." .. mangle(n) .. "=" .. x end, code = "G." .. mangle(n) }
       end
       -- Self { ... } or Self(...)
@@ -1458,6 +1504,20 @@ local function compile(src)
   end
 
   -- ---- statements and blocks ----
+  -- let x: T = LITERAL; with a literal of another kind than T: E0308 (only the clear cases)
+  local function checkLiteral(ty, lit, tyFirst, tyLast)
+    local found
+    local isInt = INT_TYPES[ty] ~= nil
+    if lit.t == "str" then
+      if isInt or ty == "f64" or ty == "f32" or ty == "bool" or ty == "char" then found = "`&str`" end
+    elseif lit.t == "int" and (ty == "bool" or ty == "&str" or ty == "char") then found = "integer"
+    elseif lit.t == "float" and (isInt or ty == "bool" or ty == "&str" or ty == "char") then found = "floating-point number"
+    elseif lit.t == "char" and (isInt or ty == "f64" or ty == "f32" or ty == "bool" or ty == "&str") then found = "`char`" end
+    if found and lit.col and tyFirst and tyFirst.col and tyFirst.line == lit.line then
+      syntaxError("mismatched types", lit.line, lit.col, tlen(lit), { code = "E0308", label = "expected `" .. ty .. "`, found " .. found,
+                  second = { line = tyFirst.line, col = tyFirst.col, len = (tyLast.ecol or tyLast.col) - tyFirst.col + 1, label = "expected due to this" } })
+    end
+  end
   local function letStatement()
     expectKw("let")
     -- a simple name is the common case; otherwise a pattern over a temporary
@@ -1482,8 +1542,8 @@ local function compile(src)
         adv()
       end
     end
-    local ty
-    if acceptOp(":") then ty = parseType() end
+    local ty, tyFirst, tyLast
+    if acceptOp(":") then tyFirst = tok; ty = parseType(); tyLast = toks[pos - 1] end
     if simpleName then NARROW[simpleName] = ty and INT_TYPES[ty] and INT_TYPES[ty][1] < 64 and INT_TYPES[ty] or nil end
     local savedHint = hint
     hint = ty
@@ -1491,6 +1551,7 @@ local function compile(src)
     local m = simpleName and mangle(simpleName)
     local elseBranch
     if acceptOp("=") then
+      if ty and peek().t == "op" and peek().v == ";" then checkLiteral(ty, tok, tyFirst, tyLast) end
       if simpleName then
         -- the value is computed in a block of its own, so that its temporaries do not use up the locals of the function
         local tname = "_v" .. tmp()
@@ -1999,6 +2060,18 @@ local function compile(src)
   for _, a in ipairs(useAliases) do emit(a) end
   emit("return G.main")
   local all = "local R_fmod=math.fmod\n" .. table.concat(out, "\n")
+  -- a lower-case name that no item defines is rustc's E0425
+  if #unresolved > 0 then
+    local defined, importAll = {}, false
+    for k in all:gmatch("G%.([%w_]+)%s*=") do defined[k] = true end
+    if all:find("R.importAll", 1, true) then importAll = true end
+    for _, u in ipairs(unresolved) do
+      if not importAll and not defined[mangle(u.n)] and u.n:match("^[%l_]") and u.n ~= "drop" and u.n ~= "std" and u.tok and u.tok.col then
+        syntaxError("cannot find " .. (u.call and "function" or "value") .. " `" .. u.n .. "` in this scope", u.tok.line, u.tok.col, tlen(u.tok),
+                    { code = "E0425", label = "not found in this scope" })
+      end
+    end
+  end
   return all
 end
 -- ---------------------------------------------------------------- translation cache, LANG_DUMP and LANG_TIME
@@ -2050,7 +2123,7 @@ function LC.report(t0)
 end
 
 M.compile = compile
-M.VERSION = "1.0.0.2"
+M.VERSION = "1.0.0.3"
 
 function M.main(args)
   local rt = driver.load("rustrt")
@@ -2076,14 +2149,47 @@ function M.main(args)
   if not src then term.write("error: couldn't read `" .. path .. "`: No such file or directory (os error 2)\n\nerror: aborting due to 1 previous error\n\n"); return 1 end
   local ok, text = pcall(LC.get, "rustlang", M.VERSION, path, src, function() return compile(src) end)
   if not ok then
-    if type(text) == "table" and text.syntax then local ln = tonumber(text.line) or 1
-      local code, k = "", 0
-      for l in (src .. "\n"):gmatch("([^\n]*)\n") do k = k + 1; if k == ln then code = l; break end end
-      local col = (code:find("%S")) or 1
-      local gut = tostring(ln)
-      local pad = string.rep(" ", #gut)
-      local head = text.syntax:find("cannot find value", 1, true) and "error[E0425]: " or "error: "
-      term.write(head .. text.syntax .. "\n" .. pad .. "--> " .. path .. ":" .. ln .. ":" .. col .. "\n" .. pad .. " |\n" .. gut .. " | " .. code .. "\n" .. pad .. " | " .. string.rep(" ", col - 1) .. "^\n\nerror: aborting due to 1 previous error\n\n")
+    if type(text) == "table" and text.syntax then
+      local lines = {}
+      for l in (src .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = l end
+      local ln = tonumber(text.line) or 1
+      local col = text.col or (lines[ln] or ""):find("%S") or 1
+      local len = text.len or 1
+      local sec = text.second
+      local width = #tostring(sec and math.max(sec.line, ln) or ln)
+      local pad = string.rep(" ", width)
+      local function code(n) return ((lines[n] or ""):gsub("\t", "    ")) end
+      local function shown(n, c)   -- display columns before the character c (a tab is four blanks)
+        local w = 0
+        for k = 1, c - 1 do w = w + ((lines[n] or ""):sub(k, k) == "\t" and 4 or 1) end
+        return w
+      end
+      local function gut(n) return string.format("%" .. width .. "d", n) end
+      local o = {}
+      o[#o + 1] = (text.code and ("error[" .. text.code .. "]: ") or "error: ") .. text.syntax
+      o[#o + 1] = pad .. "--> " .. path .. ":" .. ln .. ":" .. col
+      o[#o + 1] = pad .. " |"
+      local label = text.label and text.label ~= "" and (" " .. text.label) or ""
+      local dp = shown(ln, col)
+      if sec and sec.line == ln then
+        local ds = shown(ln, sec.col)
+        o[#o + 1] = gut(ln) .. " | " .. code(ln)
+        o[#o + 1] = pad .. " | " .. string.rep(" ", ds) .. string.rep("-", sec.len) .. string.rep(" ", math.max(0, dp - ds - sec.len)) .. string.rep("^", len) .. label
+        o[#o + 1] = pad .. " | " .. string.rep(" ", ds) .. "|"
+        o[#o + 1] = pad .. " | " .. string.rep(" ", ds) .. sec.label
+      else
+        o[#o + 1] = gut(ln) .. " | " .. code(ln)
+        o[#o + 1] = pad .. " | " .. string.rep(" ", dp) .. string.rep("^", len) .. label
+        if sec then
+          o[#o + 1] = gut(sec.line) .. " | " .. code(sec.line)
+          o[#o + 1] = pad .. " | " .. string.rep(" ", shown(sec.line, sec.col)) .. string.rep("-", sec.len) .. " " .. sec.label
+        end
+      end
+      o[#o + 1] = ""
+      o[#o + 1] = "error: aborting due to 1 previous error"
+      o[#o + 1] = ""
+      if text.code then o[#o + 1] = "For more information about this error, try `rustc --explain " .. text.code .. "`." end
+      term.write(table.concat(o, "\n") .. "\n")
     else term.write(tostring(text) .. "\n") end
     return 1
   end

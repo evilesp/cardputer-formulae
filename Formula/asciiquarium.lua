@@ -94,13 +94,25 @@ local function pick()
   return pool[math.random(#pool)]
 end
 
+-- the original paints every fish with a random colour mask: here a random colour from the 128 colour palette
+local FISHRGB = { {255, 215, 0}, {0, 215, 255}, {95, 255, 95}, {255, 95, 215}, {255, 255, 255}, {255, 95, 95}, {95, 135, 255},
+  {255, 175, 60}, {175, 135, 255}, {0, 255, 175} }
+local function fishColor()
+  local c = FISHRGB[math.random(#FISHRGB)]
+  return term.rgb(c[1], c[2], c[3])
+end
+local BIGRGB = { shark = term.rgb(135, 150, 175), whale = term.rgb(60, 110, 230), swan = term.rgb(255, 255, 255) }
+local SEAWEED = { term.rgb(0, 200, 60), term.rgb(60, 235, 90) }
+local WATERRGB = { term.rgb(0, 220, 255), term.rgb(60, 170, 255), term.rgb(0, 200, 230), term.rgb(100, 220, 255) }
+local CASTLERGB = { term.rgb(255, 215, 0), term.rgb(215, 150, 60) }
+
 local function spawn(t)
   if t.big then bigOut = false end
   local ship = not classic and not bigOut and math.random(8) == 1
   local d = (not ship) and pick() or nil
   t.dir = math.random(0, 1) == 0 and 1 or -1
   t.rows = d and (t.dir == 1 and d.right or d.left) or (t.dir == 1 and SHIP or flip(SHIP))
-  t.color = d and d[2] or "yellow"
+  t.color = d and (d[3] and BIGRGB[d[3]] or fishColor()) or term.rgb(255, 255, 255)
   t.big = ship or (d and d[3])
   if t.big then bigOut = true end
   t.w = 0
@@ -180,17 +192,17 @@ while not quit do
     for x = 0, W - 1 do
       local i = (x + sh) % #p + 1
       local ch = p:sub(i, i)
-      if ch ~= " " then term.put(x, r - 1, ch, "cyan") end
+      if ch ~= " " then term.put(x, r - 1, ch, WATERRGB[r]) end
     end
   end
   for _, s in ipairs(weeds) do
     for row = 0, s.h - 1 do
       local left = (frame // 8 + row) % 2 == 0
-      term.put(s.x + (left and 0 or 1), H - 1 - row, left and "(" or ")", "green")
+      term.put(s.x + (left and 0 or 1), H - 1 - row, left and "(" or ")", SEAWEED[(row + 1) % 2 + 1])
     end
   end
-  if W >= 50 and H >= 20 then drawSprite(W - #CASTLE[6] - 1, H - #CASTLE, CASTLE, "yellow", true) end
-  for _, b in ipairs(bubbles) do term.put(b.x, b.y, (b.y % 2 == 0) and "o" or ".", "cyan") end
+  if W >= 50 and H >= 20 then drawSprite(W - #CASTLE[6] - 1, H - #CASTLE, CASTLE, CASTLERGB[1], true) end
+  for _, b in ipairs(bubbles) do term.put(b.x, b.y, (b.y % 2 == 0) and "o" or ".", WATERRGB[1]) end
   for _, t in ipairs(things) do drawSprite(t.x, t.y, t.rows, t.color, not transparent) end
   term.flush()
   sys.sleep(70)

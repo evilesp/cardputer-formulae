@@ -35,14 +35,40 @@ local function unescape(s)
   return table.concat(out)
 end
 
-local function syntaxError(msg, line) error({ syntax = msg, line = line }, 0) end
+-- col, len: where the error is in the line (1-based) and how long the token is
+local function syntaxError(msg, line, col, len) error({ syntax = msg, line = line, col = col, len = len }, 0) end
+
+-- where a token stands: the line starts of a source, and the column (1 = first character of the line) of an index; used by the
+-- error messages of the translator
+local function lineStartsOf(src)
+  local ls, p = { 1 }, 1
+  while true do
+    p = src:find("\n", p, true)
+    if not p then break end
+    p = p + 1
+    ls[#ls + 1] = p
+  end
+  return ls
+end
+local function colAt(ls, p)
+  local lo, hi = 1, #ls
+  while lo < hi do
+    local mid = (lo + hi + 1) // 2
+    if ls[mid] <= p then lo = mid else hi = mid - 1 end
+  end
+  return p - ls[lo] + 1
+end
 
 local function lex(src)
   local toks, i, n, line, depth, indents = {}, 1, #src, 1, 0, { 0 }
-  local function push(t, v) toks[#toks + 1] = { t = t, v = v, line = line } end
+  local ls, tokStart = lineStartsOf(src), 1
+  local function push(t, v) toks[#toks + 1] = { t = t, v = v, line = line, col = colAt(ls, tokStart) } end
   local bol = true
   if src:sub(1, 2) == "#!" then i = (src:find("\n", 1, true) or n) end
   while i <= n do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+    tokStart = i
     if bol and depth == 0 then
       local j, col = i, 0
       while true do
@@ -61,7 +87,7 @@ local function lex(src)
         if col > indents[#indents] then indents[#indents + 1] = col; push("indent")
         else
           while col < indents[#indents] do indents[#indents] = nil; push("dedent") end
-          if col ~= indents[#indents] then syntaxError("unindent does not match any outer indentation level", line) end
+          if col ~= indents[#indents] then syntaxError("unindent does not match any outer indentation level", line, j - i + 1, 1) end
         end
       end
     else
@@ -89,7 +115,7 @@ local function lex(src)
           while true do
             k = src:find(q == '"' and '[\\"]' or "[\\']", k) or n + 1
             local d = src:sub(k, k)
-            if k > n then syntaxError("unterminated string literal", line) end
+            if k > n then syntaxError("unterminated string literal (detected at line " .. line .. ")", line, colAt(ls, tokStart), 1) end
             if d == "\\" then k = k + 2
             elseif src:sub(k, k + #close - 1) == close then break
             else k = k + 1 end
@@ -98,8 +124,8 @@ local function lex(src)
           i = k + #close
           local start = line
           for _ in body:gmatch("\n") do line = line + 1 end
-          if prefix:find("f") then toks[#toks + 1] = { t = "fstr", v = body, raw = prefix:find("r") ~= nil, line = start }
-          else toks[#toks + 1] = { t = "str", v = prefix:find("r") and body or unescape(body), line = start } end
+          if prefix:find("f") then toks[#toks + 1] = { t = "fstr", v = body, raw = prefix:find("r") ~= nil, line = start, col = colAt(ls, tokStart) }
+          else toks[#toks + 1] = { t = "str", v = prefix:find("r") and body or unescape(body), line = start, col = colAt(ls, tokStart) } end
         else
           push(KW[w] and "kw" or "name", w); i = j
         end
@@ -130,13 +156,13 @@ local function lex(src)
         while true do
           k = src:find(c == '"' and '[\\"\n]' or "[\\'\n]", k) or n + 1
           local d = src:sub(k, k)
-          if k > n or (d == "\n" and not triple) then syntaxError("unterminated string literal", line) end
+          if k > n or (d == "\n" and not triple) then syntaxError("unterminated string literal (detected at line " .. line .. ")", line, colAt(ls, tokStart), 1) end
           if d == "\\" then k = k + 2
           elseif src:sub(k, k + #close - 1) == close then break
           else k = k + 1 end
         end
         local body = src:sub(from, k - 1)
-        toks[#toks + 1] = { t = "str", v = unescape(body), line = line }
+        toks[#toks + 1] = { t = "str", v = unescape(body), line = line, col = colAt(ls, tokStart) }
         for _ in body:gmatch("\n") do line = line + 1 end
         i = k + #close
       else
@@ -148,6 +174,11 @@ local function lex(src)
       end
     end
   end
+  do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+  end
+  tokStart = i
   if toks[#toks] and toks[#toks].t ~= "nl" then push("nl") end
   for k = #indents, 2, -1 do push("dedent") end
   push("eof")
@@ -371,7 +402,7 @@ local function numericScan(toks, a, b, shadow, outer, params)
 end
 
 -- ---------------------------------------------------------------- compiler
-local function compile(src, chunkName)
+local function compileText(src, chunkName)
   local toks, pos = lex(src), 1
   local tok = toks[1]
   local out = {}
@@ -386,7 +417,7 @@ local function compile(src, chunkName)
   local function adv() pos = pos + 1; tok = toks[pos] end
   local function isOp(v) return tok.t == "op" and tok.v == v end
   local function isKw(v) return tok.t == "kw" and tok.v == v end
-  local function err(msg) syntaxError(msg or "invalid syntax", tok.line) end
+  local function err(msg) syntaxError(msg or "invalid syntax", tok.line, tok.col, tok.col and tok.ecol and math.max(1, tok.ecol - tok.col + 1) or 1) end
   local function acceptOp(v) if isOp(v) then adv(); return true end end
   local function acceptKw(v) if isKw(v) then adv(); return true end end
   local function expectOp(v) if not acceptOp(v) then err("expected '" .. v .. "'") end end
@@ -1860,8 +1891,21 @@ function LC.report(t0)
   end
 end
 
+-- an error of the translator gets the text of its line, for the message (File "x.py", line 3 / the caret under the token)
+local function compile(src, chunkName)
+  local ok, r = pcall(compileText, src, chunkName)
+  if ok then return r end
+  if type(r) == "table" and r.syntax and not r.text then
+    local k = 0
+    for l in (src .. "\n"):gmatch("([^\n]*)\n") do
+      k = k + 1
+      if k == tonumber(r.line) then r.text = l; break end
+    end
+  end
+  error(r, 0)
+end
 P.compile = compile
-P.VERSION = "1.0.0.2"
+P.VERSION = "1.0.0.3"
 
 function P.main(args)
   local rt = driver.load("pyrt")

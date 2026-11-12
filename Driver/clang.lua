@@ -13,7 +13,13 @@ local QUALS = { const = 1, static = 1, inline = 1, extern = 1, volatile = 1, reg
 local LUAKW = {}
 for w in ("and elseif end function in local nil not or repeat then until self print type pairs ipairs string math table select error pcall R_ G"):gmatch("%S+") do LUAKW[w] = true end
 local function mangle(n) if LUAKW[n] then return n .. "_" end return n end
-local function syntaxError(m, l) error({ syntax = m, line = l }, 0) end
+-- col and len: where the error is in the line (1-based) and how long the token is; extra: fix (a text gcc suggests to insert) and
+-- nextTok (the token that follows, shown with ~~~)
+local function syntaxError(m, l, col, len, extra)
+  local e = { syntax = m, line = l, col = col, len = len }
+  if extra then for k, v in pairs(extra) do e[k] = v end end
+  error(e, 0)
+end
 
 -- types
 local T = {}
@@ -48,10 +54,32 @@ local OPS = { "<<=", ">>=", "...", "->*", "==", "!=", "<=", ">=", "&&", "||", "+
 local OPSET, OPMAX = {}, 2
 for _, o in ipairs(OPS) do OPSET[o] = true; if #o > OPMAX then OPMAX = #o end end
 local ESC = { n = 10, t = 9, r = 13, ["0"] = 0, a = 7, b = 8, f = 12, v = 11, e = 27, ["\\"] = 92, ["'"] = 39, ['"'] = 34, ["?"] = 63 }
+-- where a token stands: the line starts of a source, and the column (1 = first character of the line) of an index; used by the
+-- error messages of the translator
+local function lineStartsOf(src)
+  local ls, p = { 1 }, 1
+  while true do
+    p = src:find("\n", p, true)
+    if not p then break end
+    p = p + 1
+    ls[#ls + 1] = p
+  end
+  return ls
+end
+local function colAt(ls, p)
+  local lo, hi = 1, #ls
+  while lo < hi do
+    local mid = (lo + hi + 1) // 2
+    if ls[mid] <= p then lo = mid else hi = mid - 1 end
+  end
+  return p - ls[lo] + 1
+end
+
 local function lex(src)
   local toks, i, n, line = {}, 1, #src, 1
+  local ls, tokStart = lineStartsOf(src), 1
   local defines = {}
-  local function push(t, v) toks[#toks + 1] = { t = t, v = v, line = line } end
+  local function push(t, v) toks[#toks + 1] = { t = t, v = v, line = line, col = colAt(ls, tokStart) } end
   local function esc(j)
     local d = src:sub(j + 1, j + 1)
     if d == "x" then local h = src:match("^%x+", j + 2); return tonumber(h, 16) & 255, j + 2 + #h end
@@ -61,6 +89,9 @@ local function lex(src)
   if src:sub(1, 2) == "#!" then i = src:find("\n", 1, true) or n + 1 end
   local atLineStart = true
   while i <= n do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+    tokStart = i
     local c = src:sub(i, i)
     if c == "\n" then line = line + 1; i = i + 1; atLineStart = true
     elseif c == " " or c == "\t" or c == "\r" then i = i + 1
@@ -101,7 +132,7 @@ local function lex(src)
       else
         local d = defines[w]
         if d and not d.params then
-          for _, t in ipairs(d.body) do toks[#toks + 1] = { t = t.t, v = t.v, line = line } end
+          for _, t in ipairs(d.body) do toks[#toks + 1] = { t = t.t, v = t.v, line = line, col = colAt(ls, tokStart) } end
         elseif d and src:match("^%s*%(", i) then
           i = src:find("(", i, true) + 1
           local args, cur, depth = {}, {}, 0
@@ -118,10 +149,10 @@ local function lex(src)
           for k, p in ipairs(d.params) do map[p] = lex(args[k] or "").list end
           for _, t in ipairs(d.body) do
             if t.t == "name" and map[t.v] then
-              toks[#toks + 1] = { t = "op", v = "(", line = line }
-              for _, a in ipairs(map[t.v]) do toks[#toks + 1] = { t = a.t, v = a.v, line = line } end
-              toks[#toks + 1] = { t = "op", v = ")", line = line }
-            else toks[#toks + 1] = { t = t.t, v = t.v, line = line } end
+              toks[#toks + 1] = { t = "op", v = "(", line = line, col = colAt(ls, tokStart) }
+              for _, a in ipairs(map[t.v]) do toks[#toks + 1] = { t = a.t, v = a.v, line = line, col = colAt(ls, tokStart) } end
+              toks[#toks + 1] = { t = "op", v = ")", line = line, col = colAt(ls, tokStart) }
+            else toks[#toks + 1] = { t = t.t, v = t.v, line = line, col = colAt(ls, tokStart) } end
           end
         else push("name", w) end
       end
@@ -184,13 +215,20 @@ local function lex(src)
       i = i + #op
     end
   end
+  do
+    local lt = toks[#toks]
+    if lt and not lt.ecol then lt.ecol = colAt(ls, i - 1) end
+  end
   return { list = toks }
 end
 
 -- ---- compiler ----
 local function compile(src, isCpp)
   local toks = lex(src).list
-  toks[#toks + 1] = { t = "eof", line = (toks[#toks] or { line = 1 }).line }
+  do
+    local last = toks[#toks]
+    toks[#toks + 1] = { t = "eof", line = (last or { line = 1 }).line, col = last and last.ecol and last.ecol + 1 or nil }
+  end
   if not isCpp then  -- words of C++ are plain names in C
     local CPPWORDS = { new = 1, delete = 1, class = 1, this = 1, template = 1, namespace = 1, operator = 1, typename = 1, using = 1, virtual = 1, public = 1, private = 1, protected = 1, friend = 1, explicit = 1, mutable = 1, try = 1, catch = 1, throw = 1, nullptr = 1 }
     for _, x in ipairs(toks) do
@@ -213,10 +251,29 @@ local function compile(src, isCpp)
   local function peek(k) return toks[pos + (k or 1)] end
   local function isOp(v) return tok.t == "op" and tok.v == v end
   local function isName(v) return tok.t == "name" and tok.v == v end
-  local function err(m) syntaxError(m or ("expected something else before '" .. tostring(tok.v or "end of file") .. "'"), tok.line) end
+  local function tlen(t) return t and t.col and t.ecol and math.max(1, t.ecol - t.col + 1) or 1 end
+  -- how gcc names the token an error is "before"
+  local function beforeOf(t)
+    if t.t == "eof" then return "end of input" end
+    if t.t == "op" then return "'" .. t.v .. "' token" end
+    if t.t == "str" then return "string constant" end
+    if t.t == "int" or t.t == "float" then return "numeric constant" end
+    if t.t == "char" then return "character constant" end
+    return "'" .. tostring(t.v) .. "'"
+  end
+  local function err(m) syntaxError(m or ("expected expression before " .. beforeOf(tok)), tok.line, tok.col, tlen(tok)) end
   local function acceptOp(v) if isOp(v) then adv(); return true end end
   local function acceptName(v) if isName(v) then adv(); return true end end
-  local function expectOp(v) if not acceptOp(v) then err("expected '" .. v .. "' before '" .. tostring(tok.v or "end of file") .. "'") end end
+  local function expectOp(v)
+    if acceptOp(v) then return end
+    local m = "expected '" .. v .. "' " .. (tok.t == "eof" and "at end of input" or ("before " .. beforeOf(tok)))
+    local prev = toks[pos - 1]
+    if v == ";" and prev and prev.col then
+      -- gcc points just after the last token and suggests the missing ';'
+      syntaxError(m, prev.line, (prev.ecol or prev.col) + 1, 1, { fix = ";", nextTok = tok.t ~= "eof" and { line = tok.line, col = tok.col, len = tlen(tok) } or nil })
+    end
+    syntaxError(m, tok.line, tok.col, tlen(tok))
+  end
   local function emit(s) out[#out + 1] = s end
   local function tmp() tmpN = tmpN + 1; return "_t" .. tmpN end
   local function capture(f) local s = out; out = {}; f(); local r = table.concat(out, "\n"); out = s; return r end
@@ -1135,7 +1192,7 @@ local function compile(src, isCpp)
       if v == "fixed" or v == "scientific" or v == "defaultfloat" or v == "boolalpha" or v == "noboolalpha" or v == "left" or v == "right" or v == "hex" or v == "dec" or v == "oct" or v == "showpoint" or v == "flush" or v == "ws" then
         return "R.manip." .. v, base("manip")
       end
-      syntaxError("'" .. v .. "' was not declared in this scope", t.line)
+      syntaxError(isCpp and ("'" .. v .. "' was not declared in this scope") or ("'" .. v .. "' undeclared (first use in this function)"), t.line, t.col, tlen(t))
     end
     err()
   end
@@ -1171,6 +1228,7 @@ local function compile(src, isCpp)
         local arrow = tok.v == "->"
         adv()
         if isOp("~") then adv() end
+        local ntok = tok
         local n = tok.v
         adv()
         local obj, objT = c, t
@@ -1205,11 +1263,11 @@ local function compile(src, isCpp)
                 for i, x in ipairs(a) do parts[i] = plainArg(x) end
                 c = obj .. "." .. mangle(n) .. "(" .. table.concat(parts, ",") .. ")"; t = AUTO
               else
-                syntaxError("'" .. objT.name .. "' has no member named '" .. n .. "'", tok.line)
+                syntaxError("'" .. (isCpp and "" or "struct ") .. objT.name .. "' has no member named '" .. n .. "'", ntok.line, ntok.col, tlen(ntok))
               end
             else
               local sig = findOverload(m, #a)
-              if not sig then syntaxError("no matching function for call to '" .. n .. "'", tok.line) end
+              if not sig then syntaxError("no matching function for call to '" .. n .. "'", ntok.line, ntok.col, tlen(ntok)) end
               c = obj .. ":" .. mangle(n) .. "_" .. sig.arity .. "(" .. callWith(sig, a) .. ")"
               t = sig.ret
             end
@@ -1581,7 +1639,7 @@ local function compile(src, isCpp)
           local s = lv.strset .. "=R.strset(" .. lv.strset .. "," .. lv.idx .. "," .. v .. ")"
           return "(function() " .. s .. " end)()", CHAR, false, s
         end
-        if not lv then syntaxError("lvalue required as left operand of assignment", tok.line) end
+        if not lv then syntaxError("lvalue required as left operand of assignment", tok.line, tok.col, tlen(tok)) end
         local v, tv, vlv
         if isOp("{") then v = braceInit(ta); tv = ta
         else v, tv, vlv = assignExpr() end
@@ -1602,7 +1660,7 @@ local function compile(src, isCpp)
         adv()
         local bop = COMPOUND[op]
         if type(lv) == "table" then err() end
-        if not lv then syntaxError("lvalue required as left operand of assignment", tok.line) end
+        if not lv then syntaxError("lvalue required as left operand of assignment", tok.line, tok.col, tlen(tok)) end
         local v, tv = assignExpr()
         local nv
         if ta.n == "string" then
@@ -2865,7 +2923,7 @@ function LC.report(t0)
 end
 
 C.compile = compile
-C.VERSION = "1.0.0.6"
+C.VERSION = "1.0.0.7"
 
 function C.main(args, isCpp)
   local rt = driver.load("crt")
@@ -2900,20 +2958,46 @@ function C.main(args, isCpp)
     term.write((isCpp and "g++" or "gcc") .. ": fatal error: no input files\ncompilation terminated.\n")
     return 1
   end
+  -- the line of the source and its tabs (gcc shows them as blanks up to the next multiple of 8) with the display column of a character
+  local function showLine(srcText, ln, col)
+    local code, k = "", 0
+    for l in ((srcText or "") .. "\n"):gmatch("([^\n]*)\n") do
+      k = k + 1
+      if k == ln then code = l; break end
+    end
+    local out, dcol = {}, 1
+    local w = 0
+    for ci = 1, #code do
+      local ch = code:sub(ci, ci)
+      if ci == col then dcol = w + 1 end
+      if ch == "\t" then
+        local sp = 8 - w % 8
+        out[#out + 1] = string.rep(" ", sp)
+        w = w + sp
+      else out[#out + 1] = ch; w = w + 1 end
+    end
+    if col > #code then dcol = w + (col - #code) end
+    return table.concat(out), dcol
+  end
   local function report(path, e, srcText)
     if type(e) == "table" and e.syntax then
       local ln = tonumber(e.line) or 1
-      local code = ""
-      local k = 0
-      for l in ((srcText or "") .. "\n"):gmatch("([^\n]*)\n") do
-        k = k + 1
-        if k == ln then code = l; break end
-      end
-      local col = (code:find("%S")) or 1
-      term.write(path .. ":" .. ln .. ":" .. col .. ": error: " .. e.syntax .. "\n")
+      local first = srcText and select(1, showLine(srcText, ln, 1)) or ""
+      local col = e.col or (first:find("%S")) or 1
+      local len = e.len or 1
+      local code, dcol = showLine(srcText, ln, col)
+      term.write(path .. ":" .. ln .. ":" .. dcol .. ": error: " .. e.syntax .. "\n")
       if code ~= "" then
         local gut = string.format("%5d", ln)
-        term.write(gut .. " | " .. code .. "\n" .. string.rep(" ", #gut) .. " | " .. string.rep(" ", col - 1) .. "^\n")
+        local blank = string.rep(" ", #gut) .. " | "
+        term.write(gut .. " | " .. code .. "\n" .. blank .. string.rep(" ", dcol - 1) .. "^" .. string.rep("~", math.max(0, len - 1)) .. "\n")
+        if e.fix then term.write(blank .. string.rep(" ", dcol - 1) .. e.fix .. "\n") end
+        local nx = e.nextTok
+        if nx and nx.line ~= ln then
+          local code2, d2 = showLine(srcText, nx.line, nx.col or 1)
+          local g2 = string.format("%5d", nx.line)
+          term.write(g2 .. " | " .. code2 .. "\n" .. blank .. string.rep(" ", d2 - 1) .. string.rep("~", math.max(1, nx.len or 1)) .. "\n")
+        end
       end
     else term.write(tostring(e) .. "\n") end
     return 1

@@ -1,7 +1,7 @@
 #!lua
 -- pipes: pipes.sh, the animated pipes screensaver (pipeseroni). Pipes crawl from the middle, going straight or turning,
--- and the screen is cleared after LIMIT characters. The screen shows one byte per cell, so the box-drawing types
--- 0 1 2 3 8 9 (default 0) are drawn with the ASCII type 4 instead. q quits, space clears, p pauses.
+-- and the screen is cleared after LIMIT characters. The box-drawing types
+-- all ten types of the original are drawn with the real box characters. q quits, space clears, p pauses.
 local VERSION = "1.3.0"
 local USAGE = [[
 Usage: pipes.sh [OPTION]...
@@ -22,9 +22,24 @@ Animated pipes terminal screensaver.
  -v                     print version number.]]
 
 -- the 16 characters of a type: index 4 * (direction before) + (direction after) + 1; directions 0 up, 1 right, 2 down, 3 left
-local SETS = { [4] = "|+ ++-+  +|++ +-", [5] = "|/ \\/-\\  \\|/\\ /-", [6] = ".o oo.o  o.oo o.", [7] = "-\\ /\\|/  /-\\/ \\|" }
-local PALETTE = { [0] = "dim", "red", "green", "yellow", "blue", "magenta", "cyan", "white" }
-
+local SETS = {
+  [0] = "┃┏ ┓┛━┓  ┗┃┛┗ ┏━", "│┌ ┐┘─┐  └│┘└ ┌─", "│╭ ╮╯─╮  ╰│╯╰ ╭─", "║╔ ╗╝═╗  ╚║╝╚ ╔═",
+  "|+ ++-+  +|++ +-", "|/ \\/-\\  \\|/\\ /-", ".o oo.o  o.oo o.", "-\\ /\\|/  /-\\/ \\|",
+  "┇┏ ┓┛┅┓  ┗┇┛┗ ┏┅", "┊┌ ┐┘┄┐  └┊┘└ ┌┄" }
+-- a set is a table of 16 characters (one cell each, so UTF-8 is split by character)
+local function chars(str)
+  local t = {}
+  for c in str:gmatch("[\0-\127\194-\244][\128-\191]*") do t[#t + 1] = c end
+  return t
+end
+-- the 8 colours of the original (tput setaf 1..7 and 0) in bold; -B uses the plain ones
+local function rgbs(bold)
+  local k = bold and 255 or 205
+  local d = bold and 85 or 0
+  return { [0] = term.rgb(bold and 100 or 40, bold and 100 or 40, bold and 100 or 40), term.rgb(k, d, d), term.rgb(d, k, d),
+    term.rgb(k, k, d), term.rgb(d, d, bold and 255 or 238), term.rgb(k, d, k), term.rgb(d, k, k), term.rgb(k, k, k) }
+end
+local PALETTE = {}
 local function fail(msg)
   if msg then print(msg) end
   print(USAGE)
@@ -52,13 +67,13 @@ local function parse(args)
         if v == "" then i = i + 1; v = args[i] end
         if not v then return fail("pipes.sh: option requires an argument -- " .. f) end
         if f == "t" then
-          if v:sub(1, 1) == "c" and #v == 17 then o.types[#o.types + 1] = v:sub(2)
-          elseif v:match("^%d$") then o.types[#o.types + 1] = SETS[tonumber(v)] or SETS[4]
+          if v:sub(1, 1) == "c" and #chars(v:sub(2)) == 16 then o.types[#o.types + 1] = chars(v:sub(2))
+          elseif v:match("^%d$") then o.types[#o.types + 1] = chars(SETS[tonumber(v)])
           else return fail() end
         elseif f == "c" then
           local n = tonumber(v)
           if not n or n < 0 or n > 7 then return fail() end
-          o.colors[#o.colors + 1] = PALETTE[n // 1]
+          o.colors[#o.colors + 1] = n // 1
         else
           local n = tonumber(v)
           if not n then return fail() end
@@ -73,16 +88,17 @@ local function parse(args)
     i = i + 1
   end
   if o.p < 1 or o.f < 20 or o.f > 100 or o.s < 5 or o.s > 15 or o.r < 0 then return fail() end
-  if #o.types == 0 then o.types[1] = SETS[4] end
-  if #o.colors == 0 then for k = 1, 8 do o.colors[k] = PALETTE[k % 8] end end
+  if #o.types == 0 then o.types[1] = chars(SETS[0]) end
+  if #o.colors == 0 then for k = 1, 8 do o.colors[k] = k % 8 end end
   return true
 end
 
 if arg[1] == "--selftest" then
   local bad = 0
   for k, set in pairs(SETS) do
-    if #set ~= 16 then bad = bad + 1 end
-    for d = 0, 3 do if set:sub(d * 5 + 1, d * 5 + 1) == " " then bad = bad + 1 end end  -- straight fittings exist
+    local t = chars(set)
+    if #t ~= 16 then bad = bad + 1 end
+    for d = 0, 3 do if t[d * 5 + 1] == " " then bad = bad + 1 end end  -- straight fittings exist
   end
   if turn(0, 0) ~= 1 or turn(0, 1) ~= 3 or turn(3, 0) ~= 0 then bad = bad + 1 end
   print(bad == 0 and "selftest ok" or "selftest failed")
@@ -91,12 +107,13 @@ end
 if not parse(arg) then return end
 
 local COLS, ROWS = term.size()
+PALETTE = rgbs(not o.B)
 local DX = { [0] = 0, 1, 0, -1 }
 local DY = { [0] = -1, 0, 1, 0 }
 
 local function newPipe()
   local p = { d = math.random(0, 3), set = o.types[math.random(#o.types)],
-    color = o.C and "white" or o.colors[math.random(#o.colors)] }
+    color = o.C and "white" or PALETTE[o.colors[math.random(#o.colors)]] }
   if o.R then p.x, p.y = math.random(0, COLS - 1), math.random(0, ROWS - 1)
   else p.x, p.y = COLS // 2, ROWS // 2 end
   return p
@@ -117,8 +134,8 @@ local function step(p)
     if nx < 0 or nx >= COLS or ny < 0 or ny >= ROWS then nd = (nd + 2) % 4; nx, ny = p.x + DX[nd], p.y + DY[nd] end
   end
   p.x, p.y, p.d = (nx + COLS) % COLS, (ny + ROWS) % ROWS, nd
-  local ch = p.set:sub(last * 4 + nd + 1, last * 4 + nd + 1)
-  if ch == " " then ch = p.set:sub(1, 1) end  -- a U-turn has no fitting: never happens, kept for custom sets
+  local ch = p.set[last * 4 + nd + 1]
+  if ch == " " then ch = p.set[1] end  -- a U-turn has no fitting: never happens, kept for custom sets
   term.put(p.x, p.y, ch, p.color)
   count = count + 1
 end

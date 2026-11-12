@@ -219,7 +219,8 @@ local function drawSmoke(x, top, step)
   local alive = {}
   for _, p in ipairs(puffs) do
     if p.age <= #SMOKE then
-      term.text(p.x, p.y, SMOKE[p.age], "dim")
+      local g = math.max(70, 200 - p.age * 14)  -- the smoke fades from light to dark grey as it ages
+      term.text(p.x, p.y, SMOKE[p.age], term.rgb(g, g, g))
       p.y = p.y - SMOKE_DY[p.age]
       p.x = p.x + SMOKE_DX[p.age]
       p.age = p.age + 1
@@ -247,17 +248,17 @@ for x = COLS - 1, -train.width, -1 do
   local rows = train.rows(step)
   for r, line in ipairs(rows) do
     local y = top + r - 1
-    if y >= 0 and y < ROWS then term.text(x, y, line, "white") end
+    if y >= 0 and y < ROWS then term.text(x, y, line, term.rgb(235, 235, 235)) end
   end
   if opts.accident then
     for i, col in ipairs(train.men) do
       local wave = (step // 2 + i) % 2 == 0
       -- in the windows of the cab (third row), with the cry above them, as in the original
-      if top + 2 >= 0 then term.text(x + col, top + 2, wave and "\\O/" or "(O)", "yellow") end
+      if top + 2 >= 0 then term.text(x + col, top + 2, wave and "\\O/" or "(O)", term.rgb(255, 215, 0)) end
       if wave and top + 1 >= 0 then term.text(x + col - 1, top + 1, "Help!", "red") end
     end
   end
-  if not opts.fly then term.text(0, ROWS - 1, string.rep("=", COLS), "dim") end
+  if not opts.fly then term.text(0, ROWS - 1, string.rep("=", COLS), term.rgb(140, 100, 60)) end
   drawSmoke(x, top, step)
   term.flush()
   step = step + 1

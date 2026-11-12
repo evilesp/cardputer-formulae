@@ -1,5 +1,5 @@
 #!lua
--- lolcat: rainbow colored text, like lolcat 100 (the colors follow the same sine gradient).
+-- lolcat: rainbow colored text, like lolcat 100 (the same true-color sine gradient: frequency 0.1, spread 3.0).
 -- usage: lolcat [OPTION]... [FILE]...    (a word that is not a file is printed as text)
 
 local HELP = [[
@@ -110,20 +110,13 @@ while arg[i] do
 end
 if spread < 0.1 then die("Error: Spread must be >= 0.1") end
 
--- the screen palette has six hues: pick the one nearest to the sine rainbow
-local NAMES = { "red", "yellow", "green", "cyan", "blue", "magenta" }
+-- the real lolcat gradient: three sines a third of a turn apart, true colour; term.rgb picks the nearest of the 128
+-- palette colours (the rainbow of 32 hues in it is made from the same sines)
 local function colorAt(pos)
   local r = math.sin(freq * pos) * 127 + 128
   local g = math.sin(freq * pos + 2 * math.pi / 3) * 127 + 128
   local b = math.sin(freq * pos + 4 * math.pi / 3) * 127 + 128
-  local mx, mn = math.max(r, g, b), math.min(r, g, b)
-  local h = 0
-  if mx - mn > 1 then
-    if mx == r then h = ((g - b) / (mx - mn)) % 6
-    elseif mx == g then h = (b - r) / (mx - mn) + 2
-    else h = (r - g) / (mx - mn) + 4 end
-  end
-  return NAMES[math.floor(h + 0.5) % 6 + 1]
+  return term.rgb(math.floor(r), math.floor(g), math.floor(b))
 end
 
 if seed == 0 then seed = math.random(0, 255) end
@@ -137,7 +130,7 @@ local function paint(text)
         term.write(ch == "\t" and "    " or ch, "text")
       else
         local c = colorAt(os_ + col / spread)
-        if invert then c = "inverse-" .. c end
+        if invert then c = c + 128 end
         term.write(ch, c)
       end
       col = col + 1
